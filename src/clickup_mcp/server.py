@@ -26,7 +26,7 @@ import httpx
 from bs4 import BeautifulSoup
 from dateparser import parse as parse_date
 from mcp.server.fastmcp import Context, FastMCP
-from pydantic import AnyHttpUrl, BaseModel, Field, SecretStr, ValidationError
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from smithery.decorators import smithery
 
@@ -102,6 +102,176 @@ class MultipartFile(BaseModel):
             ),
         )
 
+
+class ViewFilterCondition(BaseModel):
+    """Single field filter used when configuring ClickUp views."""
+
+    model_config = ConfigDict(extra="allow")
+
+    field: str = Field(
+        ..., description="Field identifier such as status, tag, dueDate, or cf_ custom field keys."
+    )
+    op: str = Field(
+        ...,
+        description=(
+            "Filter operator (e.g. EQ, ANY, NOT, GT, IS SET). Refer to ClickUp view filtering documentation for supported values."
+        ),
+    )
+    values: list[Any] = Field(
+        default_factory=list,
+        description="Collection of values applied to the filter. Accepts primitives or objects for dynamic date operators.",
+    )
+
+
+class ViewFilters(BaseModel):
+    """Top level filter definition passed to the ClickUp view APIs."""
+
+    model_config = ConfigDict(extra="allow")
+
+    op: Literal["AND", "OR"] = Field(
+        "AND", description="Logical operator used to combine filters at the top level."
+    )
+    fields: list[ViewFilterCondition] = Field(
+        default_factory=list,
+        description="Individual field filters applied to the view.",
+    )
+    search: str = Field(
+        "",
+        description="Optional keyword search applied after other filters. Provide an empty string to disable.",
+    )
+    show_closed: bool = Field(
+        False,
+        description="When false closed tasks are hidden. This flag is always combined using AND.",
+    )
+    groups: Optional[list[list[int]]] = Field(
+        default=None,
+        description="Optional filter group definitions referencing indices from the fields collection.",
+    )
+    filter_group_ops: Optional[list[str]] = Field(
+        default=None,
+        description="Logical operators applied between filter groups (e.g. ['OR','AND']).",
+    )
+
+
+class ViewGrouping(BaseModel):
+    """Grouping configuration controlling column swimlanes for the view."""
+
+    model_config = ConfigDict(extra="allow")
+
+    field: Literal["none", "status", "priority", "assignee", "tag", "dueDate"] = Field(
+        "none", description="Field used to group tasks within the view."
+    )
+    dir: Literal[1, -1] = Field(
+        1,
+        description="Group sort order. Use 1 for ascending and -1 for descending (e.g. urgent to low).",
+    )
+    collapsed: list[str] = Field(
+        default_factory=list,
+        description="Identifiers of groups that should start collapsed.",
+    )
+    ignore: bool = Field(
+        False,
+        description="When true the grouping preference is ignored and tasks render in a single column.",
+    )
+
+
+class ViewDivide(BaseModel):
+    """Secondary grouping row used by board style views."""
+
+    model_config = ConfigDict(extra="allow")
+
+    field: Optional[str] = Field(
+        default=None,
+        description="Optional field to divide columns by (set to null/None to disable).",
+    )
+    dir: Optional[int] = Field(
+        default=None,
+        description="Sort direction applied to the divide field when configured.",
+    )
+    collapsed: bool = Field(
+        True,
+        description="Whether divide rows are initially collapsed.",
+    )
+
+
+class ViewSorting(BaseModel):
+    """Sorting configuration for ClickUp views."""
+
+    model_config = ConfigDict(extra="allow")
+
+    fields: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Sequence of field identifiers or sort objects controlling task order.",
+    )
+
+
+class ViewColumns(BaseModel):
+    """Column visibility configuration for ClickUp views."""
+
+    model_config = ConfigDict(extra="allow")
+
+    fields: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Fields (including custom fields) displayed as columns. Use cf_ prefixes for custom fields.",
+    )
+
+
+class ViewTeamSidebar(BaseModel):
+    """Sidebar configuration controlling assignee visibility."""
+
+    model_config = ConfigDict(extra="allow")
+
+    assignees: list[str] = Field(
+        default_factory=list,
+        description="Collection of user identifiers displayed in the sidebar. Use 'me' for Me mode.",
+    )
+    assigned_comments: bool = Field(
+        True,
+        description="When true comments assigned to the user are highlighted in the sidebar.",
+    )
+    unassigned_tasks: bool = Field(
+        True,
+        description="Whether unassigned tasks are surfaced in the sidebar filters.",
+    )
+
+
+class ViewSettings(BaseModel):
+    """General view settings mirrored from the ClickUp UI."""
+
+    model_config = ConfigDict(extra="allow")
+
+    show_task_locations: bool = Field(
+        True, description="Display breadcrumbs that show where each task lives in the hierarchy."
+    )
+    show_subtasks: Literal[1, 2, 3] = Field(
+        1,
+        description="Controls subtask presentation: 1 separate, 2 expanded, 3 collapsed.",
+    )
+    show_subtask_parent_names: bool = Field(
+        True, description="Display parent task names alongside subtasks."
+    )
+    show_closed_subtasks: bool = Field(
+        True, description="Include closed subtasks in the view when subtasks are visible."
+    )
+    show_assignees: bool = Field(
+        True, description="Show assignee avatars in the task rows."
+    )
+    show_images: bool = Field(
+        True, description="Display image thumbnails within the view when available."
+    )
+    collapse_empty_columns: Optional[str] = Field(
+        default=None,
+        description="Optionally collapse columns without tasks. Pass a string policy or null to disable.",
+    )
+    me_comments: bool = Field(
+        True, description="Enable the 'Assigned to me' comment shortcut within the view."
+    )
+    me_subtasks: bool = Field(
+        True, description="Enable the 'Assigned to me' subtask shortcut within the view."
+    )
+    me_checklists: bool = Field(
+        True, description="Enable the 'Assigned to me' checklist shortcut within the view."
+    )
 
 @dataclass
 class ClickUpResponse:
@@ -648,6 +818,49 @@ def _apply_task_date_fields(
     due_millis = _parse_date_field(due_date)
     if due_millis is not None:
         payload["due_date"] = due_millis
+
+
+def _coerce_view_model(
+    value: Any,
+    model_cls: type[BaseModel],
+) -> Dict[str, Any]:
+    """Normalize user supplied view configuration fragments."""
+
+    if value is None:
+        model = model_cls()
+    elif isinstance(value, model_cls):
+        model = value
+    else:
+        model = model_cls.model_validate(value)
+    return model.model_dump(exclude_none=True)
+
+
+def _prepare_view_payload(
+    *,
+    name: str,
+    view_type: str,
+    filters: Any = None,
+    grouping: Any = None,
+    divide: Any = None,
+    sorting: Any = None,
+    columns: Any = None,
+    team_sidebar: Any = None,
+    settings: Any = None,
+) -> Dict[str, Any]:
+    """Construct the request body for ClickUp view creation endpoints."""
+
+    payload = {
+        "name": name,
+        "type": view_type,
+        "grouping": _coerce_view_model(grouping, ViewGrouping),
+        "divide": _coerce_view_model(divide, ViewDivide),
+        "sorting": _coerce_view_model(sorting, ViewSorting),
+        "filters": _coerce_view_model(filters, ViewFilters),
+        "columns": _coerce_view_model(columns, ViewColumns),
+        "team_sidebar": _coerce_view_model(team_sidebar, ViewTeamSidebar),
+        "settings": _coerce_view_model(settings, ViewSettings),
+    }
+    return payload
 
 
 def _resolve_list_identifier(
@@ -1922,6 +2135,124 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
+    @server.tool(name="create_list_view")
+    def create_list_view(
+        ctx: Context,
+        name: Annotated[str, Field(description="Name for the new view.")],
+        view_type: Annotated[
+            Literal[
+                "list",
+                "board",
+                "calendar",
+                "table",
+                "timeline",
+                "workload",
+                "activity",
+                "map",
+                "conversation",
+                "gantt",
+            ],
+            Field(description="View type to create (e.g. list, board, calendar)."),
+        ] = "list",
+        list_id: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description="Identifier of the list that will host the view. Optional when listName is provided.",
+            ),
+        ] = None,
+        list_name: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description="Name of the list used to resolve the identifier when listId is unknown.",
+            ),
+        ] = None,
+        team_id: Annotated[
+            Optional[int],
+            Field(
+                default=None,
+                description="Workspace/team identifier overriding the session default for list lookups.",
+            ),
+        ] = None,
+        filters: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description=(
+                    "Optional filters object following ClickUp's view filtering schema. "
+                    "Include field/operator/value definitions plus optional groups to preload filter chips."
+                ),
+            ),
+        ] = None,
+        grouping: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Grouping preferences controlling swimlanes. Provide keys like field, dir, collapsed, and ignore.",
+            ),
+        ] = None,
+        divide: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Optional secondary grouping/divide configuration mirroring ClickUp's UI settings.",
+            ),
+        ] = None,
+        sorting: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Sorting options. Supply the same structure as the ClickUp API accepts for view sorting fields.",
+            ),
+        ] = None,
+        columns: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Column configuration listing core and custom fields to display (use cf_ prefixes for custom fields).",
+            ),
+        ] = None,
+        team_sidebar: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Sidebar configuration controlling the visible assignee buckets and quick filters.",
+            ),
+        ] = None,
+        settings: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="General view settings (show_subtasks, show_assignees, collapse_empty_columns, etc.).",
+            ),
+        ] = None,
+    ) -> Dict[str, Any]:
+        client = _get_or_create_client(ctx)
+        resolved_list_id = _resolve_list_identifier(
+            client,
+            team_id=team_id,
+            list_id=list_id,
+            list_name=list_name,
+        )
+        payload = _prepare_view_payload(
+            name=name,
+            view_type=view_type,
+            filters=filters,
+            grouping=grouping,
+            divide=divide,
+            sorting=sorting,
+            columns=columns,
+            team_sidebar=team_sidebar,
+            settings=settings,
+        )
+        response = client.request_checked(
+            HttpMethod.POST,
+            f"/list/{resolved_list_id}/view",
+            json_body=payload,
+        )
+        return response.to_jsonable()
+
     @server.tool(name="create_folder")
     def create_folder(
         ctx: Context,
@@ -1992,6 +2323,120 @@ def create_server() -> FastMCP:
         response = client.request_checked(
             HttpMethod.POST,
             f"/folder/{resolved_folder}/list",
+            json_body=payload,
+        )
+        return response.to_jsonable()
+
+    @server.tool(name="create_space_view")
+    def create_space_view(
+        ctx: Context,
+        name: Annotated[str, Field(description="Name for the new view.")],
+        view_type: Annotated[
+            Literal[
+                "list",
+                "board",
+                "calendar",
+                "table",
+                "timeline",
+                "workload",
+                "activity",
+                "map",
+                "conversation",
+                "gantt",
+            ],
+            Field(description="View type to create (e.g. list, board, calendar)."),
+        ] = "list",
+        space_id: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description="Identifier of the space that will host the view. Optional when spaceName is provided.",
+            ),
+        ] = None,
+        space_name: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description="Name of the space used to resolve the identifier when spaceId is unknown.",
+            ),
+        ] = None,
+        team_id: Annotated[
+            Optional[int],
+            Field(
+                default=None,
+                description="Workspace/team identifier overriding the session default for space lookups.",
+            ),
+        ] = None,
+        filters: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Optional filters object following ClickUp's view filtering schema.",
+            ),
+        ] = None,
+        grouping: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Grouping preferences controlling swimlanes. Provide keys like field, dir, collapsed, and ignore.",
+            ),
+        ] = None,
+        divide: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Optional secondary grouping/divide configuration mirroring ClickUp's UI settings.",
+            ),
+        ] = None,
+        sorting: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Sorting options. Supply the same structure as the ClickUp API accepts for view sorting fields.",
+            ),
+        ] = None,
+        columns: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Column configuration listing core and custom fields to display (use cf_ prefixes for custom fields).",
+            ),
+        ] = None,
+        team_sidebar: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Sidebar configuration controlling the visible assignee buckets and quick filters.",
+            ),
+        ] = None,
+        settings: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="General view settings (show_subtasks, show_assignees, collapse_empty_columns, etc.).",
+            ),
+        ] = None,
+    ) -> Dict[str, Any]:
+        client = _get_or_create_client(ctx)
+        resolved_space_id = client.resolve_space_id(
+            team_id=team_id,
+            space_id=space_id,
+            space_name=space_name,
+        )
+        payload = _prepare_view_payload(
+            name=name,
+            view_type=view_type,
+            filters=filters,
+            grouping=grouping,
+            divide=divide,
+            sorting=sorting,
+            columns=columns,
+            team_sidebar=team_sidebar,
+            settings=settings,
+        )
+        response = client.request_checked(
+            HttpMethod.POST,
+            f"/space/{resolved_space_id}/view",
             json_body=payload,
         )
         return response.to_jsonable()
