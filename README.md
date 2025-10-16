@@ -1,4 +1,5 @@
 # ClickUp MCP Server
+[![smithery badge](https://smithery.ai/badge/@Polaralias/clickup-mcp)](https://smithery.ai/server/@Polaralias/clickup-mcp)
 
 An MCP server for the entire [ClickUp REST API](https://clickup.com/api) built with
 [Smithery](https://smithery.ai). The server exposes generic tools that let you
@@ -55,3 +56,11 @@ uv run playground
 
 Once deployed you can install the server from the Smithery registry or reference
 it directly from any MCP-compatible client.
+
+### Installing via Smithery
+
+To install ClickUp automatically via [Smithery](https://smithery.ai/server/@Polaralias/clickup-mcp):
+
+```bash
+npx -y @smithery/cli install @Polaralias/clickup-mcp
+```
