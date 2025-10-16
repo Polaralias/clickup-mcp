@@ -26,9 +26,39 @@ import httpx
 from bs4 import BeautifulSoup
 from dateparser import parse as parse_date
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.types import ToolAnnotations
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from smithery.decorators import smithery
+
+
+READ_ONLY_TOOL = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
+)
+
+NON_DESTRUCTIVE_WRITE_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=False,
+    openWorldHint=True,
+)
+
+IDEMPOTENT_WRITE_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
+)
+
+DESTRUCTIVE_WRITE_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=True,
+    idempotentHint=False,
+    openWorldHint=True,
+)
 
 
 class HttpMethod(str):
@@ -964,9 +994,12 @@ def create_server() -> FastMCP:
 
     server = FastMCP("ClickUp")
 
-    @server.tool()
+    @server.tool(
+        annotations=READ_ONLY_TOOL,
+        description="Scrape the ClickUp API reference navigation to expose documentation URLs for other tools to follow.",
+    )
     def list_clickup_reference_links(ctx: Context) -> Dict[str, Any]:
-        """Return structured navigation data from the ClickUp API reference."""
+        """Scrape the ClickUp API reference navigation to expose documentation URLs."""
 
         _ = ctx
         with httpx.Client(headers={"User-Agent": "Mozilla/5.0"}) as client:
@@ -985,18 +1018,24 @@ def create_server() -> FastMCP:
             "description": "Mapping of link text to ClickUp API documentation URLs scraped from the navigation menu.",
         }
 
-    @server.tool()
+    @server.tool(
+        annotations=READ_ONLY_TOOL,
+        description="Download and sanitize a ClickUp API documentation page. Use this for contextual guidance, not for task data.",
+    )
     def fetch_clickup_reference_page(
         path: Annotated[
             str,
             Field(description="Path or slug relative to /api, e.g. '/api-reference/tasks/create-task'."),
         ]
     ) -> Dict[str, Any]:
-        """Fetch and sanitize a ClickUp API documentation page."""
+        """Download and sanitize a ClickUp API documentation page for reference material."""
 
         return _scrape_clickup_docs(path)
 
-    @server.resource("clickup://guide/configuration")
+    @server.resource(
+        "clickup://guide/configuration",
+        description="How to configure authentication and defaults for the ClickUp MCP session.",
+    )
     def configuration_guide() -> str:
         """Explain how to configure the server."""
 
@@ -1009,7 +1048,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # Workspace hierarchy
     # ------------------------------------------------------------------
-    @server.tool(name="get_workspace_hierarchy")
+    @server.tool(
+        name="get_workspace_hierarchy",
+        annotations=READ_ONLY_TOOL,
+        description="Retrieve spaces, folders, and lists for a workspace via GET /team/{team_id}/space and related endpoints.",
+    )
     def get_workspace_hierarchy(
         ctx: Context,
         team_id: Annotated[
@@ -1024,6 +1067,8 @@ def create_server() -> FastMCP:
             Field(default=False, description="Force a refresh instead of serving cached hierarchy results."),
         ] = False,
     ) -> Dict[str, Any]:
+        """Retrieve the cached ClickUp workspace hierarchy for the requested team."""
+
         client = _get_or_create_client(ctx)
         hierarchy = client.get_workspace_hierarchy(team_id, force_refresh=refresh)
         return hierarchy
@@ -1031,7 +1076,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # Task management
     # ------------------------------------------------------------------
-    @server.tool(name="create_task")
+    @server.tool(
+        name="create_task",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a new ClickUp task via POST /list/{list_id}/task. Provide either list_id or list_name to target the list.",
+    )
     def create_task(
         ctx: Context,
         name: Annotated[str, Field(description="Task name to create.")],
@@ -1084,6 +1133,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a task in the specified ClickUp list using POST /list/{list_id}/task."""
+
         client = _get_or_create_client(ctx)
         resolved_list_id = _resolve_list_identifier(
             client,
@@ -1116,7 +1167,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_bulk_tasks")
+    @server.tool(
+        name="create_bulk_tasks",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create multiple ClickUp tasks in one request using POST /task/bulk.",
+    )
     def create_bulk_tasks(
         ctx: Context,
         tasks: Annotated[
@@ -1136,6 +1191,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create multiple ClickUp tasks in one request using POST /task/bulk."""
+
         client = _get_or_create_client(ctx)
         default_list_id: Optional[str] = None
         if list_id or list_name:
@@ -1198,7 +1255,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="update_task")
+    @server.tool(
+        name="update_task",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Update an existing ClickUp task via PUT /task/{task_id}. Provide task_id directly or resolve by name plus list context.",
+    )
     def update_task(
         ctx: Context,
         task_id: Annotated[
@@ -1258,6 +1319,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Update a ClickUp task using PUT /task/{task_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1298,7 +1361,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="update_bulk_tasks")
+    @server.tool(
+        name="update_bulk_tasks",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Update multiple tasks using PUT /task/bulk with ClickUp's bulk update schema.",
+    )
     def update_bulk_tasks(
         ctx: Context,
         tasks: Annotated[
@@ -1310,6 +1377,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Update multiple tasks using PUT /task/bulk with ClickUp's bulk update schema."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         normalized_tasks: list[Dict[str, Any]] = []
@@ -1349,7 +1418,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_tasks")
+    @server.tool(
+        name="get_tasks",
+        annotations=READ_ONLY_TOOL,
+        description="List tasks that live inside a specific ClickUp list via GET /list/{list_id}/task.",
+    )
     def get_tasks(
         ctx: Context,
         list_id: Annotated[
@@ -1405,6 +1478,12 @@ def create_server() -> FastMCP:
             Field(default=None, description="Filter tasks due before this timestamp."),
         ] = None,
     ) -> Dict[str, Any]:
+        """List the tasks for a ClickUp list using GET /list/{list_id}/task.
+
+        Use :func:`get_list` when you only need metadata such as list details or
+        statuses—`get_tasks` returns the tasks themselves.
+        """
+
         client = _get_or_create_client(ctx)
         resolved_list_id = _resolve_list_identifier(
             client,
@@ -1443,7 +1522,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_task")
+    @server.tool(
+        name="get_task",
+        annotations=READ_ONLY_TOOL,
+        description="Retrieve a single ClickUp task via GET /task/{task_id} with optional name-based resolution.",
+    )
     def get_task(
         ctx: Context,
         task_id: Annotated[
@@ -1471,6 +1554,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Include subtasks in the payload."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Retrieve a single ClickUp task using GET /task/{task_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1497,7 +1582,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_workspace_tasks")
+    @server.tool(
+        name="get_workspace_tasks",
+        annotations=READ_ONLY_TOOL,
+        description="Search tasks across an entire ClickUp workspace via POST /team/{team_id}/task/search.",
+    )
     def get_workspace_tasks(
         ctx: Context,
         team_id: Annotated[
@@ -1561,6 +1650,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Filter tasks due before this timestamp."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Search tasks across a workspace using POST /team/{team_id}/task/search."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         body: Dict[str, Any] = {"page": page or 0}
@@ -1601,7 +1692,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_task_comments")
+    @server.tool(
+        name="get_task_comments",
+        annotations=READ_ONLY_TOOL,
+        description="Fetch comments for a task via GET /task/{task_id}/comment.",
+    )
     def get_task_comments(
         ctx: Context,
         task_id: Annotated[
@@ -1633,6 +1728,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Comment identifier to start pagination from."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Fetch comments for a ClickUp task using GET /task/{task_id}/comment."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1661,7 +1758,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_task_comment")
+    @server.tool(
+        name="create_task_comment",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Add a new comment to a task via POST /task/{task_id}/comment.",
+    )
     def create_task_comment(
         ctx: Context,
         comment_text: Annotated[str, Field(description="Comment body to add to the task.")],
@@ -1694,6 +1795,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Assign the comment to a specific user."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Add a comment to a ClickUp task using POST /task/{task_id}/comment."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1724,7 +1827,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="attach_task_file")
+    @server.tool(
+        name="attach_task_file",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Upload a file to a task via POST /task/{task_id}/attachment.",
+    )
     def attach_task_file(
         ctx: Context,
         task_id: Annotated[
@@ -1764,6 +1871,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Explicit MIME type for the uploaded file."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Attach a file to a ClickUp task using POST /task/{task_id}/attachment."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1817,7 +1926,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="delete_task")
+    @server.tool(
+        name="delete_task",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Permanently delete a ClickUp task via DELETE /task/{task_id}.",
+    )
     def delete_task(
         ctx: Context,
         task_id: Annotated[
@@ -1841,6 +1954,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Delete a ClickUp task using DELETE /task/{task_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1862,7 +1977,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="delete_bulk_tasks")
+    @server.tool(
+        name="delete_bulk_tasks",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Permanently delete multiple tasks using POST /task/bulk/delete.",
+    )
     def delete_bulk_tasks(
         ctx: Context,
         tasks: Annotated[
@@ -1874,6 +1993,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Delete multiple tasks via POST /task/bulk/delete."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         task_ids: list[str] = []
@@ -1899,7 +2020,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="move_task")
+    @server.tool(
+        name="move_task",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Move a task to a different list or folder via POST /task/{task_id}/move.",
+    )
     def move_task(
         ctx: Context,
         task_id: Annotated[
@@ -1931,6 +2056,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Move a task to another list using POST /task/{task_id}/move."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -1959,7 +2086,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="move_bulk_tasks")
+    @server.tool(
+        name="move_bulk_tasks",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Move multiple tasks to a destination list via POST /task/bulk/move.",
+    )
     def move_bulk_tasks(
         ctx: Context,
         tasks: Annotated[
@@ -1979,6 +2110,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Move multiple tasks to a destination list using POST /task/bulk/move."""
+
         client = _get_or_create_client(ctx)
         resolved_destination = _resolve_list_identifier(
             client,
@@ -2009,7 +2142,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="duplicate_task")
+    @server.tool(
+        name="duplicate_task",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Duplicate an existing task via POST /task/{task_id}/duplicate.",
+    )
     def duplicate_task(
         ctx: Context,
         task_id: Annotated[
@@ -2077,7 +2214,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # List and folder management
     # ------------------------------------------------------------------
-    @server.tool(name="create_list")
+    @server.tool(
+        name="create_list",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a list inside a ClickUp space via POST /space/{space_id}/list.",
+    )
     def create_list(
         ctx: Context,
         name: Annotated[str, Field(description="Name of the list to create.")],
@@ -2110,6 +2251,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a ClickUp list within a space using POST /space/{space_id}/list."""
+
         client = _get_or_create_client(ctx)
         resolved_space = client.resolve_space_id(
             team_id=team_id,
@@ -2135,7 +2278,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_list_view")
+    @server.tool(
+        name="create_list_view",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a custom view for a list via POST /list/{list_id}/view.",
+    )
     def create_list_view(
         ctx: Context,
         name: Annotated[str, Field(description="Name for the new view.")],
@@ -2228,6 +2375,8 @@ def create_server() -> FastMCP:
             ),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a ClickUp view for a list using POST /list/{list_id}/view."""
+
         client = _get_or_create_client(ctx)
         resolved_list_id = _resolve_list_identifier(
             client,
@@ -2253,7 +2402,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_folder")
+    @server.tool(
+        name="create_folder",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a folder inside a space via POST /space/{space_id}/folder.",
+    )
     def create_folder(
         ctx: Context,
         name: Annotated[str, Field(description="Name of the folder to create.")],
@@ -2274,6 +2427,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a folder in a space using POST /space/{space_id}/folder."""
+
         client = _get_or_create_client(ctx)
         resolved_space = client.resolve_space_id(
             team_id=team_id,
@@ -2290,7 +2445,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_list_in_folder")
+    @server.tool(
+        name="create_list_in_folder",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a list inside a folder via POST /folder/{folder_id}/list.",
+    )
     def create_list_in_folder(
         ctx: Context,
         name: Annotated[str, Field(description="Name of the list to create.")],
@@ -2311,6 +2470,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Description of the list."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a list inside a folder using POST /folder/{folder_id}/list."""
+
         client = _get_or_create_client(ctx)
         resolved_folder = client.resolve_folder_id(
             team_id=team_id,
@@ -2327,7 +2488,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_space_view")
+    @server.tool(
+        name="create_space_view",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a workspace-level view via POST /space/{space_id}/view.",
+    )
     def create_space_view(
         ctx: Context,
         name: Annotated[str, Field(description="Name for the new view.")],
@@ -2417,6 +2582,8 @@ def create_server() -> FastMCP:
             ),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a workspace view using POST /space/{space_id}/view."""
+
         client = _get_or_create_client(ctx)
         resolved_space_id = client.resolve_space_id(
             team_id=team_id,
@@ -2441,7 +2608,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_folder")
+    @server.tool(
+        name="get_folder",
+        annotations=READ_ONLY_TOOL,
+        description="Retrieve folder details via GET /folder/{folder_id}.",
+    )
     def get_folder(
         ctx: Context,
         folder_id: Annotated[
@@ -2465,6 +2636,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Retrieve metadata for a folder using GET /folder/{folder_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_folder = client.resolve_folder_id(
             team_id=team_id,
@@ -2476,7 +2649,11 @@ def create_server() -> FastMCP:
         response = client.request_checked(HttpMethod.GET, f"/folder/{resolved_folder}")
         return response.to_jsonable()
 
-    @server.tool(name="update_folder")
+    @server.tool(
+        name="update_folder",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Update folder properties via PUT /folder/{folder_id}.",
+    )
     def update_folder(
         ctx: Context,
         folder_id: Annotated[
@@ -2508,6 +2685,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Update folder metadata using PUT /folder/{folder_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_folder = client.resolve_folder_id(
             team_id=team_id,
@@ -2528,7 +2707,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="delete_folder")
+    @server.tool(
+        name="delete_folder",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Delete a folder via DELETE /folder/{folder_id}.",
+    )
     def delete_folder(
         ctx: Context,
         folder_id: Annotated[
@@ -2552,6 +2735,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Delete a ClickUp folder using DELETE /folder/{folder_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_folder = client.resolve_folder_id(
             team_id=team_id,
@@ -2563,7 +2748,11 @@ def create_server() -> FastMCP:
         response = client.request_checked(HttpMethod.DELETE, f"/folder/{resolved_folder}")
         return response.to_jsonable()
 
-    @server.tool(name="get_list")
+    @server.tool(
+        name="get_list",
+        annotations=READ_ONLY_TOOL,
+        description="Retrieve metadata for a list via GET /list/{list_id}. Use get_tasks to list the tasks themselves.",
+    )
     def get_list(
         ctx: Context,
         list_id: Annotated[
@@ -2579,6 +2768,12 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Retrieve list metadata using GET /list/{list_id}.
+
+        Use this tool for list details (e.g. statuses, settings). Call
+        :func:`get_tasks` to enumerate the tasks that live in the list.
+        """
+
         client = _get_or_create_client(ctx)
         resolved_list = _resolve_list_identifier(
             client,
@@ -2589,7 +2784,11 @@ def create_server() -> FastMCP:
         response = client.request_checked(HttpMethod.GET, f"/list/{resolved_list}")
         return response.to_jsonable()
 
-    @server.tool(name="update_list")
+    @server.tool(
+        name="update_list",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Update list properties such as name or description via PUT /list/{list_id}.",
+    )
     def update_list(
         ctx: Context,
         list_id: Annotated[
@@ -2617,6 +2816,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Updated status."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Update list metadata using PUT /list/{list_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_list = _resolve_list_identifier(
             client,
@@ -2638,7 +2839,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="delete_list")
+    @server.tool(
+        name="delete_list",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Delete a list via DELETE /list/{list_id}.",
+    )
     def delete_list(
         ctx: Context,
         list_id: Annotated[
@@ -2654,6 +2859,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Delete a ClickUp list using DELETE /list/{list_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_list = _resolve_list_identifier(
             client,
@@ -2667,7 +2874,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # Tag management
     # ------------------------------------------------------------------
-    @server.tool(name="get_space_tags")
+    @server.tool(
+        name="get_space_tags",
+        annotations=READ_ONLY_TOOL,
+        description="List tags defined for a space via GET /space/{space_id}/tag.",
+    )
     def get_space_tags(
         ctx: Context,
         space_id: Annotated[
@@ -2683,6 +2894,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """List tags configured for a space using GET /space/{space_id}/tag."""
+
         client = _get_or_create_client(ctx)
         resolved_space = client.resolve_space_id(
             team_id=team_id,
@@ -2692,7 +2905,11 @@ def create_server() -> FastMCP:
         response = client.request_checked(HttpMethod.GET, f"/space/{resolved_space}/tag")
         return response.to_jsonable()
 
-    @server.tool(name="create_space_tag")
+    @server.tool(
+        name="create_space_tag",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a tag within a space via POST /space/{space_id}/tag.",
+    )
     def create_space_tag(
         ctx: Context,
         tag_name: Annotated[str, Field(description="Name of the tag to create.")],
@@ -2721,6 +2938,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a tag within a space using POST /space/{space_id}/tag."""
+
         client = _get_or_create_client(ctx)
         resolved_space = client.resolve_space_id(
             team_id=team_id,
@@ -2740,7 +2959,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="update_space_tag")
+    @server.tool(
+        name="update_space_tag",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Update a tag's name or colours via PUT /space/{space_id}/tag/{tag_name}.",
+    )
     def update_space_tag(
         ctx: Context,
         tag_name: Annotated[str, Field(description="Existing tag name.")],
@@ -2773,6 +2996,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Update a tag within a space using PUT /space/{space_id}/tag/{tag_name}."""
+
         client = _get_or_create_client(ctx)
         resolved_space = client.resolve_space_id(
             team_id=team_id,
@@ -2794,7 +3019,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="delete_space_tag")
+    @server.tool(
+        name="delete_space_tag",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Remove a tag from a space via DELETE /space/{space_id}/tag/{tag_name}.",
+    )
     def delete_space_tag(
         ctx: Context,
         tag_name: Annotated[str, Field(description="Name of the tag to delete.")],
@@ -2811,6 +3040,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Delete a tag from a space using DELETE /space/{space_id}/tag/{tag_name}."""
+
         client = _get_or_create_client(ctx)
         resolved_space = client.resolve_space_id(
             team_id=team_id,
@@ -2823,7 +3054,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="add_tag_to_task")
+    @server.tool(
+        name="add_tag_to_task",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Apply an existing tag to a task via POST /task/{task_id}/tag/{tag_name}.",
+    )
     def add_tag_to_task(
         ctx: Context,
         tag_name: Annotated[str, Field(description="Name of the tag to add.")],
@@ -2848,6 +3083,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Add a tag to a task using POST /task/{task_id}/tag/{tag_name}."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -2869,7 +3106,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="remove_tag_from_task")
+    @server.tool(
+        name="remove_tag_from_task",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Remove a tag from a task via DELETE /task/{task_id}/tag/{tag_name}.",
+    )
     def remove_tag_from_task(
         ctx: Context,
         tag_name: Annotated[str, Field(description="Tag to remove.")],
@@ -2894,6 +3135,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Remove a tag from a task using DELETE /task/{task_id}/tag/{tag_name}."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -2918,7 +3161,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # Time tracking
     # ------------------------------------------------------------------
-    @server.tool(name="get_task_time_entries")
+    @server.tool(
+        name="get_task_time_entries",
+        annotations=READ_ONLY_TOOL,
+        description="Retrieve logged time entries for a task via GET /task/{task_id}/time.",
+    )
     def get_task_time_entries(
         ctx: Context,
         task_id: Annotated[
@@ -2942,6 +3189,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Retrieve logged time entries for a task using GET /task/{task_id}/time."""
+
         client = _get_or_create_client(ctx)
         resolved_task_id = _resolve_task_identifier(
             client,
@@ -2963,7 +3212,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="start_time_tracking")
+    @server.tool(
+        name="start_time_tracking",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Start a timer on a task via POST /team/{team_id}/time_entries/start.",
+    )
     def start_time_tracking(
         ctx: Context,
         task_id: Annotated[
@@ -2995,6 +3248,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Start a ClickUp time tracking timer using POST /team/{team_id}/time_entries/start."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         resolved_task_id = _resolve_task_identifier(
@@ -3017,7 +3272,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="stop_time_tracking")
+    @server.tool(
+        name="stop_time_tracking",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Stop the active timer via POST /team/{team_id}/time_entries/stop.",
+    )
     def stop_time_tracking(
         ctx: Context,
         team_id: Annotated[
@@ -3025,6 +3284,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Stop the active ClickUp timer using POST /team/{team_id}/time_entries/stop."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         response = client.request_checked(
@@ -3033,7 +3294,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="add_time_entry")
+    @server.tool(
+        name="add_time_entry",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Log a manual time entry via POST /team/{team_id}/time_entries.",
+    )
     def add_time_entry(
         ctx: Context,
         task_id: Annotated[
@@ -3073,6 +3338,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Log manual time against a task using POST /team/{team_id}/time_entries."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         resolved_task_id = _resolve_task_identifier(
@@ -3106,7 +3373,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="delete_time_entry")
+    @server.tool(
+        name="delete_time_entry",
+        annotations=DESTRUCTIVE_WRITE_TOOL,
+        description="Delete a specific time entry via DELETE /team/{team_id}/time_entries/{time_entry_id}.",
+    )
     def delete_time_entry(
         ctx: Context,
         time_entry_id: Annotated[str, Field(description="Identifier of the time entry to delete.")],
@@ -3115,6 +3386,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Delete a time entry using DELETE /team/{team_id}/time_entries/{time_entry_id}."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         response = client.request_checked(
@@ -3123,7 +3396,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_current_time_entry")
+    @server.tool(
+        name="get_current_time_entry",
+        annotations=READ_ONLY_TOOL,
+        description="Fetch the active timer for a team via GET /team/{team_id}/time_entries/current.",
+    )
     def get_current_time_entry(
         ctx: Context,
         team_id: Annotated[
@@ -3131,6 +3408,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Fetch the active timer for a team using GET /team/{team_id}/time_entries/current."""
+
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         response = client.request_checked(
@@ -3142,7 +3421,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # Document management
     # ------------------------------------------------------------------
-    @server.tool(name="create_document")
+    @server.tool(
+        name="create_document",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a ClickUp document via POST /workspaces/{workspace_id}/docs.",
+    )
     def create_document(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier containing the document.")],
@@ -3164,6 +3447,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Automatically create a default page."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a ClickUp document using POST /workspaces/{workspace_id}/docs."""
+
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {
             "name": name,
@@ -3184,12 +3469,18 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_document")
+    @server.tool(
+        name="get_document",
+        annotations=READ_ONLY_TOOL,
+        description="Retrieve a document via GET /workspaces/{workspace_id}/docs/{document_id}.",
+    )
     def get_document(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
         document_id: Annotated[str, Field(description="Identifier of the document to fetch.")],
     ) -> Dict[str, Any]:
+        """Retrieve a ClickUp document using GET /workspaces/{workspace_id}/docs/{document_id}."""
+
         client = _get_or_create_client(ctx)
         response = client.request_checked(
             HttpMethod.GET,
@@ -3197,7 +3488,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="list_documents")
+    @server.tool(
+        name="list_documents",
+        annotations=READ_ONLY_TOOL,
+        description="List documents in a workspace via GET /workspaces/{workspace_id}/docs with optional filters.",
+    )
     def list_documents(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
@@ -3230,6 +3525,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Cursor for pagination."),
         ] = None,
     ) -> Dict[str, Any]:
+        """List documents available in a workspace using GET /workspaces/{workspace_id}/docs."""
+
         client = _get_or_create_client(ctx)
         query: Dict[str, Any] = {}
         if creator is not None:
@@ -3253,7 +3550,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="list_document_pages")
+    @server.tool(
+        name="list_document_pages",
+        annotations=READ_ONLY_TOOL,
+        description="List pages for a document via GET /workspaces/{workspace_id}/docs/{document_id}/pages.",
+    )
     def list_document_pages(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
@@ -3263,6 +3564,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Maximum depth of nested pages (-1 for unlimited)."),
         ] = None,
     ) -> Dict[str, Any]:
+        """List the pages that belong to a document using GET /workspaces/{workspace_id}/docs/{document_id}/pages."""
+
         client = _get_or_create_client(ctx)
         query = {}
         if max_page_depth is not None:
@@ -3274,7 +3577,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="get_document_pages")
+    @server.tool(
+        name="get_document_pages",
+        annotations=READ_ONLY_TOOL,
+        description="Fetch specific document pages and content via POST /workspaces/{workspace_id}/docs/{document_id}/pages/bulk.",
+    )
     def get_document_pages(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
@@ -3288,6 +3595,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Desired content format (text/md, text/html, etc.)."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Fetch specific document pages using POST /workspaces/{workspace_id}/docs/{document_id}/pages/bulk."""
+
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {"page_ids": list(page_ids)}
         if content_format is not None:
@@ -3299,7 +3608,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="create_document_pages")
+    @server.tool(
+        name="create_document_pages",
+        annotations=NON_DESTRUCTIVE_WRITE_TOOL,
+        description="Create a document page via POST /workspaces/{workspace_id}/docs/{document_id}/pages.",
+    )
     def create_document_pages(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
@@ -3322,6 +3635,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Optional subtitle."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Create a page within a document using POST /workspaces/{workspace_id}/docs/{document_id}/pages."""
+
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {"name": name}
         if content is not None:
@@ -3339,7 +3654,11 @@ def create_server() -> FastMCP:
         )
         return response.to_jsonable()
 
-    @server.tool(name="update_document_page")
+    @server.tool(
+        name="update_document_page",
+        annotations=IDEMPOTENT_WRITE_TOOL,
+        description="Update a document page via PUT /workspaces/{workspace_id}/docs/{document_id}/pages/{page_id}.",
+    )
     def update_document_page(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
@@ -3366,6 +3685,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="replace, append, or prepend."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Update a document page using PUT /workspaces/{workspace_id}/docs/{document_id}/pages/{page_id}."""
+
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {}
         if name is not None:
@@ -3388,7 +3709,11 @@ def create_server() -> FastMCP:
     # ------------------------------------------------------------------
     # Member management
     # ------------------------------------------------------------------
-    @server.tool(name="get_workspace_members")
+    @server.tool(
+        name="get_workspace_members",
+        annotations=READ_ONLY_TOOL,
+        description="List members of a workspace via GET /team/{team_id}/member.",
+    )
     def get_workspace_members(
         ctx: Context,
         team_id: Annotated[
@@ -3396,11 +3721,17 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """List workspace members using GET /team/{team_id}/member."""
+
         client = _get_or_create_client(ctx)
         members = client.get_workspace_members(team_id)
         return {"members": members}
 
-    @server.tool(name="find_member_by_name")
+    @server.tool(
+        name="find_member_by_name",
+        annotations=READ_ONLY_TOOL,
+        description="Find a member by name or email using cached workspace membership data.",
+    )
     def find_member_by_name(
         ctx: Context,
         name_or_email: Annotated[str, Field(description="Name or email to search for." )],
@@ -3409,6 +3740,8 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Resolve a member object by fuzzy matching against username, full name, or email."""
+
         client = _get_or_create_client(ctx)
         members = client.get_workspace_members(team_id)
         normalized = name_or_email.strip().lower()
@@ -3421,7 +3754,11 @@ def create_server() -> FastMCP:
                 return {"member": member}
         return {"member": None}
 
-    @server.tool(name="resolve_assignees")
+    @server.tool(
+        name="resolve_assignees",
+        annotations=READ_ONLY_TOOL,
+        description="Resolve assignee identifiers from user-provided names, emails, or IDs using cached membership data.",
+    )
     def resolve_assignees(
         ctx: Context,
         assignees: Annotated[Sequence[Any], Field(description="Identifiers, names, or emails to resolve." )],
@@ -3430,8 +3767,43 @@ def create_server() -> FastMCP:
             Field(default=None, description="Team identifier overriding the session default."),
         ] = None,
     ) -> Dict[str, Any]:
+        """Resolve assignee identifiers using the cached workspace membership list."""
+
         client = _get_or_create_client(ctx)
         resolved = _normalize_assignees(client, team_id=team_id, assignees=assignees)
         return {"userIds": resolved or []}
+
+    @server.resource(
+        "clickup://guide/tools",
+        description="Human-oriented summary of the ClickUp MCP tools, including usage notes and safety hints.",
+    )
+    def tool_reference() -> str:
+        """Return a Markdown catalogue of all registered tools and their safety hints."""
+
+        lines: list[str] = [
+            "# ClickUp MCP tool reference",
+            "",
+            "This catalogue lists every MCP tool exposed by the ClickUp server, "
+            "including whether each tool is read-only and if it may perform destructive actions.",
+            "Use it to choose the most appropriate tool for a given request.",
+            "",
+        ]
+
+        for tool in sorted(server._fastmcp._tool_manager.list_tools(), key=lambda t: t.name):
+            annotations = tool.annotations or ToolAnnotations()
+            lines.append(f"## {tool.name}")
+            description = (tool.description or "").strip()
+            if description:
+                lines.append(description)
+            read_only = "Yes" if annotations.readOnlyHint else "No"
+            destructive = "Yes" if annotations.destructiveHint else "No"
+            idempotent = "Yes" if annotations.idempotentHint else "No"
+            lines.append("")
+            lines.append("* **Read-only:** " + read_only)
+            lines.append("* **Destructive:** " + destructive)
+            lines.append("* **Idempotent:** " + idempotent)
+            lines.append("")
+
+        return "\n".join(lines).strip()
 
     return server

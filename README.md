@@ -26,20 +26,24 @@ configuration parameters:
 
 ## Available tools
 
-- `call_clickup_operation` – Execute a ClickUp OpenAPI operation by its
-  `operationId`. Supports path and query parameters, JSON bodies, form payloads,
-  and multipart file uploads (base64 encoded).
-- `list_clickup_reference_links` – Scrape the navigation links from the official
-  ClickUp API documentation to discover endpoint pages.
-- `fetch_clickup_reference_page` – Download and sanitize a documentation page to
-  provide the language model with the relevant guidance.
+The server exposes a curated catalogue of tools that wrap the official ClickUp
+REST API with task-focused helpers. Categories include:
 
-In addition to the generic `call_clickup_operation` entry point, the server
-dynamically registers a dedicated MCP tool for every operation defined in the
-ClickUp OpenAPI specification.
+- **Task management** – create, update, move, duplicate, search, and delete
+  tasks, as well as comment, file attachment, and tag operations.
+- **Hierarchy and metadata** – fetch workspace hierarchy, lists, folders,
+  spaces, and tags with high level name resolution helpers.
+- **Time tracking** – start/stop timers and manage manual time entries.
+- **ClickUp Docs** – manage documents and document pages.
+- **Workspace members** – list and resolve members for assignment.
 
-The server also ships a `clickup://guide/configuration` resource and a
-`call_endpoint_prompt` prompt template to help agents prepare API calls.
+Documentation helpers remain available through the `list_clickup_reference_links`
+and `fetch_clickup_reference_page` tools.
+
+For a complete description of every tool, including safety hints that
+differentiate read-only, idempotent, and destructive operations, reference the
+`clickup://guide/tools` resource. Configuration guidance lives at
+`clickup://guide/configuration`.
 
 ## Run locally
 
