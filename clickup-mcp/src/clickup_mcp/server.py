@@ -13,6 +13,7 @@ import binascii
 import json
 from dataclasses import asdict, dataclass
 from enum import Enum
+import re
 from typing import Annotated, Any, Dict, Iterable, Optional
 
 import httpx
@@ -21,6 +22,13 @@ from mcp.server.fastmcp import Context, FastMCP
 from pydantic import AnyHttpUrl, BaseModel, Field, SecretStr
 
 from smithery.decorators import smithery
+
+from .openapi_loader import (
+    OpenAPILoadError,
+    OperationMetadata,
+    iter_operations,
+    load_openapi_spec,
+)
 
 
 class HttpMethod(str, Enum):
@@ -365,4 +373,211 @@ def create_server() -> FastMCP:
             },
         ]
 
+    operations_by_id: Dict[str, OperationMetadata] = {}
+    tool_name_lookup: Dict[str, str] = {}
+    openapi_error: Optional[str] = None
+
+    try:
+        spec = load_openapi_spec()
+    except OpenAPILoadError as exc:
+        openapi_error = str(exc)
+        spec = None
+
+    if spec is not None:
+        for metadata in iter_operations(spec):
+            try:
+                method_enum = HttpMethod(metadata.method)
+            except ValueError:
+                continue
+            tool_name = _make_unique_tool_name(metadata.operation_id, tool_name_lookup)
+            _register_operation_tool(server, metadata, method_enum, tool_name)
+            operations_by_id[metadata.operation_id] = metadata
+            tool_name_lookup[tool_name] = metadata.operation_id
+
+    @server.tool()
+    def list_clickup_operations(_ctx: Context) -> Dict[str, Any]:
+        """Enumerate the ClickUp OpenAPI operations available as tools."""
+
+        if not operations_by_id:
+            return {
+                "operations": [],
+                "error": openapi_error or "ClickUp OpenAPI specification is currently unavailable.",
+            }
+
+        payload = [
+            {
+                "operation_id": metadata.operation_id,
+                "tool_name": tool_name,
+                "method": metadata.method,
+                "path": metadata.path,
+                "summary": metadata.summary,
+                "tags": list(metadata.tags),
+            }
+            for tool_name, operation_id in sorted(tool_name_lookup.items())
+            if (metadata := operations_by_id.get(operation_id)) is not None
+        ]
+        return {"operations": payload}
+
+    @server.tool()
+    def describe_clickup_operation(
+        operation_id: Annotated[str, Field(description="Operation identifier as defined in the ClickUp OpenAPI document.")]
+    ) -> Dict[str, Any]:
+        """Return detailed metadata for a ClickUp OpenAPI operation."""
+
+        metadata = operations_by_id.get(operation_id)
+        if metadata is None:
+            return {"error": f"Unknown ClickUp operation: {operation_id}"}
+
+        return {
+            "operation_id": metadata.operation_id,
+            "method": metadata.method,
+            "path": metadata.path,
+            "summary": metadata.summary,
+            "description": metadata.description,
+            "tags": list(metadata.tags),
+            "parameters": list(metadata.parameters),
+            "request_body": metadata.request_body,
+        }
+
+    @server.resource("clickup://openapi/status")
+    def openapi_status() -> str:
+        """Report whether the ClickUp OpenAPI specification was loaded successfully."""
+
+        if operations_by_id:
+            return (
+                "ClickUp OpenAPI specification loaded successfully. "
+                f"{len(operations_by_id)} operations available as tools."
+            )
+        return openapi_error or "ClickUp OpenAPI specification could not be downloaded."
+
     return server
+
+
+def _make_unique_tool_name(operation_id: str, existing: Dict[str, str]) -> str:
+    """Generate a unique and MCP-friendly tool name."""
+
+    base = re.sub(r"[^a-zA-Z0-9_]+", "_", operation_id).strip("_") or "clickup_operation"
+    if base[0].isdigit():
+        base = f"op_{base}"
+
+    candidate = base
+    suffix = 1
+    while candidate in existing:
+        suffix += 1
+        candidate = f"{base}_{suffix}"
+    return candidate
+
+
+def _register_operation_tool(
+    server: FastMCP,
+    metadata: OperationMetadata,
+    method_enum: HttpMethod,
+    tool_name: str,
+) -> None:
+    """Create a FastMCP tool for the provided ClickUp operation."""
+
+    description = _build_operation_description(metadata)
+
+    def _tool(
+        ctx: Context,
+        path_params: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Values for templated path segments (e.g. {'task_id': 'abc123'}).",
+            ),
+        ] = None,
+        query_params: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Query string parameters supported by this operation.",
+            ),
+        ] = None,
+        json_body: Annotated[
+            Any,
+            Field(
+                default=None,
+                description="JSON request payload when the endpoint expects a JSON body.",
+            ),
+        ] = None,
+        form_body: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Form-encoded payload for endpoints that accept form data.",
+            ),
+        ] = None,
+        files: Annotated[
+            Optional[list[MultipartFile]],
+            Field(
+                default=None,
+                description="Optional files for multipart uploads defined by the operation.",
+            ),
+        ] = None,
+        headers: Annotated[
+            Optional[Dict[str, str]],
+            Field(
+                default=None,
+                description="Custom headers specific to this operation.",
+            ),
+        ] = None,
+        include_team_id: Annotated[
+            bool,
+            Field(
+                default=False,
+                description="Automatically include the configured default team_id query parameter when true.",
+            ),
+        ] = False,
+    ) -> Dict[str, Any]:
+        client = _get_or_create_client(ctx)
+        response = client.request(
+            method=method_enum,
+            path=metadata.path,
+            path_params=path_params,
+            query_params=query_params,
+            json_body=json_body,
+            form_body=form_body,
+            files=files,
+            headers=headers,
+            include_team_id=include_team_id,
+        )
+        return response.to_jsonable()
+
+    _tool.__name__ = f"tool_{tool_name}"
+    _tool.__doc__ = description
+    server.tool(name=tool_name)(_tool)
+
+
+def _build_operation_description(metadata: OperationMetadata) -> str:
+    """Generate a helpful docstring for a dynamic ClickUp tool."""
+
+    lines = [
+        f"Invoke the ClickUp API operation `{metadata.operation_id}`.",
+        f"HTTP {metadata.method} {metadata.path}",
+    ]
+    if metadata.summary and metadata.summary not in lines[0]:
+        lines.append(metadata.summary)
+    if metadata.description and metadata.description != metadata.summary:
+        lines.append(metadata.description)
+    if metadata.tags:
+        lines.append("Tags: " + ", ".join(metadata.tags))
+
+    if metadata.parameters:
+        lines.append("Parameters:")
+        for parameter in metadata.parameters:
+            name = parameter.get("name", "unknown")
+            location = parameter.get("in", "?")
+            required = "required" if parameter.get("required") else "optional"
+            description = parameter.get("description", "")
+            lines.append(f"- {name} ({location}, {required}) {description}")
+
+    if metadata.request_body:
+        content = metadata.request_body.get("content", {})
+        media_types = ", ".join(content.keys()) if isinstance(content, dict) else "unknown"
+        lines.append(f"Request body media types: {media_types}")
+
+    lines.append(
+        "Provide path_params, query_params, and body arguments matching the schema above."
+    )
+    return "\n".join(lines)
