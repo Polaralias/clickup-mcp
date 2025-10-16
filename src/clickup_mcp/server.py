@@ -21,6 +21,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Annotated, Any, Dict, Iterable, Literal, Mapping, Optional, Sequence
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import httpx
 from bs4 import BeautifulSoup
@@ -1071,6 +1072,31 @@ def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
     return client
 
 
+def _get_client_session_id(ctx: Context) -> str:
+    """Return a stable session identifier required by ClickUp bulk endpoints."""
+
+    session = getattr(ctx, "session", None)
+    session_id: Optional[str] = None
+    if session is not None:
+        session_id = getattr(session, "_clickup_client_session_id", None)
+    if not isinstance(session_id, str) or not session_id.strip():
+        session_id = uuid4().hex
+        if session is not None:
+            setattr(session, "_clickup_client_session_id", session_id)
+    return session_id
+
+
+def _build_bulk_session_headers(
+    ctx: Context, extra_headers: Optional[Dict[str, str]] = None
+) -> Dict[str, str]:
+    """Construct headers that include the ClickUp bulk session identifier."""
+
+    headers = {"X-Client-Session-Id": _get_client_session_id(ctx)}
+    if extra_headers:
+        headers.update(extra_headers)
+    return headers
+
+
 @smithery.server(config_schema=ClickUpConfig)
 def create_server() -> FastMCP:
     """Create and configure the ClickUp MCP server."""
@@ -1351,6 +1377,7 @@ def create_server() -> FastMCP:
             },
             query_params=query_params,
             team_id=resolved_team,
+            headers=_build_bulk_session_headers(ctx),
         )
         return response.to_jsonable()
 
@@ -1528,6 +1555,7 @@ def create_server() -> FastMCP:
             json_body={"team_id": resolved_team, "tasks": normalized_tasks},
             query_params=query_params,
             team_id=resolved_team,
+            headers=_build_bulk_session_headers(ctx),
         )
         return response.to_jsonable()
 
@@ -2142,6 +2170,7 @@ def create_server() -> FastMCP:
             json_body={"team_id": resolved_team, "task_ids": task_ids},
             query_params=query_params,
             team_id=resolved_team,
+            headers=_build_bulk_session_headers(ctx),
         )
         return response.to_jsonable()
 
@@ -2279,6 +2308,7 @@ def create_server() -> FastMCP:
             },
             query_params=query_params,
             team_id=resolved_team,
+            headers=_build_bulk_session_headers(ctx),
         )
         return response.to_jsonable()
 
