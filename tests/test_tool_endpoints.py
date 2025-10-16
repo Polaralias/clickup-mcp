@@ -178,7 +178,7 @@ class ToolEndpointTests(TestCase):
         session_id = ctx.session._clickup_client_session_id
         self.assertEqual(
             kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id},
+            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
         )
 
     def test_delete_bulk_tasks_sets_custom_query_params(self):
@@ -210,7 +210,7 @@ class ToolEndpointTests(TestCase):
         session_id = ctx.session._clickup_client_session_id
         self.assertEqual(
             kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id},
+            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
         )
 
     def test_move_bulk_tasks_sets_custom_query_params(self):
@@ -248,7 +248,7 @@ class ToolEndpointTests(TestCase):
         session_id = ctx.session._clickup_client_session_id
         self.assertEqual(
             kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id},
+            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
         )
 
     def test_update_bulk_tasks_includes_team_header_for_oauth(self):

@@ -1255,19 +1255,14 @@ def _build_bulk_session_headers(
 
     headers = {"X-Client-Session-Id": _get_client_session_id(ctx)}
 
-    uses_oauth = False
-    if client is not None:
-        uses_oauth = bool(getattr(client, "uses_oauth_authentication", lambda: False)())
-
-    if uses_oauth:
-        resolved_team_id: Optional[int | str] = team_id
-        if resolved_team_id is None and hasattr(client, "ensure_team_id"):
-            try:
-                resolved_team_id = getattr(client, "ensure_team_id")(None)
-            except ValueError:  # pragma: no cover - defensive guard when config missing
-                resolved_team_id = None
-        if resolved_team_id is not None:
-            headers["Team-ID"] = str(int(resolved_team_id))
+    resolved_team_id: Optional[int | str] = team_id
+    if resolved_team_id is None and client is not None and hasattr(client, "ensure_team_id"):
+        try:
+            resolved_team_id = getattr(client, "ensure_team_id")(None)
+        except ValueError:  # pragma: no cover - defensive guard when config missing
+            resolved_team_id = None
+    if resolved_team_id is not None:
+        headers["Team-ID"] = str(int(resolved_team_id))
 
     if extra_headers:
         headers.update(extra_headers)
