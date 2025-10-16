@@ -19,7 +19,7 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Annotated, Any, Dict, Iterable, Literal, Optional, Sequence
+from typing import Annotated, Any, Dict, Iterable, Literal, Mapping, Optional, Sequence
 from urllib.parse import urlparse
 
 import httpx
@@ -903,6 +903,47 @@ def _resolve_list_identifier(
     return client.resolve_list_id(team_id=team_id, list_id=list_id, list_name=list_name)
 
 
+def _coalesce_entry_value(entry: Mapping[str, Any], *keys: str) -> Optional[Any]:
+    """Return the first non-empty value from *keys within *entry*."""
+
+    for key in keys:
+        if key in entry:
+            value = entry[key]
+            if value not in (None, ""):
+                return value
+    return None
+
+
+@dataclass
+class TaskLookupFields:
+    """Normalized identifiers extracted from a bulk task entry."""
+
+    task_id: Optional[str]
+    task_name: Optional[str]
+    list_id: Optional[str]
+    list_name: Optional[str]
+    custom_task_id: Optional[str]
+
+
+def _extract_task_lookup_fields(entry: Mapping[str, Any]) -> TaskLookupFields:
+    """Normalize task lookup identifiers from mixed schema keys."""
+
+    custom_task_id = _coalesce_entry_value(
+        entry,
+        "customTaskId",
+        "custom_task_id",
+        "customId",
+        "custom_id",
+    )
+    task_id = _coalesce_entry_value(entry, "taskId", "task_id", "id")
+    if not task_id and custom_task_id:
+        task_id = custom_task_id
+    task_name = _coalesce_entry_value(entry, "taskName", "task_name")
+    list_id = _coalesce_entry_value(entry, "listId", "list_id")
+    list_name = _coalesce_entry_value(entry, "listName", "list_name")
+    return TaskLookupFields(task_id, task_name, list_id, list_name, custom_task_id)
+
+
 def _resolve_task_identifier(
     client: ClickUpAPIClient,
     *,
@@ -1398,18 +1439,22 @@ def create_server() -> FastMCP:
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         normalized_tasks: list[Dict[str, Any]] = []
+        custom_ids_requested = False
         for entry in tasks:
             if not isinstance(entry, dict):
                 raise ValueError("Each task entry must be an object containing update parameters.")
             task_payload: Dict[str, Any] = {}
+            lookup = _extract_task_lookup_fields(entry)
             task_payload["id"] = _resolve_task_identifier(
                 client,
                 team_id=team_id,
-                task_id=entry.get("taskId") or entry.get("id"),
-                task_name=entry.get("taskName"),
-                list_id=entry.get("listId"),
-                list_name=entry.get("listName"),
+                task_id=lookup.task_id,
+                task_name=lookup.task_name,
+                list_id=lookup.list_id,
+                list_name=lookup.list_name,
             )
+            if lookup.custom_task_id:
+                task_payload["custom_task_id"] = lookup.custom_task_id
             for key in ("name", "description", "markdown_description", "status", "priority", "tags"):
                 if key in entry and entry[key] is not None:
                     task_payload[key] = entry[key]
@@ -1425,10 +1470,14 @@ def create_server() -> FastMCP:
             )
             if assignee_ids is not None:
                 task_payload["assignees"] = assignee_ids
+            if lookup.custom_task_id or not _is_standard_task_id(str(task_payload.get("id", ""))):
+                custom_ids_requested = True
             normalized_tasks.append(task_payload)
 
         query_params: Dict[str, Any] = {}
-        if any(not _is_standard_task_id(str(task.get("id", ""))) for task in normalized_tasks):
+        if custom_ids_requested or any(
+            "custom_task_id" in task for task in normalized_tasks
+        ):
             query_params["custom_task_ids"] = "true"
             query_params["team_id"] = resolved_team
 
@@ -2020,23 +2069,29 @@ def create_server() -> FastMCP:
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
         task_ids: list[str] = []
+        custom_ids_requested = False
         for entry in tasks:
             if isinstance(entry, dict):
-                task_ids.append(
-                    _resolve_task_identifier(
-                        client,
-                        team_id=team_id,
-                        task_id=entry.get("taskId") or entry.get("id"),
-                        task_name=entry.get("taskName"),
-                        list_id=entry.get("listId"),
-                        list_name=entry.get("listName"),
-                    )
+                lookup = _extract_task_lookup_fields(entry)
+                resolved_id = _resolve_task_identifier(
+                    client,
+                    team_id=team_id,
+                    task_id=lookup.task_id,
+                    task_name=lookup.task_name,
+                    list_id=lookup.list_id,
+                    list_name=lookup.list_name,
                 )
+                identifier = lookup.custom_task_id or resolved_id
+                if lookup.custom_task_id or not _is_standard_task_id(str(identifier)):
+                    custom_ids_requested = True
+                task_ids.append(identifier)
             else:
                 task_ids.append(str(entry))
 
         query_params: Dict[str, Any] = {}
-        if any(not _is_standard_task_id(str(task_id)) for task_id in task_ids):
+        if custom_ids_requested or any(
+            not _is_standard_task_id(str(task_id)) for task_id in task_ids
+        ):
             query_params["custom_task_ids"] = "true"
             query_params["team_id"] = resolved_team
 
@@ -2148,19 +2203,29 @@ def create_server() -> FastMCP:
             list_name=destination_list_name,
         )
         resolved_team = client.ensure_team_id(team_id)
-        task_ids = [
-            _resolve_task_identifier(
+        task_ids = []
+        custom_ids_requested = False
+        for entry in tasks:
+            if isinstance(entry, Mapping):
+                lookup = _extract_task_lookup_fields(entry)
+            else:
+                lookup = TaskLookupFields(str(entry), None, None, None, None)
+            resolved_id = _resolve_task_identifier(
                 client,
                 team_id=team_id,
-                task_id=entry.get("taskId") if isinstance(entry, dict) else str(entry),
-                task_name=entry.get("taskName") if isinstance(entry, dict) else None,
-                list_id=entry.get("listId") if isinstance(entry, dict) else None,
-                list_name=entry.get("listName") if isinstance(entry, dict) else None,
+                task_id=lookup.task_id,
+                task_name=lookup.task_name,
+                list_id=lookup.list_id,
+                list_name=lookup.list_name,
             )
-            for entry in tasks
-        ]
+            identifier = lookup.custom_task_id or resolved_id
+            if lookup.custom_task_id or not _is_standard_task_id(str(identifier)):
+                custom_ids_requested = True
+            task_ids.append(identifier)
         query_params: Dict[str, Any] = {}
-        if any(not _is_standard_task_id(str(task_id)) for task_id in task_ids):
+        if custom_ids_requested or any(
+            not _is_standard_task_id(str(task_id)) for task_id in task_ids
+        ):
             query_params["custom_task_ids"] = "true"
             query_params["team_id"] = resolved_team
         response = client.request_checked(
