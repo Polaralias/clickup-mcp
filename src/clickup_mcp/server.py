@@ -19,7 +19,7 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Annotated, Any, Dict, Iterable, Optional, Sequence
+from typing import Annotated, Any, Dict, Iterable, Literal, Optional, Sequence
 from urllib.parse import urlparse
 
 import httpx
@@ -47,6 +47,14 @@ class ClickUpConfig(BaseModel):
     api_token: Optional[SecretStr] = Field(
         None,
         description="ClickUp personal token or OAuth token used for Bearer authentication.",
+    )
+    auth_scheme: Literal["auto", "personal_token", "oauth"] = Field(
+        "auto",
+        description=(
+            "Authentication scheme for the Authorization header. "
+            "Use 'personal_token' for legacy API keys, 'oauth' for OAuth access tokens,"
+            " or leave as 'auto' to detect based on the token format."
+        ),
     )
     base_url: AnyHttpUrl = Field(
         "https://api.clickup.com/api/v2",
@@ -136,8 +144,21 @@ class ClickUpAPIClient:
             raise ValueError(
                 "A ClickUp API token must be configured before making ClickUp API requests."
             )
+        scheme = self._config.auth_scheme
+        if scheme == "auto":
+            lowered = token.lower()
+            if lowered.startswith("pk_") or lowered.startswith("sk_"):
+                scheme = "personal_token"
+            else:
+                scheme = "oauth"
+
+        if scheme == "oauth":
+            authorization_value = f"Bearer {token}"
+        else:
+            authorization_value = token
+
         headers: Dict[str, str] = {
-            "Authorization": f"Bearer {token}",
+            "Authorization": authorization_value,
             "Accept": "application/json",
         }
         headers.update(self._config.default_headers)
@@ -740,6 +761,7 @@ def create_server() -> FastMCP:
 
         return (
             "Provide your ClickUp personal token or OAuth access token via the session configuration. "
+            "Use the auth_scheme option to explicitly pick 'personal_token' or 'oauth' when automatic detection does not work. "
             "Optionally include a default team ID, additional headers, or override the API base URL for future versions."
         )
 
