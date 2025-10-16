@@ -125,7 +125,16 @@ except ModuleNotFoundError:  # pragma: no cover
         destructiveHint: bool
         idempotentHint: bool
         openWorldHint: bool
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator
+from pydantic import (
+    AliasChoices,
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+)
 
 try:  # pragma: no cover - smithery optional for tests
     from smithery.decorators import smithery
@@ -1415,7 +1424,11 @@ def create_server() -> FastMCP:
         ] = None,
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Create a task in the specified ClickUp list using POST /list/{list_id}/task."""
@@ -1465,15 +1478,27 @@ def create_server() -> FastMCP:
         ],
         list_id: Annotated[
             Optional[str],
-            Field(default=None, description="Default list identifier applied when tasks omit listId."),
+            Field(
+                default=None,
+                description="Default list identifier applied when tasks omit listId.",
+                validation_alias=AliasChoices("list_id", "listId"),
+            ),
         ] = None,
         list_name: Annotated[
             Optional[str],
-            Field(default=None, description="Default list name applied when listId is omitted."),
+            Field(
+                default=None,
+                description="Default list name applied when listId is omitted.",
+                validation_alias=AliasChoices("list_name", "listName"),
+            ),
         ] = None,
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Create multiple ClickUp tasks in one request using POST /task/bulk."""
@@ -1618,7 +1643,11 @@ def create_server() -> FastMCP:
         ] = None,
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Update a ClickUp task using PUT /task/{task_id}."""
@@ -1676,7 +1705,11 @@ def create_server() -> FastMCP:
         ],
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Update multiple tasks using PUT /task/bulk with ClickUp's bulk update schema."""
@@ -1773,7 +1806,11 @@ def create_server() -> FastMCP:
         ] = None,
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
         page: Annotated[
             Optional[int],
@@ -2328,7 +2365,11 @@ def create_server() -> FastMCP:
         ],
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Delete multiple tasks via POST /task/bulk/delete."""
@@ -2396,15 +2437,35 @@ def create_server() -> FastMCP:
         ] = None,
         destination_list_id: Annotated[
             Optional[str],
-            Field(default=None, description="Destination list identifier."),
+            Field(
+                default=None,
+                description="Destination list identifier.",
+                validation_alias=AliasChoices(
+                    "destination_list_id",
+                    "destinationListId",
+                    "targetListId",
+                ),
+            ),
         ] = None,
         destination_list_name: Annotated[
             Optional[str],
-            Field(default=None, description="Destination list name."),
+            Field(
+                default=None,
+                description="Destination list name.",
+                validation_alias=AliasChoices(
+                    "destination_list_name",
+                    "destinationListName",
+                    "targetListName",
+                ),
+            ),
         ] = None,
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Move a task to another list using POST /task/{task_id}/move."""
@@ -2450,15 +2511,35 @@ def create_server() -> FastMCP:
         ],
         destination_list_id: Annotated[
             Optional[str],
-            Field(default=None, description="Destination list identifier."),
+            Field(
+                default=None,
+                description="Destination list identifier.",
+                validation_alias=AliasChoices(
+                    "destination_list_id",
+                    "destinationListId",
+                    "targetListId",
+                ),
+            ),
         ] = None,
         destination_list_name: Annotated[
             Optional[str],
-            Field(default=None, description="Destination list name."),
+            Field(
+                default=None,
+                description="Destination list name.",
+                validation_alias=AliasChoices(
+                    "destination_list_name",
+                    "destinationListName",
+                    "targetListName",
+                ),
+            ),
         ] = None,
         team_id: Annotated[
             Optional[int],
-            Field(default=None, description="Team identifier overriding the session default."),
+            Field(
+                default=None,
+                description="Team identifier overriding the session default.",
+                validation_alias=AliasChoices("team_id", "teamId"),
+            ),
         ] = None,
     ) -> Dict[str, Any]:
         """Move multiple tasks to a destination list using POST /task/bulk/move."""
