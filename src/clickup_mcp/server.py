@@ -44,8 +44,9 @@ class HttpMethod(str):
 class ClickUpConfig(BaseModel):
     """Session configuration supplied by Smithery users."""
 
-    api_token: SecretStr = Field(
-        ..., description="ClickUp personal token or OAuth token used for Bearer authentication."
+    api_token: Optional[SecretStr] = Field(
+        None,
+        description="ClickUp personal token or OAuth token used for Bearer authentication.",
     )
     base_url: AnyHttpUrl = Field(
         "https://api.clickup.com/api/v2",
@@ -130,8 +131,13 @@ class ClickUpAPIClient:
         *,
         has_body: bool = False,
     ) -> Dict[str, str]:
+        token = self._config.api_token.get_secret_value() if self._config.api_token else ""
+        if not token:
+            raise ValueError(
+                "A ClickUp API token must be configured before making ClickUp API requests."
+            )
         headers: Dict[str, str] = {
-            "Authorization": f"Bearer {self._config.api_token.get_secret_value()}",
+            "Authorization": f"Bearer {token}",
             "Accept": "application/json",
         }
         headers.update(self._config.default_headers)
@@ -674,6 +680,16 @@ def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
             config = ClickUpConfig.model_validate(config)
         except ValidationError as exc:  # pragma: no cover - defensive validation
             raise ValueError("Invalid ClickUp configuration provided to the session.") from exc
+
+    token_value = (
+        config.api_token.get_secret_value().strip() if config.api_token else ""
+    )
+    if not token_value:
+        raise ValueError(
+            "A ClickUp API token must be provided via the session configuration before "
+            "calling ClickUp tools."
+        )
+    config = config.model_copy(update={"api_token": SecretStr(token_value)})
 
     client = ClickUpAPIClient(config)
     cache["clickup_client"] = client
