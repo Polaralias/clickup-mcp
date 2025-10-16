@@ -1,9 +1,9 @@
 # ClickUp MCP Server
 
 An MCP server for the entire [ClickUp REST API](https://clickup.com/api) built with
-[Smithery](https://smithery.ai). The server exposes generic tools that let you
-call any documented endpoint from Smithery-compatible clients, plus helper tools
-for scraping the public documentation.
+[Smithery](https://smithery.ai). The server exposes dedicated tools for every
+documented operation (derived from the public OpenAPI spec) along with helper
+utilities for browsing the public documentation.
 
 ## Prerequisites
 
@@ -26,13 +26,17 @@ configuration parameters:
 
 ## Available tools
 
-- `call_clickup_api` – Perform any ClickUp API request. Supports path and query
-  parameters, JSON bodies, form payloads, and multipart file uploads (base64
-  encoded).
+- `call_clickup_operation` – Execute a ClickUp OpenAPI operation by its
+  `operationId`. Supports path and query parameters, JSON bodies, form payloads,
+  and multipart file uploads (base64 encoded).
 - `list_clickup_reference_links` – Scrape the navigation links from the official
   ClickUp API documentation to discover endpoint pages.
 - `fetch_clickup_reference_page` – Download and sanitize a documentation page to
   provide the language model with the relevant guidance.
+
+In addition to the generic `call_clickup_operation` entry point, the server
+dynamically registers a dedicated MCP tool for every operation defined in the
+ClickUp OpenAPI specification.
 
 The server also ships a `clickup://guide/configuration` resource and a
 `call_endpoint_prompt` prompt template to help agents prepare API calls.
