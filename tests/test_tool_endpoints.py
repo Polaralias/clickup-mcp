@@ -111,3 +111,99 @@ class ToolEndpointTests(TestCase):
     def test_get_list_description_points_to_get_tasks(self):
         get_list_tool = self.tool_manager.get_tool("get_list")
         self.assertIn("Use get_tasks", get_list_tool.description)
+
+    def test_create_bulk_tasks_sets_custom_query_params(self):
+        client = DummyClient()
+        create_bulk = self.tool_manager.get_tool("create_bulk_tasks").fn
+
+        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
+            patch("clickup_mcp.server._resolve_list_identifier", return_value="list-555"):
+            result = create_bulk(
+                ctx=object(),
+                tasks=[
+                    {
+                        "name": "New Task",
+                        "listId": "list-555",
+                        "custom_id": "CUS-123",
+                    }
+                ],
+            )
+
+        self.assertEqual(result["status_code"], 200)
+        self.assertEqual(len(client.calls), 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, HttpMethod.POST)
+        self.assertEqual(path, "/task/bulk")
+        self.assertEqual(
+            kwargs.get("json_body"),
+            {
+                "team_id": 999,
+                "tasks": [
+                    {
+                        "list_id": "list-555",
+                        "name": "New Task",
+                        "custom_id": "CUS-123",
+                    }
+                ],
+            },
+        )
+        self.assertEqual(
+            kwargs.get("query_params"),
+            {"custom_task_ids": "true", "team_id": 999},
+        )
+
+    def test_delete_bulk_tasks_sets_custom_query_params(self):
+        client = DummyClient()
+        delete_bulk = self.tool_manager.get_tool("delete_bulk_tasks").fn
+
+        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
+            patch("clickup_mcp.server._resolve_task_identifier", return_value="CUS-1"):
+            result = delete_bulk(
+                ctx=object(),
+                tasks=[{"taskId": "CUS-1"}],
+            )
+
+        self.assertEqual(result["status_code"], 200)
+        self.assertEqual(len(client.calls), 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, HttpMethod.DELETE)
+        self.assertEqual(path, "/task/bulk")
+        self.assertEqual(
+            kwargs.get("json_body"),
+            {"team_id": 999, "task_ids": ["CUS-1"]},
+        )
+        self.assertEqual(
+            kwargs.get("query_params"),
+            {"custom_task_ids": "true", "team_id": 999},
+        )
+
+    def test_move_bulk_tasks_sets_custom_query_params(self):
+        client = DummyClient()
+        move_bulk = self.tool_manager.get_tool("move_bulk_tasks").fn
+
+        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
+            patch("clickup_mcp.server._resolve_list_identifier", return_value="list-999"), \
+            patch("clickup_mcp.server._resolve_task_identifier", return_value="CUS-42"):
+            result = move_bulk(
+                ctx=object(),
+                tasks=[{"taskId": "CUS-42"}],
+                destination_list_id="list-999",
+            )
+
+        self.assertEqual(result["status_code"], 200)
+        self.assertEqual(len(client.calls), 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, HttpMethod.POST)
+        self.assertEqual(path, "/task/move/bulk")
+        self.assertEqual(
+            kwargs.get("json_body"),
+            {
+                "team_id": 999,
+                "list_id": "list-999",
+                "task_ids": ["CUS-42"],
+            },
+        )
+        self.assertEqual(
+            kwargs.get("query_params"),
+            {"custom_task_ids": "true", "team_id": 999},
+        )

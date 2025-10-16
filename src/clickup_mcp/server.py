@@ -1205,6 +1205,7 @@ def create_server() -> FastMCP:
         resolved_team = client.ensure_team_id(team_id)
 
         normalized_tasks: list[Dict[str, Any]] = []
+        custom_id_present = False
         for entry in tasks:
             if not isinstance(entry, dict):
                 raise ValueError("Each task entry must be an object containing creation parameters.")
@@ -1231,6 +1232,15 @@ def create_server() -> FastMCP:
             for key in ("description", "markdown_description", "status", "priority", "parent", "tags"):
                 if key in entry and entry[key] is not None:
                     task_payload[key] = entry[key]
+            custom_id = None
+            for key in ("custom_id", "customId", "custom_task_id", "customTaskId"):
+                value = entry.get(key)
+                if value not in (None, ""):
+                    custom_id = str(value)
+                    break
+            if custom_id is not None:
+                task_payload["custom_id"] = custom_id
+                custom_id_present = True
             _apply_task_date_fields(
                 task_payload,
                 start_date=entry.get("startDate") or entry.get("start_date"),
@@ -1245,6 +1255,11 @@ def create_server() -> FastMCP:
                 task_payload["assignees"] = assignee_ids
             normalized_tasks.append(task_payload)
 
+        query_params: Dict[str, Any] = {}
+        if custom_id_present:
+            query_params["custom_task_ids"] = "true"
+            query_params["team_id"] = resolved_team
+
         response = client.request_checked(
             HttpMethod.POST,
             "/task/bulk",
@@ -1252,6 +1267,7 @@ def create_server() -> FastMCP:
                 "team_id": resolved_team,
                 "tasks": normalized_tasks,
             },
+            query_params=query_params or None,
         )
         return response.to_jsonable()
 
@@ -1411,10 +1427,16 @@ def create_server() -> FastMCP:
                 task_payload["assignees"] = assignee_ids
             normalized_tasks.append(task_payload)
 
+        query_params: Dict[str, Any] = {}
+        if any(not _is_standard_task_id(str(task.get("id", ""))) for task in normalized_tasks):
+            query_params["custom_task_ids"] = "true"
+            query_params["team_id"] = resolved_team
+
         response = client.request_checked(
             HttpMethod.PUT,
             "/task/bulk",
             json_body={"team_id": resolved_team, "tasks": normalized_tasks},
+            query_params=query_params or None,
         )
         return response.to_jsonable()
 
@@ -2013,10 +2035,16 @@ def create_server() -> FastMCP:
             else:
                 task_ids.append(str(entry))
 
+        query_params: Dict[str, Any] = {}
+        if any(not _is_standard_task_id(str(task_id)) for task_id in task_ids):
+            query_params["custom_task_ids"] = "true"
+            query_params["team_id"] = resolved_team
+
         response = client.request_checked(
             HttpMethod.DELETE,
             "/task/bulk",
             json_body={"team_id": resolved_team, "task_ids": task_ids},
+            query_params=query_params or None,
         )
         return response.to_jsonable()
 
@@ -2131,6 +2159,10 @@ def create_server() -> FastMCP:
             )
             for entry in tasks
         ]
+        query_params: Dict[str, Any] = {}
+        if any(not _is_standard_task_id(str(task_id)) for task_id in task_ids):
+            query_params["custom_task_ids"] = "true"
+            query_params["team_id"] = resolved_team
         response = client.request_checked(
             HttpMethod.POST,
             "/task/move/bulk",
@@ -2139,6 +2171,7 @@ def create_server() -> FastMCP:
                 "list_id": resolved_destination,
                 "task_ids": task_ids,
             },
+            query_params=query_params or None,
         )
         return response.to_jsonable()
 
