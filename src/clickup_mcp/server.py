@@ -1554,16 +1554,37 @@ def create_server() -> FastMCP:
                 raise ValueError("Each task entry must be an object containing update parameters.")
             task_payload: Dict[str, Any] = {}
             lookup = _extract_task_lookup_fields(entry)
-            task_payload["id"] = _resolve_task_identifier(
-                client,
-                team_id=team_id,
-                task_id=lookup.task_id,
-                task_name=lookup.task_name,
-                list_id=lookup.list_id,
-                list_name=lookup.list_name,
-            )
+
+            resolved_id: Optional[str] = None
+            provided_task_id = lookup.task_id
+            if provided_task_id and _is_standard_task_id(str(provided_task_id)):
+                resolved_id = str(provided_task_id)
             if lookup.custom_task_id:
-                task_payload["custom_task_id"] = lookup.custom_task_id
+                task_payload["custom_task_id"] = str(lookup.custom_task_id)
+            elif provided_task_id and not _is_standard_task_id(str(provided_task_id)):
+                task_payload["custom_task_id"] = str(provided_task_id)
+
+            if resolved_id is None and (
+                lookup.task_name
+                or lookup.list_id
+                or lookup.list_name
+                or (provided_task_id and _is_standard_task_id(str(provided_task_id)))
+            ):
+                resolved_id = _resolve_task_identifier(
+                    client,
+                    team_id=team_id,
+                    task_id=provided_task_id if provided_task_id and _is_standard_task_id(str(provided_task_id)) else None,
+                    task_name=lookup.task_name,
+                    list_id=lookup.list_id,
+                    list_name=lookup.list_name,
+                )
+
+            if resolved_id is not None:
+                task_payload["id"] = str(resolved_id)
+            if "id" not in task_payload and "custom_task_id" not in task_payload:
+                raise ValueError(
+                    "Each task entry must include a recognizable identifier such as taskId, customTaskId, or taskName."
+                )
             for key in ("name", "description", "markdown_description", "status", "priority", "tags"):
                 if key in entry and entry[key] is not None:
                     task_payload[key] = entry[key]
@@ -1579,7 +1600,7 @@ def create_server() -> FastMCP:
             )
             if assignee_ids is not None:
                 task_payload["assignees"] = assignee_ids
-            if lookup.custom_task_id or not _is_standard_task_id(str(task_payload.get("id", ""))):
+            if "custom_task_id" in task_payload or not _is_standard_task_id(str(task_payload.get("id", ""))):
                 custom_ids_requested = True
             normalized_tasks.append(task_payload)
 
