@@ -314,8 +314,14 @@ def create_server() -> FastMCP:
         return response.to_jsonable()
 
     @server.tool()
-    def list_clickup_reference_links(_ctx: Context) -> Dict[str, Any]:
+    def list_clickup_reference_links(ctx: Context) -> Dict[str, Any]:
         """Return structured navigation data from the ClickUp API reference."""
+
+        # The Smithery runtime requires that tool parameters do not start with an
+        # underscore.  The context isn't used directly here, but we still accept
+        # it so the signature matches other tools.  Assigning it to ``_`` keeps
+        # linters quiet without violating the runtime constraint.
+        _ = ctx
 
         with httpx.Client(headers={"User-Agent": "Mozilla/5.0"}) as client:
             response = client.get("https://clickup.com/api", timeout=30.0)
@@ -395,8 +401,10 @@ def create_server() -> FastMCP:
             tool_name_lookup[tool_name] = metadata.operation_id
 
     @server.tool()
-    def list_clickup_operations(_ctx: Context) -> Dict[str, Any]:
+    def list_clickup_operations(ctx: Context) -> Dict[str, Any]:
         """Enumerate the ClickUp OpenAPI operations available as tools."""
+
+        _ = ctx
 
         if not operations_by_id:
             return {
