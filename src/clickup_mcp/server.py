@@ -23,14 +23,121 @@ from typing import Annotated, Any, Dict, Iterable, Literal, Mapping, Optional, S
 from urllib.parse import urlparse, urlunparse
 from uuid import uuid4
 
-import httpx
-from bs4 import BeautifulSoup
-from dateparser import parse as parse_date
-from mcp.server.fastmcp import Context, FastMCP
-from mcp.types import ToolAnnotations
+try:  # pragma: no cover - exercised indirectly in environments without httpx
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover
+    class _HttpxPlaceholder:
+        """Fallback placeholder ensuring module import succeeds without httpx."""
+
+        class Client:  # type: ignore[override]
+            def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401 - mimic httpx
+                raise ModuleNotFoundError(
+                    "httpx is required for network operations. Install the 'httpx' package to enable ClickUp API calls."
+                )
+
+    httpx = _HttpxPlaceholder()  # type: ignore
+try:  # pragma: no cover - optional dependency for HTML parsing
+    from bs4 import BeautifulSoup
+except ModuleNotFoundError:  # pragma: no cover
+    BeautifulSoup = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional dependency for natural language dates
+    from dateparser import parse as parse_date
+except ModuleNotFoundError:  # pragma: no cover
+    parse_date = None  # type: ignore[assignment]
+try:  # pragma: no cover - allow tests without MCP runtime
+    from mcp.server.fastmcp import Context, FastMCP
+except ModuleNotFoundError:  # pragma: no cover
+    from types import SimpleNamespace
+
+    class Context(SimpleNamespace):
+        """Lightweight stand-in for FastMCP Context used in tests."""
+
+    class _RegisteredTool(SimpleNamespace):
+        pass
+
+    class _ToolManager:
+        def __init__(self) -> None:
+            self._tools: Dict[str, _RegisteredTool] = {}
+
+        def register(self, name: str, tool: _RegisteredTool) -> None:
+            self._tools[name] = tool
+
+        def get_tool(self, name: str) -> _RegisteredTool:
+            return self._tools[name]
+
+    class _ResourceManager:
+        def __init__(self) -> None:
+            self._resources: Dict[str, Any] = {}
+
+        def register(self, name: str, resource: Any) -> None:
+            self._resources[name] = resource
+
+    class FastMCP:
+        """Minimal FastMCP replacement capturing tool metadata for tests."""
+
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self._tool_manager = _ToolManager()
+            self._resource_manager = _ResourceManager()
+            self._fastmcp = SimpleNamespace(
+                _tool_manager=self._tool_manager,
+                _resource_manager=self._resource_manager,
+            )
+
+        def tool(self, *, name: Optional[str] = None, annotations: Any = None, description: Optional[str] = None):
+            def decorator(fn):
+                tool_name = name or fn.__name__
+                registered = _RegisteredTool(
+                    name=tool_name,
+                    fn=fn,
+                    annotations=annotations,
+                    description=description,
+                )
+                self._tool_manager.register(tool_name, registered)
+                return fn
+
+            return decorator
+
+        def resource(self, *, name: Optional[str] = None, description: Optional[str] = None):
+            def decorator(fn):
+                resource_name = name or fn.__name__
+                self._resource_manager.register(
+                    resource_name,
+                    SimpleNamespace(name=resource_name, fn=fn, description=description),
+                )
+                return fn
+
+            return decorator
+
+        def notification(self, *_, **__):  # pragma: no cover - not used in tests
+            def decorator(fn):
+                return fn
+
+            return decorator
+
+try:  # pragma: no cover - optional dependency for tests
+    from mcp.types import ToolAnnotations
+except ModuleNotFoundError:  # pragma: no cover
+    @dataclass
+    class ToolAnnotations:
+        readOnlyHint: bool
+        destructiveHint: bool
+        idempotentHint: bool
+        openWorldHint: bool
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator
 
-from smithery.decorators import smithery
+try:  # pragma: no cover - smithery optional for tests
+    from smithery.decorators import smithery
+except ModuleNotFoundError:  # pragma: no cover
+    class _SmitheryPlaceholder:
+        def server(self, **_kwargs):
+            def decorator(fn):
+                return fn
+
+            return decorator
+
+    smithery = _SmitheryPlaceholder()
 
 
 READ_ONLY_TOOL = ToolAnnotations(
@@ -719,6 +826,10 @@ class ClickUpAPIClient:
 def _scrape_clickup_docs(path: str) -> Dict[str, Any]:
     """Fetch and parse a ClickUp API documentation page."""
 
+    if BeautifulSoup is None:
+        raise ModuleNotFoundError(
+            "bs4 is required to parse ClickUp documentation pages. Install 'beautifulsoup4' to enable this tool."
+        )
     normalized_path = path if path.startswith("/api") else f"/api{path if path.startswith('/') else '/' + path}"
     url = f"https://clickup.com{normalized_path}"
     with httpx.Client(headers={"User-Agent": "Mozilla/5.0"}) as client:
@@ -760,6 +871,10 @@ def _parse_date_field(value: Any) -> Optional[int]:
         if raw > 1_000_000_000_000:
             return raw
         return raw * 1000
+    if parse_date is None:
+        raise ModuleNotFoundError(
+            "dateparser is required to interpret natural language date expressions. Install 'dateparser' to use this feature."
+        )
     parsed = parse_date(text, settings={"RETURN_AS_TIMEZONE_AWARE": True})
     if parsed is None:
         raise ValueError(f"Unable to interpret date expression: {value!r}")
@@ -1041,15 +1156,18 @@ def _resolve_task_identifier(
     )
 
 
-_STANDARD_TASK_ID_PATTERN = re.compile(r"^\d+$")
+_STANDARD_TASK_ID_PATTERN = re.compile(r"^[0-9a-z]{7,12}$")
 
 
 def _is_standard_task_id(task_id: str) -> bool:
-    """Return True when the identifier matches ClickUp's default numeric format."""
+    """Return True when the identifier matches ClickUp's default base ID format."""
 
     if not isinstance(task_id, str):
         return False
-    return bool(_STANDARD_TASK_ID_PATTERN.fullmatch(task_id.strip()))
+    normalized = task_id.strip()
+    if not normalized:
+        return False
+    return bool(_STANDARD_TASK_ID_PATTERN.fullmatch(normalized))
 
 
 def _augment_task_query_params(
@@ -1151,6 +1269,10 @@ def create_server() -> FastMCP:
         """Scrape the ClickUp API reference navigation to expose documentation URLs."""
 
         _ = ctx
+        if BeautifulSoup is None:
+            raise ModuleNotFoundError(
+                "bs4 is required to parse ClickUp documentation pages. Install 'beautifulsoup4' to enable this tool."
+            )
         with httpx.Client(headers={"User-Agent": "Mozilla/5.0"}) as client:
             response = client.get("https://clickup.com/api", timeout=30.0)
             response.raise_for_status()

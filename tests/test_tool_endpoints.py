@@ -4,12 +4,17 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from clickup_mcp.server import ClickUpConfig, ClickUpResponse, HttpMethod, create_server  # noqa: E402
+try:  # noqa: E402 - allow tests to skip when optional dependencies missing
+    from clickup_mcp.server import ClickUpConfig, ClickUpResponse, HttpMethod, create_server
+except ModuleNotFoundError as exc:  # pragma: no cover - exercised in minimal CI environments
+    pytest.skip(f"clickup_mcp.server dependencies missing: {exc}", allow_module_level=True)
 
 
 class ClickUpConfigTests(TestCase):
@@ -239,3 +244,29 @@ class ToolEndpointTests(TestCase):
             kwargs.get("headers"),
             {"X-Client-Session-Id": session_id},
         )
+
+    def test_update_bulk_tasks_handles_alphanumeric_task_ids(self):
+        client = DummyClient()
+        update_bulk = self.tool_manager.get_tool("update_bulk_tasks").fn
+
+        ctx = SimpleNamespace(session=SimpleNamespace())
+
+        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
+            patch("clickup_mcp.server._normalize_assignees", return_value=None), \
+            patch("clickup_mcp.server._resolve_task_identifier") as resolve_mock:
+            result = update_bulk(
+                ctx=ctx,
+                tasks=[{"taskId": "869avmhjm", "status": "complete"}],
+            )
+
+        self.assertEqual(result["status_code"], 200)
+        resolve_mock.assert_not_called()
+        self.assertEqual(len(client.calls), 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, HttpMethod.PUT)
+        self.assertEqual(path, "/task/bulk")
+        self.assertEqual(
+            kwargs.get("json_body"),
+            {"team_id": 999, "tasks": [{"id": "869avmhjm", "status": "complete"}]},
+        )
+        self.assertEqual(kwargs.get("query_params"), {"team_id": 999})
