@@ -63,3 +63,22 @@ uv run playground
 
 Once deployed you can install the server from the Smithery registry or reference
 it directly from any MCP-compatible client.
+
+## Testing
+
+Set up the virtual environment and install the test runner before executing the
+suite:
+
+```bash
+# install runtime dependencies into .venv
+uv sync
+
+# install pytest into the managed environment
+uv pip install pytest
+
+# execute the test suite using the managed interpreter
+.venv/bin/python -m pytest
+```
+
+Running the tests through the managed `.venv` ensures that packages such as
+`httpx` are available at import time, avoiding `ModuleNotFoundError` failures.

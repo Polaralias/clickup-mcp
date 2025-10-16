@@ -9,7 +9,17 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from clickup_mcp.server import ClickUpResponse, HttpMethod, create_server  # noqa: E402
+from clickup_mcp.server import ClickUpConfig, ClickUpResponse, HttpMethod, create_server  # noqa: E402
+
+
+class ClickUpConfigTests(TestCase):
+    def test_base_url_rewrites_clickup_host(self):
+        config = ClickUpConfig(base_url="https://clickup.com/api/v2")
+        self.assertEqual(str(config.base_url), "https://api.clickup.com/api/v2")
+
+    def test_base_url_rewrites_app_hostname_and_trailing_slash(self):
+        config = ClickUpConfig(base_url="https://app.clickup.com/")
+        self.assertEqual(str(config.base_url), "https://api.clickup.com/api/v2")
 
 
 class DummyClient:

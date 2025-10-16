@@ -20,7 +20,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Annotated, Any, Dict, Iterable, Literal, Mapping, Optional, Sequence
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from uuid import uuid4
 
 import httpx
@@ -28,7 +28,7 @@ from bs4 import BeautifulSoup
 from dateparser import parse as parse_date
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, ValidationError
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator
 
 from smithery.decorators import smithery
 
@@ -106,6 +106,46 @@ class ClickUpConfig(BaseModel):
         default_factory=dict,
         description="Additional headers to include with every ClickUp API call (e.g. enterprise headers).",
     )
+
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def _normalise_base_url(cls, value: Any) -> Any:
+        """Coerce common ClickUp hostnames into the documented API endpoint."""
+
+        if not isinstance(value, str):
+            return value
+
+        raw = value.strip()
+        if not raw:
+            return raw
+
+        parsed = urlparse(raw)
+        if not parsed.scheme or not parsed.netloc:
+            return raw
+
+        hostname = parsed.hostname or ""
+        netloc = parsed.netloc
+        port = parsed.port
+
+        new_host = hostname
+        if hostname == "clickup.com":
+            new_host = "api.clickup.com"
+        elif hostname.startswith("app.") and hostname.endswith(".clickup.com"):
+            new_host = "api." + hostname[len("app.") :]
+
+        if new_host != hostname:
+            netloc = f"{new_host}:{port}" if port else new_host
+
+        path = parsed.path or ""
+        if not path or path == "/":
+            path = "/api/v2"
+        elif path.rstrip("/") == "/api":
+            path = "/api/v2"
+        else:
+            path = path.rstrip("/")
+
+        normalised = urlunparse((parsed.scheme, netloc, path, "", "", ""))
+        return normalised
 
 
 class MultipartFile(BaseModel):
