@@ -176,10 +176,11 @@ class ToolEndpointTests(TestCase):
             {"custom_task_ids": "true", "team_id": 999},
         )
         session_id = ctx.session._clickup_client_session_id
-        self.assertEqual(
-            kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
-        )
+        headers = kwargs.get("headers")
+        self.assertIsInstance(headers, dict)
+        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
+        self.assertEqual(headers.get("Team-ID"), "999")
+        self.assertEqual(headers.get("Team-Id"), "999")
 
     def test_delete_bulk_tasks_sets_custom_query_params(self):
         client = DummyClient()
@@ -208,10 +209,11 @@ class ToolEndpointTests(TestCase):
             {"custom_task_ids": "true", "team_id": 999},
         )
         session_id = ctx.session._clickup_client_session_id
-        self.assertEqual(
-            kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
-        )
+        headers = kwargs.get("headers")
+        self.assertIsInstance(headers, dict)
+        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
+        self.assertEqual(headers.get("Team-ID"), "999")
+        self.assertEqual(headers.get("Team-Id"), "999")
 
     def test_move_bulk_tasks_sets_custom_query_params(self):
         client = DummyClient()
@@ -246,10 +248,11 @@ class ToolEndpointTests(TestCase):
             {"custom_task_ids": "true", "team_id": 999},
         )
         session_id = ctx.session._clickup_client_session_id
-        self.assertEqual(
-            kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
-        )
+        headers = kwargs.get("headers")
+        self.assertIsInstance(headers, dict)
+        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
+        self.assertEqual(headers.get("Team-ID"), "999")
+        self.assertEqual(headers.get("Team-Id"), "999")
 
     def test_update_bulk_tasks_includes_team_header_for_oauth(self):
         client = DummyClient()
@@ -275,10 +278,11 @@ class ToolEndpointTests(TestCase):
         self.assertEqual(method, HttpMethod.PUT)
         self.assertEqual(path, "/task/bulk")
         session_id = ctx.session._clickup_client_session_id
-        self.assertEqual(
-            kwargs.get("headers"),
-            {"X-Client-Session-Id": session_id, "Team-ID": "999"},
-        )
+        headers = kwargs.get("headers")
+        self.assertIsInstance(headers, dict)
+        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
+        self.assertEqual(headers.get("Team-ID"), "999")
+        self.assertEqual(headers.get("Team-Id"), "999")
 
     def test_update_bulk_tasks_handles_alphanumeric_task_ids(self):
         client = DummyClient()

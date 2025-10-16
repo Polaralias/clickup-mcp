@@ -1271,7 +1271,12 @@ def _build_bulk_session_headers(
         except ValueError:  # pragma: no cover - defensive guard when config missing
             resolved_team_id = None
     if resolved_team_id is not None:
-        headers["Team-ID"] = str(int(resolved_team_id))
+        team_header_value = str(int(resolved_team_id))
+        headers["Team-ID"] = team_header_value
+        # Some ClickUp infrastructure expects the canonicalised "Team-Id" casing
+        # instead of "Team-ID" despite HTTP header name case insensitivity.
+        # To maximise compatibility we emit both variations when we know the team.
+        headers.setdefault("Team-Id", team_header_value)
 
     if extra_headers:
         headers.update(extra_headers)
