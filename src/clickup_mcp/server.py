@@ -333,17 +333,15 @@ class ClickUpAPIClient:
         self._hierarchy_cache: Dict[int, Dict[str, Any]] = {}
         self._member_cache: Dict[int, list[Dict[str, Any]]] = {}
 
-    def _build_headers(
-        self,
-        extra_headers: Optional[Dict[str, str]] = None,
-        *,
-        has_body: bool = False,
-    ) -> Dict[str, str]:
+    def _resolve_token(self) -> str:
         token = self._config.api_token.get_secret_value() if self._config.api_token else ""
         if not token:
             raise ValueError(
                 "A ClickUp API token must be configured before making ClickUp API requests."
             )
+        return token
+
+    def _resolve_auth_scheme(self, token: str) -> Literal["personal_token", "oauth"]:
         scheme = self._config.auth_scheme
         if scheme == "auto":
             lowered = token.lower()
@@ -351,11 +349,27 @@ class ClickUpAPIClient:
                 scheme = "personal_token"
             else:
                 scheme = "oauth"
+        return scheme
 
-        if scheme == "oauth":
-            authorization_value = f"Bearer {token}"
+    def uses_oauth_authentication(self) -> bool:
+        token = self._resolve_token()
+        return self._resolve_auth_scheme(token) == "oauth"
+
+    def _build_headers(
+        self,
+        extra_headers: Optional[Dict[str, str]] = None,
+        *,
+        has_body: bool = False,
+        token: Optional[str] = None,
+        auth_scheme: Optional[Literal["personal_token", "oauth"]] = None,
+    ) -> Dict[str, str]:
+        resolved_token = token or self._resolve_token()
+        resolved_scheme = auth_scheme or self._resolve_auth_scheme(resolved_token)
+
+        if resolved_scheme == "oauth":
+            authorization_value = f"Bearer {resolved_token}"
         else:
-            authorization_value = token
+            authorization_value = resolved_token
 
         headers: Dict[str, str] = {
             "Authorization": authorization_value,
@@ -384,6 +398,7 @@ class ClickUpAPIClient:
         form_body: Optional[Dict[str, Any]] = None,
         files: Optional[Iterable[MultipartFile]] = None,
         headers: Optional[Dict[str, str]] = None,
+        team_id: Optional[int] = None,
     ) -> ClickUpResponse:
         if json_body is not None and form_body is not None:
             raise ValueError("Provide either json_body or form_body, not both.")
@@ -398,15 +413,29 @@ class ClickUpAPIClient:
         if files:
             prepared_files = [file.to_httpx_tuple() for file in files]
 
+        token = self._resolve_token()
+        auth_scheme = self._resolve_auth_scheme(token)
+
+        resolved_query_params: Dict[str, Any] = dict(query_params) if query_params else {}
+        if auth_scheme == "oauth":
+            resolved_team_id = team_id if team_id is not None else self._config.default_team_id
+            if resolved_team_id is not None and "team_id" not in resolved_query_params:
+                resolved_query_params["team_id"] = str(int(resolved_team_id))
+
         has_body = json_body is not None or form_body is not None or prepared_files is not None
-        request_headers = self._build_headers(headers, has_body=has_body)
+        request_headers = self._build_headers(
+            headers,
+            has_body=has_body,
+            token=token,
+            auth_scheme=auth_scheme,
+        )
         if prepared_files is not None:
             request_headers.pop("Content-Type", None)
 
         response = self._client.request(
             method,
             resolved_path,
-            params=query_params,
+            params=resolved_query_params or None,
             json=json_body if json_body is not None else None,
             data=form_body if form_body is not None else None,
             files=prepared_files,
@@ -427,7 +456,6 @@ class ClickUpAPIClient:
             headers=dict(response.headers),
             data=payload,
         )
-
     def request_checked(self, *args: Any, **kwargs: Any) -> ClickUpResponse:
         response = self.request(*args, **kwargs)
         if response.status_code >= 400:
@@ -457,6 +485,7 @@ class ClickUpAPIClient:
             HttpMethod.GET,
             f"/team/{resolved_team_id}/space",
             query_params={"archived": "false"},
+            team_id=resolved_team_id,
         )
         spaces_payload = spaces_resp.data if isinstance(spaces_resp.data, dict) else {}
         spaces = spaces_payload.get("spaces", []) if isinstance(spaces_payload.get("spaces"), list) else []
@@ -479,6 +508,7 @@ class ClickUpAPIClient:
                 HttpMethod.GET,
                 f"/space/{space_id}/list",
                 query_params={"archived": "false"},
+                team_id=resolved_team_id,
             )
             space_lists_payload = space_lists_resp.data if isinstance(space_lists_resp.data, dict) else {}
             space_entry["lists"] = space_lists_payload.get("lists", []) if isinstance(space_lists_payload.get("lists"), list) else []
@@ -488,6 +518,7 @@ class ClickUpAPIClient:
                 HttpMethod.GET,
                 f"/space/{space_id}/folder",
                 query_params={"archived": "false"},
+                team_id=resolved_team_id,
             )
             folder_payload = folder_resp.data if isinstance(folder_resp.data, dict) else {}
             folders = folder_payload.get("folders", []) if isinstance(folder_payload.get("folders"), list) else []
@@ -505,6 +536,7 @@ class ClickUpAPIClient:
                     HttpMethod.GET,
                     f"/folder/{folder_id}/list",
                     query_params={"archived": "false"},
+                    team_id=resolved_team_id,
                 )
                 folder_lists_payload = (
                     folder_lists_resp.data if isinstance(folder_lists_resp.data, dict) else {}
@@ -996,6 +1028,16 @@ def _augment_task_query_params(
     return query
 
 
+def _resolve_team_id_for_request(
+    client: ClickUpAPIClient, team_id: Optional[int]
+) -> Optional[int]:
+    """Determine the team identifier used for OAuth scoped requests."""
+
+    if client.uses_oauth_authentication():
+        return client.ensure_team_id(team_id)
+    return int(team_id) if team_id is not None else None
+
+
 def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
     session = ctx.session
     cache: Optional[Dict[str, Any]] = getattr(session, "_clickup_cache", None)
@@ -1296,10 +1338,9 @@ def create_server() -> FastMCP:
                 task_payload["assignees"] = assignee_ids
             normalized_tasks.append(task_payload)
 
-        query_params: Dict[str, Any] = {}
+        query_params: Dict[str, Any] = {"team_id": resolved_team}
         if custom_id_present:
             query_params["custom_task_ids"] = "true"
-            query_params["team_id"] = resolved_team
 
         response = client.request_checked(
             HttpMethod.POST,
@@ -1308,7 +1349,8 @@ def create_server() -> FastMCP:
                 "team_id": resolved_team,
                 "tasks": normalized_tasks,
             },
-            query_params=query_params or None,
+            query_params=query_params,
+            team_id=resolved_team,
         )
         return response.to_jsonable()
 
@@ -1474,18 +1516,18 @@ def create_server() -> FastMCP:
                 custom_ids_requested = True
             normalized_tasks.append(task_payload)
 
-        query_params: Dict[str, Any] = {}
+        query_params: Dict[str, Any] = {"team_id": resolved_team}
         if custom_ids_requested or any(
             "custom_task_id" in task for task in normalized_tasks
         ):
             query_params["custom_task_ids"] = "true"
-            query_params["team_id"] = resolved_team
 
         response = client.request_checked(
             HttpMethod.PUT,
             "/task/bulk",
             json_body={"team_id": resolved_team, "tasks": normalized_tasks},
-            query_params=query_params or None,
+            query_params=query_params,
+            team_id=resolved_team,
         )
         return response.to_jsonable()
 
@@ -2088,18 +2130,18 @@ def create_server() -> FastMCP:
             else:
                 task_ids.append(str(entry))
 
-        query_params: Dict[str, Any] = {}
+        query_params: Dict[str, Any] = {"team_id": resolved_team}
         if custom_ids_requested or any(
             not _is_standard_task_id(str(task_id)) for task_id in task_ids
         ):
             query_params["custom_task_ids"] = "true"
-            query_params["team_id"] = resolved_team
 
         response = client.request_checked(
             HttpMethod.DELETE,
             "/task/bulk",
             json_body={"team_id": resolved_team, "task_ids": task_ids},
-            query_params=query_params or None,
+            query_params=query_params,
+            team_id=resolved_team,
         )
         return response.to_jsonable()
 
@@ -2222,12 +2264,11 @@ def create_server() -> FastMCP:
             if lookup.custom_task_id or not _is_standard_task_id(str(identifier)):
                 custom_ids_requested = True
             task_ids.append(identifier)
-        query_params: Dict[str, Any] = {}
+        query_params: Dict[str, Any] = {"team_id": resolved_team}
         if custom_ids_requested or any(
             not _is_standard_task_id(str(task_id)) for task_id in task_ids
         ):
             query_params["custom_task_ids"] = "true"
-            query_params["team_id"] = resolved_team
         response = client.request_checked(
             HttpMethod.POST,
             "/task/move/bulk",
@@ -2236,7 +2277,8 @@ def create_server() -> FastMCP:
                 "list_id": resolved_destination,
                 "task_ids": task_ids,
             },
-            query_params=query_params or None,
+            query_params=query_params,
+            team_id=resolved_team,
         )
         return response.to_jsonable()
 
@@ -2536,10 +2578,12 @@ def create_server() -> FastMCP:
         payload: Dict[str, Any] = {"name": name}
         if override_statuses is not None:
             payload["override_statuses"] = bool(override_statuses)
+        request_team_id = _resolve_team_id_for_request(client, team_id)
         response = client.request_checked(
             HttpMethod.POST,
             f"/space/{resolved_space}/folder",
             json_body=payload,
+            team_id=request_team_id,
         )
         return response.to_jsonable()
 
@@ -2579,10 +2623,12 @@ def create_server() -> FastMCP:
         payload: Dict[str, Any] = {"name": name}
         if content is not None:
             payload["content"] = content
+        request_team_id = _resolve_team_id_for_request(client, team_id)
         response = client.request_checked(
             HttpMethod.POST,
             f"/folder/{resolved_folder}/list",
             json_body=payload,
+            team_id=request_team_id,
         )
         return response.to_jsonable()
 
@@ -2744,7 +2790,12 @@ def create_server() -> FastMCP:
             folder_id=folder_id,
             folder_name=folder_name,
         )
-        response = client.request_checked(HttpMethod.GET, f"/folder/{resolved_folder}")
+        request_team_id = _resolve_team_id_for_request(client, team_id)
+        response = client.request_checked(
+            HttpMethod.GET,
+            f"/folder/{resolved_folder}",
+            team_id=request_team_id,
+        )
         return response.to_jsonable()
 
     @server.tool(
@@ -2798,10 +2849,12 @@ def create_server() -> FastMCP:
             payload["name"] = name
         if override_statuses is not None:
             payload["override_statuses"] = bool(override_statuses)
+        request_team_id = _resolve_team_id_for_request(client, team_id)
         response = client.request_checked(
             HttpMethod.PUT,
             f"/folder/{resolved_folder}",
             json_body=payload,
+            team_id=request_team_id,
         )
         return response.to_jsonable()
 
@@ -2843,7 +2896,12 @@ def create_server() -> FastMCP:
             folder_id=folder_id,
             folder_name=folder_name,
         )
-        response = client.request_checked(HttpMethod.DELETE, f"/folder/{resolved_folder}")
+        request_team_id = _resolve_team_id_for_request(client, team_id)
+        response = client.request_checked(
+            HttpMethod.DELETE,
+            f"/folder/{resolved_folder}",
+            team_id=request_team_id,
+        )
         return response.to_jsonable()
 
     @server.tool(
