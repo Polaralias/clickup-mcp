@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -116,10 +117,12 @@ class ToolEndpointTests(TestCase):
         client = DummyClient()
         create_bulk = self.tool_manager.get_tool("create_bulk_tasks").fn
 
+        ctx = SimpleNamespace(session=SimpleNamespace())
+
         with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
             patch("clickup_mcp.server._resolve_list_identifier", return_value="list-555"):
             result = create_bulk(
-                ctx=object(),
+                ctx=ctx,
                 tasks=[
                     {
                         "name": "New Task",
@@ -151,15 +154,22 @@ class ToolEndpointTests(TestCase):
             kwargs.get("query_params"),
             {"custom_task_ids": "true", "team_id": 999},
         )
+        session_id = ctx.session._clickup_client_session_id
+        self.assertEqual(
+            kwargs.get("headers"),
+            {"X-Client-Session-Id": session_id},
+        )
 
     def test_delete_bulk_tasks_sets_custom_query_params(self):
         client = DummyClient()
         delete_bulk = self.tool_manager.get_tool("delete_bulk_tasks").fn
 
+        ctx = SimpleNamespace(session=SimpleNamespace())
+
         with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
             patch("clickup_mcp.server._resolve_task_identifier", return_value="CUS-1"):
             result = delete_bulk(
-                ctx=object(),
+                ctx=ctx,
                 tasks=[{"taskId": "CUS-1"}],
             )
 
@@ -176,16 +186,23 @@ class ToolEndpointTests(TestCase):
             kwargs.get("query_params"),
             {"custom_task_ids": "true", "team_id": 999},
         )
+        session_id = ctx.session._clickup_client_session_id
+        self.assertEqual(
+            kwargs.get("headers"),
+            {"X-Client-Session-Id": session_id},
+        )
 
     def test_move_bulk_tasks_sets_custom_query_params(self):
         client = DummyClient()
         move_bulk = self.tool_manager.get_tool("move_bulk_tasks").fn
 
+        ctx = SimpleNamespace(session=SimpleNamespace())
+
         with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
             patch("clickup_mcp.server._resolve_list_identifier", return_value="list-999"), \
             patch("clickup_mcp.server._resolve_task_identifier", return_value="CUS-42"):
             result = move_bulk(
-                ctx=object(),
+                ctx=ctx,
                 tasks=[{"taskId": "CUS-42"}],
                 destination_list_id="list-999",
             )
@@ -206,4 +223,9 @@ class ToolEndpointTests(TestCase):
         self.assertEqual(
             kwargs.get("query_params"),
             {"custom_task_ids": "true", "team_id": 999},
+        )
+        session_id = ctx.session._clickup_client_session_id
+        self.assertEqual(
+            kwargs.get("headers"),
+            {"X-Client-Session-Id": session_id},
         )
