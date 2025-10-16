@@ -684,6 +684,34 @@ def _resolve_task_identifier(
     )
 
 
+_STANDARD_TASK_ID_PATTERN = re.compile(r"^\d+$")
+
+
+def _is_standard_task_id(task_id: str) -> bool:
+    """Return True when the identifier matches ClickUp's default numeric format."""
+
+    if not isinstance(task_id, str):
+        return False
+    return bool(_STANDARD_TASK_ID_PATTERN.fullmatch(task_id.strip()))
+
+
+def _augment_task_query_params(
+    client: ClickUpAPIClient,
+    task_id: str,
+    *,
+    team_id: Optional[int],
+    query_params: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Inject custom task id query parameters when necessary."""
+
+    query: Dict[str, Any] = dict(query_params) if query_params else {}
+    if not _is_standard_task_id(task_id):
+        resolved_team = client.ensure_team_id(team_id)
+        query.setdefault("custom_task_ids", "true")
+        query.setdefault("team_id", resolved_team)
+    return query
+
+
 def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
     session = ctx.session
     cache: Optional[Dict[str, Any]] = getattr(session, "_clickup_cache", None)
@@ -1043,10 +1071,17 @@ def create_server() -> FastMCP:
             payload["assignees"] = assignee_ids
         _apply_task_date_fields(payload, start_date=start_date, due_date=due_date)
 
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
+
         response = client.request_checked(
             HttpMethod.PUT,
             f"/task/{resolved_task_id}",
             json_body=payload,
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -1232,14 +1267,20 @@ def create_server() -> FastMCP:
             list_id=list_id,
             list_name=list_name,
         )
-        query = {}
+        query: Dict[str, Any] = {}
         if include_subtasks is not None:
             query["include_subtasks"] = str(bool(include_subtasks)).lower()
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+            query_params=query,
+        )
 
         response = client.request_checked(
             HttpMethod.GET,
             f"/task/{resolved_task_id}",
-            query_params=query,
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -1393,11 +1434,17 @@ def create_server() -> FastMCP:
             query["start"] = start
         if start_id is not None:
             query["start_id"] = start_id
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+            query_params=query,
+        )
 
         response = client.request_checked(
             HttpMethod.GET,
             f"/task/{resolved_task_id}/comment",
-            query_params=query,
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -1450,11 +1497,17 @@ def create_server() -> FastMCP:
             assignee_ids = _normalize_assignees(client, team_id=team_id, assignees=[assignee])
             if assignee_ids:
                 payload["assignee"] = assignee_ids[0]
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
 
         response = client.request_checked(
             HttpMethod.POST,
             f"/task/{resolved_task_id}/comment",
             json_body=payload,
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -1537,11 +1590,17 @@ def create_server() -> FastMCP:
             content_base64=file_data,
             content_type=content_type,
         )
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
 
         response = client.request_checked(
             HttpMethod.POST,
             f"/task/{resolved_task_id}/attachment",
             files=[multipart_file],
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -1578,7 +1637,16 @@ def create_server() -> FastMCP:
             list_id=list_id,
             list_name=list_name,
         )
-        response = client.request_checked(HttpMethod.DELETE, f"/task/{resolved_task_id}")
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
+        response = client.request_checked(
+            HttpMethod.DELETE,
+            f"/task/{resolved_task_id}",
+            query_params=query or None,
+        )
         return response.to_jsonable()
 
     @server.tool(name="delete_bulk_tasks")
@@ -1665,10 +1733,16 @@ def create_server() -> FastMCP:
             list_id=destination_list_id,
             list_name=destination_list_name,
         )
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
         response = client.request_checked(
             HttpMethod.POST,
             f"/task/{resolved_task_id}/move",
             json_body={"list_id": resolved_destination},
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -1773,11 +1847,17 @@ def create_server() -> FastMCP:
             payload["include_subtasks"] = bool(include_subtasks)
         if include_assignees is not None:
             payload["include_assignees"] = bool(include_assignees)
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
 
         response = client.request_checked(
             HttpMethod.POST,
             f"/task/{resolved_task_id}/duplicate",
             json_body=payload,
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -2332,9 +2412,15 @@ def create_server() -> FastMCP:
             list_id=list_id,
             list_name=list_name,
         )
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
         response = client.request_checked(
             HttpMethod.POST,
             f"/task/{resolved_task_id}/tag/{tag_name}",
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -2372,9 +2458,15 @@ def create_server() -> FastMCP:
             list_id=list_id,
             list_name=list_name,
         )
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
         response = client.request_checked(
             HttpMethod.DELETE,
             f"/task/{resolved_task_id}/tag/{tag_name}",
+            query_params=query or None,
         )
         return response.to_jsonable()
 
@@ -2414,7 +2506,16 @@ def create_server() -> FastMCP:
             list_id=list_id,
             list_name=list_name,
         )
-        response = client.request_checked(HttpMethod.GET, f"/task/{resolved_task_id}/time")
+        query = _augment_task_query_params(
+            client,
+            resolved_task_id,
+            team_id=team_id,
+        )
+        response = client.request_checked(
+            HttpMethod.GET,
+            f"/task/{resolved_task_id}/time",
+            query_params=query or None,
+        )
         return response.to_jsonable()
 
     @server.tool(name="start_time_tracking")
