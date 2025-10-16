@@ -246,77 +246,6 @@ def create_server() -> FastMCP:
     server = FastMCP("ClickUp")
 
     @server.tool()
-    def call_clickup_api(
-        method: HttpMethod,
-        path: Annotated[str, Field(description="Endpoint path relative to the ClickUp base URL (e.g. /team/{team_id}/task).")],
-        ctx: Context,
-        query_params: Annotated[
-            Optional[Dict[str, Any]],
-            Field(
-                default=None,
-                description="Dictionary of query string parameters to append to the request.",
-            ),
-        ] = None,
-        path_params: Annotated[
-            Optional[Dict[str, Any]],
-            Field(
-                default=None,
-                description="Values that should replace templated parameters in the path (e.g. {task_id}).",
-            ),
-        ] = None,
-        json_body: Annotated[
-            Any,
-            Field(
-                default=None,
-                description="JSON-serializable body payload. Leave empty for GET and DELETE requests.",
-            ),
-        ] = None,
-        form_body: Annotated[
-            Optional[Dict[str, Any]],
-            Field(
-                default=None,
-                description="Form-encoded body payload used by certain ClickUp endpoints.",
-            ),
-        ] = None,
-        files: Annotated[
-            Optional[list[MultipartFile]],
-            Field(
-                default=None,
-                description="Optional files for multipart uploads. Provide when endpoints require attachments.",
-            ),
-        ] = None,
-        headers: Annotated[
-            Optional[Dict[str, str]],
-            Field(
-                default=None,
-                description="Additional headers to merge into the request.",
-            ),
-        ] = None,
-        include_team_id: Annotated[
-            bool,
-            Field(
-                default=False,
-                description="Automatically inject the configured default_team_id as the team_id query parameter when true.",
-            ),
-        ] = False,
-    ) -> Dict[str, Any]:
-        """Execute an arbitrary ClickUp API request."""
-
-        client = _get_or_create_client(ctx)
-        response = client.request(
-            method=method,
-            path=path,
-            path_params=path_params,
-            query_params=query_params,
-            json_body=json_body,
-            form_body=form_body,
-            files=files,
-            headers=headers,
-            include_team_id=include_team_id,
-        )
-        return response.to_jsonable()
-
-    @server.tool()
     def list_clickup_reference_links(ctx: Context) -> Dict[str, Any]:
         """Return structured navigation data from the ClickUp API reference."""
 
@@ -383,6 +312,7 @@ def create_server() -> FastMCP:
         ]
 
     operations_by_id: Dict[str, OperationMetadata] = {}
+    operation_methods: Dict[str, HttpMethod] = {}
     tool_name_lookup: Dict[str, str] = {}
     openapi_error: Optional[str] = None
 
@@ -399,9 +329,87 @@ def create_server() -> FastMCP:
             except ValueError:
                 continue
             tool_name = _make_unique_tool_name(metadata.operation_id, tool_name_lookup)
+            operation_methods[metadata.operation_id] = method_enum
             _register_operation_tool(server, metadata, method_enum, tool_name)
             operations_by_id[metadata.operation_id] = metadata
             tool_name_lookup[tool_name] = metadata.operation_id
+
+    @server.tool()
+    def call_clickup_operation(
+        ctx: Context,
+        operation_id: Annotated[
+            str,
+            Field(description="Identifier of the ClickUp operation to execute (matches the OpenAPI operationId)."),
+        ],
+        path_params: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Values that replace templated parameters in the operation path.",
+            ),
+        ] = None,
+        query_params: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Query string parameters accepted by the operation.",
+            ),
+        ] = None,
+        json_body: Annotated[
+            Any,
+            Field(
+                default=None,
+                description="JSON payload defined for the operation request body.",
+            ),
+        ] = None,
+        form_body: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Form-encoded payload for operations that expect form data.",
+            ),
+        ] = None,
+        files: Annotated[
+            Optional[list[MultipartFile]],
+            Field(
+                default=None,
+                description="Files for multipart uploads required by the operation.",
+            ),
+        ] = None,
+        headers: Annotated[
+            Optional[Dict[str, str]],
+            Field(
+                default=None,
+                description="Additional headers to include in the request.",
+            ),
+        ] = None,
+        include_team_id: Annotated[
+            bool,
+            Field(
+                default=False,
+                description="Inject the configured default_team_id query parameter when true.",
+            ),
+        ] = False,
+    ) -> Dict[str, Any]:
+        """Execute a ClickUp OpenAPI operation by its identifier."""
+
+        metadata = operations_by_id.get(operation_id)
+        method_enum = operation_methods.get(operation_id)
+        if metadata is None or method_enum is None:
+            return {"error": f"Unknown ClickUp operation: {operation_id}"}
+
+        return _execute_operation(
+            ctx=ctx,
+            metadata=metadata,
+            method_enum=method_enum,
+            path_params=path_params,
+            query_params=query_params,
+            json_body=json_body,
+            form_body=form_body,
+            files=files,
+            headers=headers,
+            include_team_id=include_team_id,
+        )
 
     @server.tool()
     def list_clickup_operations(ctx: Context) -> Dict[str, Any]:
@@ -541,10 +549,10 @@ def _register_operation_tool(
             ),
         ] = False,
     ) -> Dict[str, Any]:
-        client = _get_or_create_client(ctx)
-        response = client.request(
-            method=method_enum,
-            path=metadata.path,
+        return _execute_operation(
+            ctx=ctx,
+            metadata=metadata,
+            method_enum=method_enum,
             path_params=path_params,
             query_params=query_params,
             json_body=json_body,
@@ -553,11 +561,40 @@ def _register_operation_tool(
             headers=headers,
             include_team_id=include_team_id,
         )
-        return response.to_jsonable()
 
     _tool.__name__ = f"tool_{tool_name}"
     _tool.__doc__ = description
     server.tool(name=tool_name)(_tool)
+
+
+def _execute_operation(
+    *,
+    ctx: Context,
+    metadata: OperationMetadata,
+    method_enum: HttpMethod,
+    path_params: Optional[Dict[str, Any]] = None,
+    query_params: Optional[Dict[str, Any]] = None,
+    json_body: Any = None,
+    form_body: Optional[Dict[str, Any]] = None,
+    files: Optional[list[MultipartFile]] = None,
+    headers: Optional[Dict[str, str]] = None,
+    include_team_id: bool = False,
+) -> Dict[str, Any]:
+    """Execute a ClickUp operation via the shared HTTP client."""
+
+    client = _get_or_create_client(ctx)
+    response = client.request(
+        method=method_enum,
+        path=metadata.path,
+        path_params=path_params,
+        query_params=query_params,
+        json_body=json_body,
+        form_body=form_body,
+        files=files,
+        headers=headers,
+        include_team_id=include_team_id,
+    )
+    return response.to_jsonable()
 
 
 def _build_operation_description(metadata: OperationMetadata) -> str:
