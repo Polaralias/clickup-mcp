@@ -195,10 +195,13 @@ class ClickUpAPIClient:
 def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
     """Cache an API client per MCP session."""
 
-    if ctx.session_data is None:
-        ctx.session_data = {}
+    session = ctx.session
+    cache: Optional[Dict[str, Any]] = getattr(session, "_clickup_cache", None)
+    if not isinstance(cache, dict):
+        cache = {}
+        setattr(session, "_clickup_cache", cache)
 
-    client = ctx.session_data.get("clickup_client") if isinstance(ctx.session_data, dict) else None
+    client = cache.get("clickup_client")
     if isinstance(client, ClickUpAPIClient):
         return client
 
@@ -207,7 +210,7 @@ def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
         config = ClickUpConfig.model_validate(config)
 
     client = ClickUpAPIClient(config)
-    ctx.session_data["clickup_client"] = client
+    cache["clickup_client"] = client
     return client
 
 
