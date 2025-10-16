@@ -1245,11 +1245,30 @@ def _get_client_session_id(ctx: Context) -> str:
 
 
 def _build_bulk_session_headers(
-    ctx: Context, extra_headers: Optional[Dict[str, str]] = None
+    ctx: Context,
+    *,
+    client: Optional["ClickUpAPIClient"] = None,
+    team_id: Optional[int] = None,
+    extra_headers: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     """Construct headers that include the ClickUp bulk session identifier."""
 
     headers = {"X-Client-Session-Id": _get_client_session_id(ctx)}
+
+    uses_oauth = False
+    if client is not None:
+        uses_oauth = bool(getattr(client, "uses_oauth_authentication", lambda: False)())
+
+    if uses_oauth:
+        resolved_team_id: Optional[int | str] = team_id
+        if resolved_team_id is None and hasattr(client, "ensure_team_id"):
+            try:
+                resolved_team_id = getattr(client, "ensure_team_id")(None)
+            except ValueError:  # pragma: no cover - defensive guard when config missing
+                resolved_team_id = None
+        if resolved_team_id is not None:
+            headers["Team-ID"] = str(int(resolved_team_id))
+
     if extra_headers:
         headers.update(extra_headers)
     return headers
@@ -1539,7 +1558,7 @@ def create_server() -> FastMCP:
             },
             query_params=query_params,
             team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx),
+            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
         )
         return response.to_jsonable()
 
@@ -1738,7 +1757,7 @@ def create_server() -> FastMCP:
             json_body={"team_id": resolved_team, "tasks": normalized_tasks},
             query_params=query_params,
             team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx),
+            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
         )
         return response.to_jsonable()
 
@@ -2353,7 +2372,7 @@ def create_server() -> FastMCP:
             json_body={"team_id": resolved_team, "task_ids": task_ids},
             query_params=query_params,
             team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx),
+            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
         )
         return response.to_jsonable()
 
@@ -2491,7 +2510,7 @@ def create_server() -> FastMCP:
             },
             query_params=query_params,
             team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx),
+            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
         )
         return response.to_jsonable()
 
