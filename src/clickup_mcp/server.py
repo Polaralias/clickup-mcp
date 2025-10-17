@@ -514,12 +514,12 @@ class ClickUpAPIClient:
 
     def _build_headers(
         self,
-        extra_headers: Optional[Dict[str, str]] = None,
+        extra_headers: Optional[Mapping[str, str] | Iterable[tuple[str, str]]] = None,
         *,
         has_body: bool = False,
         token: Optional[str] = None,
         auth_scheme: Optional[Literal["personal_token", "oauth"]] = None,
-    ) -> Dict[str, str]:
+    ) -> list[tuple[str, str]]:
         resolved_token = token or self._resolve_token()
         resolved_scheme = auth_scheme or self._resolve_auth_scheme(resolved_token)
 
@@ -528,15 +528,18 @@ class ClickUpAPIClient:
         else:
             authorization_value = resolved_token
 
-        headers: Dict[str, str] = {
-            "Authorization": authorization_value,
-            "Accept": "application/json",
-        }
-        headers.update(self._config.default_headers)
+        headers: list[tuple[str, str]] = [
+            ("Authorization", authorization_value),
+            ("Accept", "application/json"),
+        ]
+        headers.extend(self._config.default_headers.items())
         if extra_headers:
-            headers.update(extra_headers)
-        if has_body and "Content-Type" not in headers:
-            headers["Content-Type"] = "application/json"
+            if isinstance(extra_headers, Mapping):
+                headers.extend(extra_headers.items())
+            else:
+                headers.extend(extra_headers)
+        if has_body and not any(name.lower() == "content-type" for name, _ in headers):
+            headers.append(("Content-Type", "application/json"))
         return headers
 
     def _resolve_path(self, path: str) -> str:
@@ -554,7 +557,7 @@ class ClickUpAPIClient:
         json_body: Any = None,
         form_body: Optional[Dict[str, Any]] = None,
         files: Optional[Iterable[MultipartFile]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[Mapping[str, str] | Iterable[tuple[str, str]]] = None,
         team_id: Optional[int] = None,
     ) -> ClickUpResponse:
         if json_body is not None and form_body is not None:
@@ -587,7 +590,11 @@ class ClickUpAPIClient:
             auth_scheme=auth_scheme,
         )
         if prepared_files is not None:
-            request_headers.pop("Content-Type", None)
+            request_headers = [
+                (name, value)
+                for name, value in request_headers
+                if name.lower() != "content-type"
+            ]
 
         response = self._client.request(
             method,
@@ -1258,11 +1265,11 @@ def _build_bulk_session_headers(
     *,
     client: Optional["ClickUpAPIClient"] = None,
     team_id: Optional[int] = None,
-    extra_headers: Optional[Dict[str, str]] = None,
-) -> Dict[str, str]:
+    extra_headers: Optional[Mapping[str, str] | Iterable[tuple[str, str]]] = None,
+) -> list[tuple[str, str]]:
     """Construct headers that include the ClickUp bulk session identifier."""
 
-    headers = {"X-Client-Session-Id": _get_client_session_id(ctx)}
+    headers: list[tuple[str, str]] = [("X-Client-Session-Id", _get_client_session_id(ctx))]
 
     resolved_team_id: Optional[int | str] = team_id
     if resolved_team_id is None and client is not None and hasattr(client, "ensure_team_id"):
@@ -1272,14 +1279,17 @@ def _build_bulk_session_headers(
             resolved_team_id = None
     if resolved_team_id is not None:
         team_header_value = str(int(resolved_team_id))
-        headers["Team-ID"] = team_header_value
+        headers.append(("Team-ID", team_header_value))
         # Some ClickUp infrastructure expects the canonicalised "Team-Id" casing
         # instead of "Team-ID" despite HTTP header name case insensitivity.
         # To maximise compatibility we emit both variations when we know the team.
-        headers.setdefault("Team-Id", team_header_value)
+        headers.append(("Team-Id", team_header_value))
 
     if extra_headers:
-        headers.update(extra_headers)
+        if isinstance(extra_headers, Mapping):
+            headers.extend(extra_headers.items())
+        else:
+            headers.extend(extra_headers)
     return headers
 
 
