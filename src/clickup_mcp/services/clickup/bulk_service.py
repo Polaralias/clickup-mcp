@@ -31,6 +31,8 @@ class BulkService:
     def __init__(self, client: Any, logger: Optional[logging.Logger] = None) -> None:
         self._client = client
         self._logger = logger or logging.getLogger("clickup_mcp.bulk")
+        self._member_cache: Dict[Optional[int], Sequence[Mapping[str, Any]]] = {}
+        self._member_cache_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public API
@@ -216,7 +218,7 @@ class BulkService:
         team_id: Optional[int],
     ) -> Mapping[str, Any]:
         list_id = self._resolve_list_for_entry(entry, default_list_id, team_id)
-        payload = self._build_create_payload(entry)
+        payload = self._build_create_payload(entry, team_id)
         response = self._client.request_checked(
             "POST",
             f"/list/{list_id}/task",
@@ -232,7 +234,7 @@ class BulkService:
     ) -> Mapping[str, Any]:
         lookup = self._extract_lookup(entry)
         resolved_id, custom_id = self._resolve_task_identifier(lookup, team_id)
-        payload = self._build_update_payload(entry)
+        payload = self._build_update_payload(entry, team_id)
         if not payload:
             raise ClickUpServiceError(
                 "Task update entry did not include any fields to modify.",
@@ -365,7 +367,7 @@ class BulkService:
             context={"lookup": lookup.__dict__},
         )
 
-    def _build_create_payload(self, entry: Mapping[str, Any]) -> Dict[str, Any]:
+    def _build_create_payload(self, entry: Mapping[str, Any], team_id: Optional[int]) -> Dict[str, Any]:
         name = _coalesce_entry_value(entry, "name")
         if not name:
             raise ClickUpServiceError(
@@ -384,7 +386,9 @@ class BulkService:
             payload["tags"] = list(tags) if isinstance(tags, (list, tuple, set)) else tags
         assignees = _coalesce_entry_value(entry, "assignees")
         if assignees is not None:
-            payload["assignees"] = list(assignees) if isinstance(assignees, (list, tuple, set)) else assignees
+            normalized = self._normalize_assignees(team_id=team_id, assignees=assignees)
+            if normalized is not None:
+                payload["assignees"] = normalized
         self._assign_if_present(payload, entry, "due_date", "due_date", "dueDate")
         self._assign_if_present(payload, entry, "start_date", "start_date", "startDate")
         custom_id = _coalesce_entry_value(entry, "custom_task_id", "customTaskId", "customId", "custom_id")
@@ -406,7 +410,7 @@ class BulkService:
         if value is not None:
             payload[target_key] = value
 
-    def _build_update_payload(self, entry: Mapping[str, Any]) -> Dict[str, Any]:
+    def _build_update_payload(self, entry: Mapping[str, Any], team_id: Optional[int]) -> Dict[str, Any]:
         payload: Dict[str, Any] = {}
         for target, sources in (
             ("name", ("name",)),
@@ -415,14 +419,69 @@ class BulkService:
             ("status", ("status",)),
             ("priority", ("priority",)),
             ("tags", ("tags",)),
-            ("assignees", ("assignees",)),
             ("due_date", ("due_date", "dueDate")),
             ("start_date", ("start_date", "startDate")),
         ):
             value = _coalesce_entry_value(entry, *sources)
             if value is not None:
-                payload[target] = list(value) if target in {"tags", "assignees"} and isinstance(value, (set, tuple)) else value
+                payload[target] = list(value) if target == "tags" and isinstance(value, (set, tuple)) else value
+        assignees = _coalesce_entry_value(entry, "assignees")
+        if assignees is not None:
+            normalized = self._normalize_assignees(team_id=team_id, assignees=assignees)
+            if normalized is not None:
+                payload["assignees"] = normalized
         return payload
+
+    def _normalize_assignees(
+        self,
+        *,
+        team_id: Optional[int],
+        assignees: Any,
+    ) -> Optional[list[int]]:
+        if assignees is None:
+            return None
+        if isinstance(assignees, (list, tuple, set)):
+            values = list(assignees)
+        else:
+            values = [assignees]
+        if not values:
+            return None
+        members = self._get_workspace_members(team_id)
+        normalized: list[int] = []
+        for assignee in values:
+            if assignee is None:
+                continue
+            if isinstance(assignee, int):
+                normalized.append(int(assignee))
+                continue
+            if isinstance(assignee, str) and assignee.isdigit():
+                normalized.append(int(assignee))
+                continue
+            key = str(assignee).strip().lower()
+            for member in members:
+                username = str(member.get("username", "")).lower()
+                email = str(member.get("email", "")).lower()
+                full_name = str(member.get("full_name", "")).lower()
+                if key in {username, email, full_name}:
+                    member_id = member.get("id")
+                    try:
+                        normalized.append(int(member_id))
+                    except (TypeError, ValueError):
+                        pass
+                    break
+        return normalized or None
+
+    def _get_workspace_members(
+        self, team_id: Optional[int]
+    ) -> Sequence[Mapping[str, Any]]:
+        with self._member_cache_lock:
+            cached = self._member_cache.get(team_id)
+        if cached is not None:
+            return cached
+        members = self._client.get_workspace_members(team_id)
+        with self._member_cache_lock:
+            self._member_cache[team_id] = members
+        return members
 
     def _build_task_query_params(
         self,
