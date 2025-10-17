@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 try:  # noqa: E402 - allow tests to skip when optional dependencies missing
+    from clickup_mcp.config import ServerConfig, ToolGate
     from clickup_mcp.server import (  # type: ignore
         ClickUpConfig,
         ClickUpResponse,
@@ -20,11 +21,7 @@ try:  # noqa: E402 - allow tests to skip when optional dependencies missing
         create_server,
     )
     from clickup_mcp.services.clickup.bulk_service import BulkService
-    from clickup_mcp.services.clickup.concurrency_utils import (
-        BatchResult,
-        ClickUpServiceError,
-        process_batch,
-    )
+    from clickup_mcp.services.clickup.utils import BatchResult, ClickUpServiceError, process_batch
 except ModuleNotFoundError as exc:  # pragma: no cover - exercised in minimal CI environments
     pytest.skip(f"clickup_mcp.server dependencies missing: {exc}", allow_module_level=True)
 
@@ -55,6 +52,25 @@ class ToolEndpointTests(TestCase):
     def setUp(self):
         server = create_server()
         self.tool_manager = server._fastmcp._tool_manager
+
+    def test_tool_gating_respects_allowlist(self):
+        gate = ToolGate(enabled={"get_task"}, disabled=set())
+        config = ServerConfig(
+            api_token=None,
+            default_team_id=None,
+            batch_size=5,
+            concurrency=2,
+            retry_count=1,
+            retry_delay=0.5,
+            tool_gate=gate,
+        )
+
+        with patch("clickup_mcp.server.RUNTIME_CONFIG", config):
+            gated_server = create_server()
+
+        tool_names = gated_server._fastmcp._tool_manager._tools.keys()
+        self.assertIn("get_task", tool_names)
+        self.assertNotIn("create_task", tool_names)
 
     def test_get_tasks_uses_clickup_list_endpoint(self):
         client = DummyClient()

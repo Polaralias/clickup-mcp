@@ -137,6 +137,8 @@ from pydantic import (
     field_validator,
 )
 
+from clickup_mcp.config import ServerConfig
+from clickup_mcp.logger import get_logger
 from clickup_mcp.services.clickup.bulk_service import BulkService
 
 try:  # pragma: no cover - smithery optional for tests
@@ -179,6 +181,10 @@ DESTRUCTIVE_WRITE_TOOL = ToolAnnotations(
     idempotentHint=False,
     openWorldHint=True,
 )
+
+
+RUNTIME_CONFIG = ServerConfig.from_env()
+LOGGER = get_logger("clickup_mcp.server")
 
 
 class HttpMethod(str):
@@ -1255,12 +1261,20 @@ def _get_bulk_service(ctx: Context) -> BulkService:
         if not isinstance(client, ClickUpAPIClient):
             client = _get_or_create_client(ctx)
             cache["clickup_client"] = client
-        service = BulkService(client, logger=logging.getLogger("clickup_mcp.bulk"))
+        service = BulkService(
+            client,
+            logger=get_logger("clickup_mcp.bulk"),
+            batch_defaults=RUNTIME_CONFIG.batch_options(),
+        )
         cache["clickup_bulk_service"] = service
         return service
 
     client = _get_or_create_client(ctx)
-    return BulkService(client, logger=logging.getLogger("clickup_mcp.bulk"))
+    return BulkService(
+        client,
+        logger=get_logger("clickup_mcp.bulk"),
+        batch_defaults=RUNTIME_CONFIG.batch_options(),
+    )
 
 
 def _get_client_session_id(ctx: Context) -> str:
@@ -1312,6 +1326,34 @@ def create_server() -> FastMCP:
     """Create and configure the ClickUp MCP server."""
 
     server = FastMCP("ClickUp")
+
+    runtime_config = RUNTIME_CONFIG
+    gate = runtime_config.tool_gate
+    registration_logger = LOGGER
+    original_tool = server.tool
+
+    def gated_tool(*tool_args: Any, **tool_kwargs: Any):
+        decorator = original_tool(*tool_args, **tool_kwargs)
+        requested_name = tool_kwargs.get("name")
+
+        def wrapper(fn: Any):
+            tool_name = requested_name or getattr(fn, "__name__", "")
+            if gate.is_enabled(tool_name):
+                registration_logger.debug(
+                    "register_tool",
+                    extra={"tool": tool_name, "enabled": True},
+                )
+                return decorator(fn)
+            registration_logger.info(
+                "tool_disabled",
+                extra={"tool": tool_name, "enabled": False},
+            )
+            return fn
+
+        return wrapper
+
+    server.tool = gated_tool  # type: ignore[assignment]
+    setattr(server, "_clickup_runtime_config", runtime_config)
 
     @server.tool(
         annotations=READ_ONLY_TOOL,

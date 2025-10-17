@@ -8,7 +8,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, Sequence
 
-from .concurrency_utils import BatchResult, ClickUpServiceError, process_batch
+from .utils import BatchResult, ClickUpServiceError, process_batch
 
 
 @dataclass
@@ -28,9 +28,16 @@ _STANDARD_TASK_ID_PATTERN = re.compile(r"^[0-9a-z]{7,12}$")
 class BulkService:
     """High level service providing concurrent ClickUp task operations."""
 
-    def __init__(self, client: Any, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(
+        self,
+        client: Any,
+        *,
+        logger: Optional[logging.Logger] = None,
+        batch_defaults: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         self._client = client
         self._logger = logger or logging.getLogger("clickup_mcp.bulk")
+        self._batch_defaults: Mapping[str, Any] = dict(batch_defaults or {})
 
     # ------------------------------------------------------------------
     # Public API
@@ -178,7 +185,8 @@ class BulkService:
         operation: str,
         options: Optional[Mapping[str, Any]],
     ) -> Mapping[str, Any]:
-        merged: Dict[str, Any] = dict(options or {})
+        merged: Dict[str, Any] = dict(self._batch_defaults)
+        merged.update(options or {})
         user_callback = merged.get("progress_callback")
 
         async def _callback(progress: Mapping[str, Any]) -> Any:
