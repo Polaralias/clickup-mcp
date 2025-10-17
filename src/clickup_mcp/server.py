@@ -1913,7 +1913,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="get_workspace_tasks",
         annotations=READ_ONLY_TOOL,
-        description="Search tasks across an entire ClickUp workspace via POST /team/{team_id}/task.",
+        description="Search tasks across an entire ClickUp workspace via GET /team/{team_id}/task.",
     )
     def get_workspace_tasks(
         ctx: Context,
@@ -1978,45 +1978,61 @@ def create_server() -> FastMCP:
             Field(default=None, description="Filter tasks due before this timestamp."),
         ] = None,
     ) -> Dict[str, Any]:
-        """Search tasks across a workspace using POST /team/{team_id}/task."""
+        """Search tasks across a workspace using GET /team/{team_id}/task."""
 
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
-        body: Dict[str, Any] = {"page": page or 0}
+        query: Dict[str, Any] = {}
+        query["page"] = page if page is not None else 0
         if tags:
-            body["tags"] = list(tags)
+            query["tags[]"] = list(tags)
         if list_ids:
-            body["list_ids"] = list(list_ids)
+            query["list_ids[]"] = list(list_ids)
         if space_ids:
-            body["space_ids"] = list(space_ids)
+            query["space_ids[]"] = list(space_ids)
         if folder_ids:
-            body["folder_ids"] = list(folder_ids)
+            query["project_ids[]"] = list(folder_ids)
         if statuses:
-            body["statuses"] = list(statuses)
+            query["statuses[]"] = list(statuses)
         if include_closed is not None:
-            body["include_closed"] = bool(include_closed)
+            query["include_closed"] = str(bool(include_closed)).lower()
         if order_by is not None:
-            body["order_by"] = order_by
+            query["order_by"] = order_by
         if reverse is not None:
-            body["reverse"] = bool(reverse)
+            query["reverse"] = str(bool(reverse)).lower()
         if detail_level:
-            body["detail_level"] = detail_level
+            query["detail_level"] = detail_level
         if subtasks is not None:
-            body["subtasks"] = bool(subtasks)
+            query["subtasks"] = str(bool(subtasks)).lower()
         if due_date_gt is not None:
-            body["due_date_gt"] = _parse_date_field(due_date_gt)
+            query["due_date_gt"] = _parse_date_field(due_date_gt)
         if due_date_lt is not None:
-            body["due_date_lt"] = _parse_date_field(due_date_lt)
+            query["due_date_lt"] = _parse_date_field(due_date_lt)
         if assignees:
-            body["assignees"] = _normalize_assignees(client, team_id=team_id, assignees=assignees)
+            assignee_ids = _normalize_assignees(client, team_id=team_id, assignees=assignees)
+            if assignee_ids:
+                query["assignees[]"] = assignee_ids
 
-        if not any(body.get(key) for key in ("tags", "list_ids", "space_ids", "folder_ids", "statuses", "assignees", "due_date_gt", "due_date_lt")):
-            raise ValueError("At least one filtering parameter must be supplied when calling get_workspace_tasks.")
+        if not any(
+            (
+                tags,
+                list_ids,
+                space_ids,
+                folder_ids,
+                statuses,
+                assignees,
+                due_date_gt,
+                due_date_lt,
+            )
+        ):
+            raise ValueError(
+                "At least one filtering parameter must be supplied when calling get_workspace_tasks."
+            )
 
         response = client.request_checked(
-            HttpMethod.POST,
+            HttpMethod.GET,
             f"/team/{resolved_team}/task",
-            json_body=body,
+            query_params=query,
         )
         return response.to_jsonable()
 
