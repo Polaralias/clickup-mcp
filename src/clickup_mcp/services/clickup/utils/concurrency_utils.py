@@ -6,14 +6,7 @@ import random
 from dataclasses import asdict, dataclass, field
 from typing import Any, Awaitable, Callable, Iterable, List, Mapping, MutableMapping, Optional, Sequence
 
-
-class ClickUpServiceError(Exception):
-    """Base exception used by the bulk ClickUp service layer."""
-
-    def __init__(self, message: str, code: str = "UNKNOWN", context: Optional[Mapping[str, Any]] = None) -> None:
-        super().__init__(message)
-        self.code = code
-        self.context: Mapping[str, Any] = dict(context or {})
+from clickup_mcp.services.errors import ClickUpServiceError
 
 
 @dataclass
@@ -54,6 +47,8 @@ class BatchOptions:
             "continue_on_error": bool(overrides.get("continue_on_error", self.continue_on_error)),
             "progress_callback": overrides.get("progress_callback", self.progress_callback),
         }
+        data["concurrency"] = min(10, data["concurrency"])
+        data["retry_count"] = min(6, data["retry_count"])
         return BatchOptions(**data)
 
 
@@ -85,7 +80,18 @@ async def _run_single(
         except Exception as exc:  # pragma: no cover - exercised via explicit tests
             attempt += 1
             if attempt > options.retry_count:
-                return False, {"item": item, "error": str(exc), "index": index}
+                failure: MutableMapping[str, Any] = {
+                    "item": item,
+                    "error": str(exc),
+                    "index": index,
+                }
+                if isinstance(exc, ClickUpServiceError):
+                    failure.setdefault("code", exc.code)
+                    if exc.context:
+                        failure.setdefault("context", dict(exc.context))
+                else:
+                    failure.setdefault("code", "UNKNOWN")
+                return False, failure
             wait_delay = delay
             if options.exponential_backoff and delay > 0:
                 wait_delay = delay * (2 ** (attempt - 1))
@@ -142,7 +148,14 @@ async def process_batch(
                 result.successful.append(payload)
                 result.totals["success"] += 1
             else:
-                failure_entry = payload if isinstance(payload, MutableMapping) else {"error": str(payload), "index": completed - 1}
+                if isinstance(payload, MutableMapping):
+                    failure_entry = payload
+                else:
+                    failure_entry = {
+                        "error": str(payload),
+                        "index": completed - 1,
+                        "code": getattr(payload, "code", "UNKNOWN"),
+                    }
                 result.failed.append(failure_entry)
                 result.totals["failure"] += 1
                 if not opts.continue_on_error:
