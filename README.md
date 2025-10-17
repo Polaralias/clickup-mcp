@@ -2,9 +2,9 @@
 [![smithery badge](https://smithery.ai/badge/@Polaralias/clickup-mcp)](https://smithery.ai/server/@Polaralias/clickup-mcp)
 
 An MCP server for the entire [ClickUp REST API](https://clickup.com/api) built with
-[Smithery](https://smithery.ai). The server exposes generic tools that let you
-call any documented endpoint from Smithery-compatible clients, plus helper tools
-for scraping the public documentation.
+[Smithery](https://smithery.ai). The server exposes dedicated tools for every
+documented operation (derived from the public OpenAPI spec) along with helper
+utilities for browsing the public documentation.
 
 ## Prerequisites
 
@@ -27,16 +27,24 @@ configuration parameters:
 
 ## Available tools
 
-- `call_clickup_api` – Perform any ClickUp API request. Supports path and query
-  parameters, JSON bodies, form payloads, and multipart file uploads (base64
-  encoded).
-- `list_clickup_reference_links` – Scrape the navigation links from the official
-  ClickUp API documentation to discover endpoint pages.
-- `fetch_clickup_reference_page` – Download and sanitize a documentation page to
-  provide the language model with the relevant guidance.
+The server exposes a curated catalogue of tools that wrap the official ClickUp
+REST API with task-focused helpers. Categories include:
 
-The server also ships a `clickup://guide/configuration` resource and a
-`call_endpoint_prompt` prompt template to help agents prepare API calls.
+- **Task management** – create, update, move, duplicate, search, and delete
+  tasks, as well as comment, file attachment, and tag operations.
+- **Hierarchy and metadata** – fetch workspace hierarchy, lists, folders,
+  spaces, and tags with high level name resolution helpers.
+- **Time tracking** – start/stop timers and manage manual time entries.
+- **ClickUp Docs** – manage documents and document pages.
+- **Workspace members** – list and resolve members for assignment.
+
+Documentation helpers remain available through the `list_clickup_reference_links`
+and `fetch_clickup_reference_page` tools.
+
+For a complete description of every tool, including safety hints that
+differentiate read-only, idempotent, and destructive operations, reference the
+`clickup://guide/tools` resource. Configuration guidance lives at
+`clickup://guide/configuration`.
 
 ## Run locally
 

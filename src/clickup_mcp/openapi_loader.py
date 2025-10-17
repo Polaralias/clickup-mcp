@@ -18,7 +18,17 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, Optional
 
-import httpx
+try:  # pragma: no cover - allows tests to run without optional dependency
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover
+    class _HttpxPlaceholder:
+        class Client:  # type: ignore[override]
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                raise ModuleNotFoundError(
+                    "httpx is required to download ClickUp OpenAPI definitions. Install 'httpx' to enable this feature."
+                )
+
+    httpx = _HttpxPlaceholder()  # type: ignore
 
 
 _SPEC_CACHE: Optional[Dict[str, Any]] = None
