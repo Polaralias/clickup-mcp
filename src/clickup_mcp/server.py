@@ -3806,7 +3806,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="Automatically create a default page."),
         ] = None,
     ) -> Dict[str, Any]:
-        """Create a ClickUp document using POST /workspaces/{workspace_id}/docs."""
+        """Create a ClickUp document using POST /team/{workspace_id}/doc."""
 
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {
@@ -3823,7 +3823,7 @@ def create_server() -> FastMCP:
             payload["create_pages"] = bool(create_pages)
         response = client.request_checked(
             HttpMethod.POST,
-            f"/workspaces/{workspace_id}/docs",
+            f"/team/{workspace_id}/doc",
             json_body=payload,
         )
         return response.to_jsonable()
@@ -3831,26 +3831,26 @@ def create_server() -> FastMCP:
     @server.tool(
         name="get_document",
         annotations=READ_ONLY_TOOL,
-        description="Retrieve a document via GET /workspaces/{workspace_id}/docs/{document_id}.",
+        description="Retrieve a document via GET /team/{workspace_id}/doc/{document_id}.",
     )
     def get_document(
         ctx: Context,
         workspace_id: Annotated[str, Field(description="Workspace identifier.")],
         document_id: Annotated[str, Field(description="Identifier of the document to fetch.")],
     ) -> Dict[str, Any]:
-        """Retrieve a ClickUp document using GET /workspaces/{workspace_id}/docs/{document_id}."""
+        """Retrieve a ClickUp document using GET /team/{workspace_id}/doc/{document_id}."""
 
         client = _get_or_create_client(ctx)
         response = client.request_checked(
             HttpMethod.GET,
-            f"/workspaces/{workspace_id}/docs/{document_id}",
+            f"/team/{workspace_id}/doc/{document_id}",
         )
         return response.to_jsonable()
 
     @server.tool(
         name="list_documents",
         annotations=READ_ONLY_TOOL,
-        description="List documents in a workspace via GET /workspaces/{workspace_id}/docs with optional filters.",
+        description="List documents in a workspace via GET /team/{workspace_id}/doc with optional filters.",
     )
     def list_documents(
         ctx: Context,
@@ -3884,7 +3884,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="Cursor for pagination."),
         ] = None,
     ) -> Dict[str, Any]:
-        """List documents available in a workspace using GET /workspaces/{workspace_id}/docs."""
+        """List documents available in a workspace using GET /team/{workspace_id}/doc."""
 
         client = _get_or_create_client(ctx)
         query: Dict[str, Any] = {}
@@ -3904,7 +3904,7 @@ def create_server() -> FastMCP:
             query["next_cursor"] = next_cursor
         response = client.request_checked(
             HttpMethod.GET,
-            f"/workspaces/{workspace_id}/docs",
+            f"/team/{workspace_id}/doc",
             query_params=query,
         )
         return response.to_jsonable()
@@ -3912,7 +3912,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="list_document_pages",
         annotations=READ_ONLY_TOOL,
-        description="List pages for a document via GET /workspaces/{workspace_id}/docs/{document_id}/pages.",
+        description="List pages for a document via GET /doc/{document_id}/page.",
     )
     def list_document_pages(
         ctx: Context,
@@ -3923,7 +3923,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="Maximum depth of nested pages (-1 for unlimited)."),
         ] = None,
     ) -> Dict[str, Any]:
-        """List the pages that belong to a document using GET /workspaces/{workspace_id}/docs/{document_id}/pages."""
+        """List the pages that belong to a document using GET /doc/{document_id}/page."""
 
         client = _get_or_create_client(ctx)
         query = {}
@@ -3931,7 +3931,7 @@ def create_server() -> FastMCP:
             query["max_page_depth"] = max_page_depth
         response = client.request_checked(
             HttpMethod.GET,
-            f"/workspaces/{workspace_id}/docs/{document_id}/pages",
+            f"/doc/{document_id}/page",
             query_params=query,
         )
         return response.to_jsonable()
@@ -3939,7 +3939,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="get_document_pages",
         annotations=READ_ONLY_TOOL,
-        description="Fetch specific document pages and content via POST /workspaces/{workspace_id}/docs/{document_id}/pages/bulk.",
+        description="Fetch specific document pages and content via POST /doc/{document_id}/page/bulk.",
     )
     def get_document_pages(
         ctx: Context,
@@ -3954,7 +3954,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="Desired content format (text/md, text/html, etc.)."),
         ] = None,
     ) -> Dict[str, Any]:
-        """Fetch specific document pages using POST /workspaces/{workspace_id}/docs/{document_id}/pages/bulk."""
+        """Fetch specific document pages using POST /doc/{document_id}/page/bulk."""
 
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {"page_ids": list(page_ids)}
@@ -3962,7 +3962,7 @@ def create_server() -> FastMCP:
             payload["content_format"] = content_format
         response = client.request_checked(
             HttpMethod.POST,
-            f"/workspaces/{workspace_id}/docs/{document_id}/pages/bulk",
+            f"/doc/{document_id}/page/bulk",
             json_body=payload,
         )
         return response.to_jsonable()
@@ -3970,7 +3970,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="create_document_pages",
         annotations=NON_DESTRUCTIVE_WRITE_TOOL,
-        description="Create a document page via POST /workspaces/{workspace_id}/docs/{document_id}/pages.",
+        description="Create a document page via POST /doc/{document_id}/page.",
     )
     def create_document_pages(
         ctx: Context,
@@ -3994,7 +3994,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="Optional subtitle."),
         ] = None,
     ) -> Dict[str, Any]:
-        """Create a page within a document using POST /workspaces/{workspace_id}/docs/{document_id}/pages."""
+        """Create a page within a document using POST /doc/{document_id}/page."""
 
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {"name": name}
@@ -4008,7 +4008,7 @@ def create_server() -> FastMCP:
             payload["sub_title"] = sub_title
         response = client.request_checked(
             HttpMethod.POST,
-            f"/workspaces/{workspace_id}/docs/{document_id}/pages",
+            f"/doc/{document_id}/page",
             json_body=payload,
         )
         return response.to_jsonable()
@@ -4016,7 +4016,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="update_document_page",
         annotations=IDEMPOTENT_WRITE_TOOL,
-        description="Update a document page via PUT /workspaces/{workspace_id}/docs/{document_id}/pages/{page_id}.",
+        description="Update a document page via PUT /doc/{document_id}/page/{page_id}.",
     )
     def update_document_page(
         ctx: Context,
@@ -4044,7 +4044,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="replace, append, or prepend."),
         ] = None,
     ) -> Dict[str, Any]:
-        """Update a document page using PUT /workspaces/{workspace_id}/docs/{document_id}/pages/{page_id}."""
+        """Update a document page using PUT /doc/{document_id}/page/{page_id}."""
 
         client = _get_or_create_client(ctx)
         payload: Dict[str, Any] = {}
@@ -4060,7 +4060,7 @@ def create_server() -> FastMCP:
             payload["content_edit_mode"] = content_edit_mode
         response = client.request_checked(
             HttpMethod.PUT,
-            f"/workspaces/{workspace_id}/docs/{document_id}/pages/{page_id}",
+            f"/doc/{document_id}/page/{page_id}",
             json_body=payload,
         )
         return response.to_jsonable()
