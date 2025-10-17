@@ -808,7 +808,7 @@ class ClickUpAPIClient:
             resolved_team = self.ensure_team_id(team_id)
             response = self.request_checked(
                 HttpMethod.POST,
-                f"/team/{resolved_team}/task/search",
+                f"/team/{resolved_team}/task",
                 json_body={
                     "task_name": task_name,
                     "include_closed": True,
@@ -1913,7 +1913,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="get_workspace_tasks",
         annotations=READ_ONLY_TOOL,
-        description="Search tasks across an entire ClickUp workspace via POST /team/{team_id}/task/search.",
+        description="Search tasks across an entire ClickUp workspace via POST /team/{team_id}/task.",
     )
     def get_workspace_tasks(
         ctx: Context,
@@ -1978,7 +1978,7 @@ def create_server() -> FastMCP:
             Field(default=None, description="Filter tasks due before this timestamp."),
         ] = None,
     ) -> Dict[str, Any]:
-        """Search tasks across a workspace using POST /team/{team_id}/task/search."""
+        """Search tasks across a workspace using POST /team/{team_id}/task."""
 
         client = _get_or_create_client(ctx)
         resolved_team = client.ensure_team_id(team_id)
@@ -2015,7 +2015,7 @@ def create_server() -> FastMCP:
 
         response = client.request_checked(
             HttpMethod.POST,
-            f"/team/{resolved_team}/task/search",
+            f"/team/{resolved_team}/task",
             json_body=body,
         )
         return response.to_jsonable()
