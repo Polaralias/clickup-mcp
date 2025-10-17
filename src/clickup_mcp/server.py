@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -135,6 +136,8 @@ from pydantic import (
     ValidationError,
     field_validator,
 )
+
+from clickup_mcp.services.clickup.bulk_service import BulkService
 
 try:  # pragma: no cover - smithery optional for tests
     from smithery.decorators import smithery
@@ -1239,6 +1242,27 @@ def _get_or_create_client(ctx: Context) -> ClickUpAPIClient:
     return client
 
 
+def _get_bulk_service(ctx: Context) -> BulkService:
+    """Return a cached bulk service instance for the current session."""
+
+    session = getattr(ctx, "session", None)
+    cache: Optional[Dict[str, Any]] = getattr(session, "_clickup_cache", None)
+    if isinstance(cache, dict):
+        service = cache.get("clickup_bulk_service")
+        if isinstance(service, BulkService):
+            return service
+        client = cache.get("clickup_client")
+        if not isinstance(client, ClickUpAPIClient):
+            client = _get_or_create_client(ctx)
+            cache["clickup_client"] = client
+        service = BulkService(client, logger=logging.getLogger("clickup_mcp.bulk"))
+        cache["clickup_bulk_service"] = service
+        return service
+
+    client = _get_or_create_client(ctx)
+    return BulkService(client, logger=logging.getLogger("clickup_mcp.bulk"))
+
+
 def _get_client_session_id(ctx: Context) -> str:
     """Return a stable session identifier required by ClickUp bulk endpoints."""
 
@@ -1473,7 +1497,9 @@ def create_server() -> FastMCP:
     @server.tool(
         name="create_bulk_tasks",
         annotations=NON_DESTRUCTIVE_WRITE_TOOL,
-        description="Create multiple ClickUp tasks in one request using POST /task/bulk.",
+        description=(
+            "Create multiple ClickUp tasks concurrently using the standard single-task endpoint."
+        ),
     )
     def create_bulk_tasks(
         ctx: Context,
@@ -1505,87 +1531,26 @@ def create_server() -> FastMCP:
                 validation_alias=AliasChoices("team_id", "teamId"),
             ),
         ] = None,
+        options: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Batch processing configuration controlling concurrency, retries, and error handling.",
+                validation_alias=AliasChoices("options", "batch_options"),
+            ),
+        ] = None,
     ) -> Dict[str, Any]:
-        """Create multiple ClickUp tasks in one request using POST /task/bulk."""
+        """Create multiple tasks by delegating to the bulk service layer."""
 
-        client = _get_or_create_client(ctx)
-        default_list_id: Optional[str] = None
-        if list_id or list_name:
-            default_list_id = _resolve_list_identifier(
-                client,
-                team_id=team_id,
-                list_id=list_id,
-                list_name=list_name,
-            )
-        resolved_team = client.ensure_team_id(team_id)
-
-        normalized_tasks: list[Dict[str, Any]] = []
-        custom_id_present = False
-        for entry in tasks:
-            if not isinstance(entry, dict):
-                raise ValueError("Each task entry must be an object containing creation parameters.")
-            task_payload: Dict[str, Any] = {}
-            target_list_id = entry.get("listId") or entry.get("list_id")
-            target_list_name = entry.get("listName") or entry.get("list_name")
-            resolved_list = target_list_id or default_list_id
-            if not resolved_list and target_list_name:
-                resolved_list = _resolve_list_identifier(
-                    client,
-                    team_id=team_id,
-                    list_id=None,
-                    list_name=str(target_list_name),
-                )
-            if not resolved_list:
-                raise ValueError(
-                    "Each task must specify listId/listName when no default list is supplied to the tool."
-                )
-            task_payload["list_id"] = resolved_list
-            name = entry.get("name")
-            if not name:
-                raise ValueError("Each task requires a name field.")
-            task_payload["name"] = name
-            for key in ("description", "markdown_description", "status", "priority", "parent", "tags"):
-                if key in entry and entry[key] is not None:
-                    task_payload[key] = entry[key]
-            custom_id = None
-            for key in ("custom_id", "customId", "custom_task_id", "customTaskId"):
-                value = entry.get(key)
-                if value not in (None, ""):
-                    custom_id = str(value)
-                    break
-            if custom_id is not None:
-                task_payload["custom_id"] = custom_id
-                custom_id_present = True
-            _apply_task_date_fields(
-                task_payload,
-                start_date=entry.get("startDate") or entry.get("start_date"),
-                due_date=entry.get("dueDate") or entry.get("due_date"),
-            )
-            assignee_ids = _normalize_assignees(
-                client,
-                team_id=team_id,
-                assignees=entry.get("assignees"),
-            )
-            if assignee_ids is not None:
-                task_payload["assignees"] = assignee_ids
-            normalized_tasks.append(task_payload)
-
-        query_params: Dict[str, Any] = {"team_id": resolved_team}
-        if custom_id_present:
-            query_params["custom_task_ids"] = "true"
-
-        response = client.request_checked(
-            HttpMethod.POST,
-            "/task/bulk",
-            json_body={
-                "team_id": resolved_team,
-                "tasks": normalized_tasks,
-            },
-            query_params=query_params,
-            team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
+        service = _get_bulk_service(ctx)
+        result = service.create_bulk_tasks(
+            tasks=tasks,
+            default_list_id=list_id,
+            default_list_name=list_name,
+            team_id=team_id,
+            options=options,
         )
-        return response.to_jsonable()
+        return result.to_dict()
 
     @server.tool(
         name="update_task",
@@ -1700,7 +1665,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="update_bulk_tasks",
         annotations=IDEMPOTENT_WRITE_TOOL,
-        description="Update multiple tasks using PUT /task/bulk with ClickUp's bulk update schema.",
+        description="Update multiple tasks concurrently via the bulk service layer.",
     )
     def update_bulk_tasks(
         ctx: Context,
@@ -1716,83 +1681,24 @@ def create_server() -> FastMCP:
                 validation_alias=AliasChoices("team_id", "teamId"),
             ),
         ] = None,
+        options: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Batch processing configuration controlling concurrency, retries, and error handling.",
+                validation_alias=AliasChoices("options", "batch_options"),
+            ),
+        ] = None,
     ) -> Dict[str, Any]:
-        """Update multiple tasks using PUT /task/bulk with ClickUp's bulk update schema."""
+        """Update multiple tasks by delegating to the ClickUp bulk service."""
 
-        client = _get_or_create_client(ctx)
-        resolved_team = client.ensure_team_id(team_id)
-        normalized_tasks: list[Dict[str, Any]] = []
-        custom_ids_requested = False
-        for entry in tasks:
-            if not isinstance(entry, dict):
-                raise ValueError("Each task entry must be an object containing update parameters.")
-            task_payload: Dict[str, Any] = {}
-            lookup = _extract_task_lookup_fields(entry)
-
-            resolved_id: Optional[str] = None
-            provided_task_id = lookup.task_id
-            if provided_task_id and _is_standard_task_id(str(provided_task_id)):
-                resolved_id = str(provided_task_id)
-            if lookup.custom_task_id:
-                task_payload["custom_task_id"] = str(lookup.custom_task_id)
-            elif provided_task_id and not _is_standard_task_id(str(provided_task_id)):
-                task_payload["custom_task_id"] = str(provided_task_id)
-
-            if resolved_id is None and (
-                lookup.task_name
-                or lookup.list_id
-                or lookup.list_name
-                or (provided_task_id and _is_standard_task_id(str(provided_task_id)))
-            ):
-                resolved_id = _resolve_task_identifier(
-                    client,
-                    team_id=team_id,
-                    task_id=provided_task_id if provided_task_id and _is_standard_task_id(str(provided_task_id)) else None,
-                    task_name=lookup.task_name,
-                    list_id=lookup.list_id,
-                    list_name=lookup.list_name,
-                )
-
-            if resolved_id is not None:
-                task_payload["id"] = str(resolved_id)
-            if "id" not in task_payload and "custom_task_id" not in task_payload:
-                raise ValueError(
-                    "Each task entry must include a recognizable identifier such as taskId, customTaskId, or taskName."
-                )
-            for key in ("name", "description", "markdown_description", "status", "priority", "tags"):
-                if key in entry and entry[key] is not None:
-                    task_payload[key] = entry[key]
-            _apply_task_date_fields(
-                task_payload,
-                start_date=entry.get("startDate") or entry.get("start_date"),
-                due_date=entry.get("dueDate") or entry.get("due_date"),
-            )
-            assignee_ids = _normalize_assignees(
-                client,
-                team_id=team_id,
-                assignees=entry.get("assignees"),
-            )
-            if assignee_ids is not None:
-                task_payload["assignees"] = assignee_ids
-            if "custom_task_id" in task_payload or not _is_standard_task_id(str(task_payload.get("id", ""))):
-                custom_ids_requested = True
-            normalized_tasks.append(task_payload)
-
-        query_params: Dict[str, Any] = {"team_id": resolved_team}
-        if custom_ids_requested or any(
-            "custom_task_id" in task for task in normalized_tasks
-        ):
-            query_params["custom_task_ids"] = "true"
-
-        response = client.request_checked(
-            HttpMethod.PUT,
-            "/task/bulk",
-            json_body={"team_id": resolved_team, "tasks": normalized_tasks},
-            query_params=query_params,
-            team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
+        service = _get_bulk_service(ctx)
+        result = service.update_bulk_tasks(
+            tasks=tasks,
+            team_id=team_id,
+            options=options,
         )
-        return response.to_jsonable()
+        return result.to_dict()
 
     @server.tool(
         name="get_tasks",
@@ -2360,7 +2266,7 @@ def create_server() -> FastMCP:
     @server.tool(
         name="delete_bulk_tasks",
         annotations=DESTRUCTIVE_WRITE_TOOL,
-        description="Permanently delete multiple tasks using POST /task/bulk/delete.",
+        description="Permanently delete multiple tasks via the bulk service layer.",
     )
     def delete_bulk_tasks(
         ctx: Context,
@@ -2376,46 +2282,24 @@ def create_server() -> FastMCP:
                 validation_alias=AliasChoices("team_id", "teamId"),
             ),
         ] = None,
+        options: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Batch processing configuration controlling concurrency, retries, and error handling.",
+                validation_alias=AliasChoices("options", "batch_options"),
+            ),
+        ] = None,
     ) -> Dict[str, Any]:
-        """Delete multiple tasks via POST /task/bulk/delete."""
+        """Delete multiple tasks by delegating to the ClickUp bulk service."""
 
-        client = _get_or_create_client(ctx)
-        resolved_team = client.ensure_team_id(team_id)
-        task_ids: list[str] = []
-        custom_ids_requested = False
-        for entry in tasks:
-            if isinstance(entry, dict):
-                lookup = _extract_task_lookup_fields(entry)
-                resolved_id = _resolve_task_identifier(
-                    client,
-                    team_id=team_id,
-                    task_id=lookup.task_id,
-                    task_name=lookup.task_name,
-                    list_id=lookup.list_id,
-                    list_name=lookup.list_name,
-                )
-                identifier = lookup.custom_task_id or resolved_id
-                if lookup.custom_task_id or not _is_standard_task_id(str(identifier)):
-                    custom_ids_requested = True
-                task_ids.append(identifier)
-            else:
-                task_ids.append(str(entry))
-
-        query_params: Dict[str, Any] = {"team_id": resolved_team}
-        if custom_ids_requested or any(
-            not _is_standard_task_id(str(task_id)) for task_id in task_ids
-        ):
-            query_params["custom_task_ids"] = "true"
-
-        response = client.request_checked(
-            HttpMethod.DELETE,
-            "/task/bulk",
-            json_body={"team_id": resolved_team, "task_ids": task_ids},
-            query_params=query_params,
-            team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
+        service = _get_bulk_service(ctx)
+        result = service.delete_bulk_tasks(
+            tasks=tasks,
+            team_id=team_id,
+            options=options,
         )
-        return response.to_jsonable()
+        return result.to_dict()
 
     @server.tool(
         name="move_task",
@@ -2506,36 +2390,28 @@ def create_server() -> FastMCP:
     @server.tool(
         name="move_bulk_tasks",
         annotations=IDEMPOTENT_WRITE_TOOL,
-        description="Move multiple tasks to a destination list via POST /task/bulk/move.",
+        description="Move multiple tasks to a destination list via the bulk service layer.",
     )
     def move_bulk_tasks(
         ctx: Context,
         tasks: Annotated[
             Sequence[Dict[str, Any]],
-            Field(description="Tasks to move to a destination list."),
+            Field(description="Collection of task references to move."),
         ],
-        destination_list_id: Annotated[
+        target_list_id: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Destination list identifier.",
-                validation_alias=AliasChoices(
-                    "destination_list_id",
-                    "destinationListId",
-                    "targetListId",
-                ),
+                description="Destination list identifier applied when tasks omit explicit targets.",
+                validation_alias=AliasChoices("target_list_id", "targetListId", "destination_list_id"),
             ),
         ] = None,
-        destination_list_name: Annotated[
+        target_list_name: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Destination list name.",
-                validation_alias=AliasChoices(
-                    "destination_list_name",
-                    "destinationListName",
-                    "targetListName",
-                ),
+                description="Destination list name resolved within the workspace hierarchy.",
+                validation_alias=AliasChoices("target_list_name", "targetListName", "destination_list_name"),
             ),
         ] = None,
         team_id: Annotated[
@@ -2546,54 +2422,26 @@ def create_server() -> FastMCP:
                 validation_alias=AliasChoices("team_id", "teamId"),
             ),
         ] = None,
+        options: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                default=None,
+                description="Batch processing configuration controlling concurrency, retries, and error handling.",
+                validation_alias=AliasChoices("options", "batch_options"),
+            ),
+        ] = None,
     ) -> Dict[str, Any]:
-        """Move multiple tasks to a destination list using POST /task/bulk/move."""
+        """Move multiple tasks to a new list using the bulk service layer."""
 
-        client = _get_or_create_client(ctx)
-        resolved_destination = _resolve_list_identifier(
-            client,
+        service = _get_bulk_service(ctx)
+        result = service.move_bulk_tasks(
+            tasks=tasks,
+            target_list_id=target_list_id,
+            target_list_name=target_list_name,
             team_id=team_id,
-            list_id=destination_list_id,
-            list_name=destination_list_name,
+            options=options,
         )
-        resolved_team = client.ensure_team_id(team_id)
-        task_ids = []
-        custom_ids_requested = False
-        for entry in tasks:
-            if isinstance(entry, Mapping):
-                lookup = _extract_task_lookup_fields(entry)
-            else:
-                lookup = TaskLookupFields(str(entry), None, None, None, None)
-            resolved_id = _resolve_task_identifier(
-                client,
-                team_id=team_id,
-                task_id=lookup.task_id,
-                task_name=lookup.task_name,
-                list_id=lookup.list_id,
-                list_name=lookup.list_name,
-            )
-            identifier = lookup.custom_task_id or resolved_id
-            if lookup.custom_task_id or not _is_standard_task_id(str(identifier)):
-                custom_ids_requested = True
-            task_ids.append(identifier)
-        query_params: Dict[str, Any] = {"team_id": resolved_team}
-        if custom_ids_requested or any(
-            not _is_standard_task_id(str(task_id)) for task_id in task_ids
-        ):
-            query_params["custom_task_ids"] = "true"
-        response = client.request_checked(
-            HttpMethod.POST,
-            "/task/move/bulk",
-            json_body={
-                "team_id": resolved_team,
-                "list_id": resolved_destination,
-                "task_ids": task_ids,
-            },
-            query_params=query_params,
-            team_id=resolved_team,
-            headers=_build_bulk_session_headers(ctx, client=client, team_id=resolved_team),
-        )
-        return response.to_jsonable()
+        return result.to_dict()
 
     @server.tool(
         name="duplicate_task",
@@ -4274,5 +4122,18 @@ def create_server() -> FastMCP:
             lines.append("")
 
         return "\n".join(lines).strip()
+
+    try:
+        from clickup_mcp.tools.bulk_tools import BULK_TOOLS
+
+        for tool_schema in BULK_TOOLS:
+            try:
+                registered_tool = server._fastmcp._tool_manager.get_tool(tool_schema["name"])  # type: ignore[attr-defined]
+            except Exception:  # pragma: no cover - defensive when running outside tests
+                continue
+            if registered_tool is not None:
+                setattr(registered_tool, "input_schema", tool_schema.get("input_schema"))
+    except Exception:  # pragma: no cover - schema decoration is optional
+        pass
 
     return server

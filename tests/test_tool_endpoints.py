@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, Dict
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -12,12 +13,17 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 try:  # noqa: E402 - allow tests to skip when optional dependencies missing
-    from clickup_mcp.server import (
+    from clickup_mcp.server import (  # type: ignore
         ClickUpConfig,
         ClickUpResponse,
         HttpMethod,
-        TaskLookupFields,
         create_server,
+    )
+    from clickup_mcp.services.clickup.bulk_service import BulkService
+    from clickup_mcp.services.clickup.concurrency_utils import (
+        BatchResult,
+        ClickUpServiceError,
+        process_batch,
     )
 except ModuleNotFoundError as exc:  # pragma: no cover - exercised in minimal CI environments
     pytest.skip(f"clickup_mcp.server dependencies missing: {exc}", allow_module_level=True)
@@ -134,178 +140,201 @@ class ToolEndpointTests(TestCase):
         get_list_tool = self.tool_manager.get_tool("get_list")
         self.assertIn("Use get_tasks", get_list_tool.description)
 
-    def test_create_bulk_tasks_sets_custom_query_params(self):
-        client = DummyClient()
-        create_bulk = self.tool_manager.get_tool("create_bulk_tasks").fn
+    def test_create_bulk_tasks_delegates_to_service(self):
+        calls: Dict[str, Any] = {}
 
+        def fake_create_bulk_tasks(**kwargs: Any) -> BatchResult:
+            calls.update(kwargs)
+            return BatchResult(successful=[{"id": "task-1"}], failed=[], totals={"success": 1, "failure": 0, "total": 1})
+
+        service = SimpleNamespace(create_bulk_tasks=fake_create_bulk_tasks)
+        create_bulk = self.tool_manager.get_tool("create_bulk_tasks").fn
         ctx = SimpleNamespace(session=SimpleNamespace())
 
-        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
-            patch("clickup_mcp.server._resolve_list_identifier", return_value="list-555"):
+        with patch("clickup_mcp.server._get_bulk_service", return_value=service):
             result = create_bulk(
                 ctx=ctx,
-                tasks=[
-                    {
-                        "name": "New Task",
-                        "listId": "list-555",
-                        "custom_id": "CUS-123",
-                    }
-                ],
+                tasks=[{"name": "New Task"}],
+                list_id="list-555",
+                options={"concurrency": 5},
             )
 
-        self.assertEqual(result["status_code"], 200)
-        self.assertEqual(len(client.calls), 1)
-        method, path, kwargs = client.calls[0]
-        self.assertEqual(method, HttpMethod.POST)
-        self.assertEqual(path, "/task/bulk")
-        self.assertEqual(
-            kwargs.get("json_body"),
-            {
-                "team_id": 999,
-                "tasks": [
-                    {
-                        "list_id": "list-555",
-                        "name": "New Task",
-                        "custom_id": "CUS-123",
-                    }
-                ],
-            },
-        )
-        self.assertEqual(
-            kwargs.get("query_params"),
-            {"custom_task_ids": "true", "team_id": 999},
-        )
-        session_id = ctx.session._clickup_client_session_id
-        headers = kwargs.get("headers")
-        self.assertIsInstance(headers, dict)
-        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
-        self.assertEqual(headers.get("Team-ID"), "999")
-        self.assertEqual(headers.get("Team-Id"), "999")
+        self.assertEqual(result["totals"]["success"], 1)
+        self.assertEqual(calls["default_list_id"], "list-555")
+        self.assertEqual(calls["options"], {"concurrency": 5})
 
-    def test_delete_bulk_tasks_sets_custom_query_params(self):
-        client = DummyClient()
-        delete_bulk = self.tool_manager.get_tool("delete_bulk_tasks").fn
+    def test_update_bulk_tasks_delegates_to_service(self):
+        captured: Dict[str, Any] = {}
 
+        def fake_update_bulk_tasks(**kwargs: Any) -> BatchResult:
+            captured.update(kwargs)
+            return BatchResult(successful=[{"id": "task-1"}], failed=[], totals={"success": 1, "failure": 0, "total": 1})
+
+        service = SimpleNamespace(update_bulk_tasks=fake_update_bulk_tasks)
+        update_bulk = self.tool_manager.get_tool("update_bulk_tasks").fn
         ctx = SimpleNamespace(session=SimpleNamespace())
 
-        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
-            patch("clickup_mcp.server._resolve_task_identifier", return_value="CUS-1"):
+        with patch("clickup_mcp.server._get_bulk_service", return_value=service):
+            result = update_bulk(
+                ctx=ctx,
+                tasks=[{"taskId": "task-123", "status": "open"}],
+                team_id=123,
+            )
+
+        self.assertEqual(result["totals"]["total"], 1)
+        self.assertEqual(captured["team_id"], 123)
+        self.assertEqual(captured["tasks"][0]["status"], "open")
+
+    def test_delete_bulk_tasks_delegates_to_service(self):
+        captured: Dict[str, Any] = {}
+
+        def fake_delete_bulk_tasks(**kwargs: Any) -> BatchResult:
+            captured.update(kwargs)
+            return BatchResult(successful=[], failed=[{"error": "boom"}], totals={"success": 0, "failure": 1, "total": 1})
+
+        service = SimpleNamespace(delete_bulk_tasks=fake_delete_bulk_tasks)
+        delete_bulk = self.tool_manager.get_tool("delete_bulk_tasks").fn
+        ctx = SimpleNamespace(session=SimpleNamespace())
+
+        with patch("clickup_mcp.server._get_bulk_service", return_value=service):
             result = delete_bulk(
                 ctx=ctx,
                 tasks=[{"taskId": "CUS-1"}],
             )
 
-        self.assertEqual(result["status_code"], 200)
-        self.assertEqual(len(client.calls), 1)
-        method, path, kwargs = client.calls[0]
-        self.assertEqual(method, HttpMethod.DELETE)
-        self.assertEqual(path, "/task/bulk")
-        self.assertEqual(
-            kwargs.get("json_body"),
-            {"team_id": 999, "task_ids": ["CUS-1"]},
-        )
-        self.assertEqual(
-            kwargs.get("query_params"),
-            {"custom_task_ids": "true", "team_id": 999},
-        )
-        session_id = ctx.session._clickup_client_session_id
-        headers = kwargs.get("headers")
-        self.assertIsInstance(headers, dict)
-        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
-        self.assertEqual(headers.get("Team-ID"), "999")
-        self.assertEqual(headers.get("Team-Id"), "999")
+        self.assertEqual(result["totals"]["failure"], 1)
+        self.assertEqual(captured["tasks"][0]["taskId"], "CUS-1")
 
-    def test_move_bulk_tasks_sets_custom_query_params(self):
-        client = DummyClient()
+    def test_move_bulk_tasks_delegates_to_service(self):
+        captured: Dict[str, Any] = {}
+
+        def fake_move_bulk_tasks(**kwargs: Any) -> BatchResult:
+            captured.update(kwargs)
+            return BatchResult(successful=[{"id": "task-1"}], failed=[], totals={"success": 1, "failure": 0, "total": 1})
+
+        service = SimpleNamespace(move_bulk_tasks=fake_move_bulk_tasks)
         move_bulk = self.tool_manager.get_tool("move_bulk_tasks").fn
-
         ctx = SimpleNamespace(session=SimpleNamespace())
 
-        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
-            patch("clickup_mcp.server._resolve_list_identifier", return_value="list-999"), \
-            patch("clickup_mcp.server._resolve_task_identifier", return_value="CUS-42"):
+        with patch("clickup_mcp.server._get_bulk_service", return_value=service):
             result = move_bulk(
                 ctx=ctx,
                 tasks=[{"taskId": "CUS-42"}],
-                destination_list_id="list-999",
+                target_list_name="Inbox",
             )
 
-        self.assertEqual(result["status_code"], 200)
-        self.assertEqual(len(client.calls), 1)
-        method, path, kwargs = client.calls[0]
-        self.assertEqual(method, HttpMethod.POST)
-        self.assertEqual(path, "/task/move/bulk")
-        self.assertEqual(
-            kwargs.get("json_body"),
-            {
-                "team_id": 999,
-                "list_id": "list-999",
-                "task_ids": ["CUS-42"],
-            },
+        self.assertEqual(result["totals"]["success"], 1)
+        self.assertEqual(captured["target_list_name"], "Inbox")
+
+
+class DummyBulkClient:
+    def __init__(self):
+        self.calls = []
+        self.default_team = 999
+
+    def request_checked(self, method, path, **kwargs):
+        self.calls.append((method, path, kwargs))
+        return ClickUpResponse(status_code=200, headers={}, data={"ok": True})
+
+    def ensure_team_id(self, team_id):
+        return team_id or self.default_team
+
+    def resolve_list_id(self, *, team_id, list_id=None, list_name=None):
+        if list_id:
+            return list_id
+        if list_name:
+            return f"resolved-{list_name}"
+        raise ValueError("List identifier required")
+
+    def resolve_task_id(self, *, team_id, task_id=None, task_name=None, list_id=None):
+        if task_id:
+            return task_id
+        if task_name:
+            return f"resolved-{task_name}"
+        return "resolved-task"
+
+    def uses_oauth_authentication(self):
+        return False
+
+
+class BulkServiceTests(TestCase):
+    def test_create_bulk_tasks_calls_single_endpoint(self):
+        client = DummyBulkClient()
+        service = BulkService(client)
+
+        result = service.create_bulk_tasks(
+            tasks=[{"name": "Task"}],
+            default_list_id="list-1",
+            team_id=None,
+            options={"concurrency": 1, "retry_count": 0},
         )
-        self.assertEqual(
-            kwargs.get("query_params"),
-            {"custom_task_ids": "true", "team_id": 999},
-        )
-        session_id = ctx.session._clickup_client_session_id
-        headers = kwargs.get("headers")
-        self.assertIsInstance(headers, dict)
-        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
-        self.assertEqual(headers.get("Team-ID"), "999")
-        self.assertEqual(headers.get("Team-Id"), "999")
 
-    def test_update_bulk_tasks_includes_team_header_for_oauth(self):
-        client = DummyClient()
-        client.uses_oauth_authentication = lambda: True
-        update_bulk = self.tool_manager.get_tool("update_bulk_tasks").fn
-
-        ctx = SimpleNamespace(session=SimpleNamespace())
-
-        lookup = TaskLookupFields("task-123", None, None, None, None)
-
-        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
-            patch("clickup_mcp.server._extract_task_lookup_fields", return_value=lookup), \
-            patch("clickup_mcp.server._normalize_assignees", return_value=None), \
-            patch("clickup_mcp.server._resolve_task_identifier", return_value="task-123"):
-            result = update_bulk(
-                ctx=ctx,
-                tasks=[{"taskId": "task-123", "status": "In Progress"}],
-            )
-
-        self.assertEqual(result["status_code"], 200)
-        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(result.totals["success"], 1)
         method, path, kwargs = client.calls[0]
-        self.assertEqual(method, HttpMethod.PUT)
-        self.assertEqual(path, "/task/bulk")
-        session_id = ctx.session._clickup_client_session_id
-        headers = kwargs.get("headers")
-        self.assertIsInstance(headers, dict)
-        self.assertEqual(headers.get("X-Client-Session-Id"), session_id)
-        self.assertEqual(headers.get("Team-ID"), "999")
-        self.assertEqual(headers.get("Team-Id"), "999")
+        self.assertEqual(method, "POST")
+        self.assertEqual(path, "/list/list-1/task")
+        self.assertEqual(kwargs.get("json_body"), {"name": "Task"})
 
-    def test_update_bulk_tasks_handles_alphanumeric_task_ids(self):
-        client = DummyClient()
-        update_bulk = self.tool_manager.get_tool("update_bulk_tasks").fn
+    def test_update_bulk_tasks_adds_custom_query_params(self):
+        client = DummyBulkClient()
+        service = BulkService(client)
 
-        ctx = SimpleNamespace(session=SimpleNamespace())
-
-        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
-            patch("clickup_mcp.server._normalize_assignees", return_value=None), \
-            patch("clickup_mcp.server._resolve_task_identifier") as resolve_mock:
-            result = update_bulk(
-                ctx=ctx,
-                tasks=[{"taskId": "869avmhjm", "status": "complete"}],
-            )
-
-        self.assertEqual(result["status_code"], 200)
-        resolve_mock.assert_not_called()
-        self.assertEqual(len(client.calls), 1)
-        method, path, kwargs = client.calls[0]
-        self.assertEqual(method, HttpMethod.PUT)
-        self.assertEqual(path, "/task/bulk")
-        self.assertEqual(
-            kwargs.get("json_body"),
-            {"team_id": 999, "tasks": [{"id": "869avmhjm", "status": "complete"}]},
+        result = service.update_bulk_tasks(
+            tasks=[{"customTaskId": "CUS-1", "status": "open"}],
+            team_id=None,
+            options={"concurrency": 1, "retry_count": 0},
         )
-        self.assertEqual(kwargs.get("query_params"), {"team_id": 999})
+
+        self.assertEqual(result.totals["success"], 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, "PUT")
+        self.assertEqual(path, "/task/CUS-1")
+        self.assertIn("custom_task_ids", kwargs.get("query_params", {}))
+
+    def test_delete_bulk_tasks_invokes_task_endpoint(self):
+        client = DummyBulkClient()
+        service = BulkService(client)
+
+        result = service.delete_bulk_tasks(
+            tasks=[{"taskId": "task-123"}],
+            team_id=None,
+            options={"concurrency": 1, "retry_count": 0},
+        )
+
+        self.assertEqual(result.totals["success"], 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, "DELETE")
+        self.assertEqual(path, "/task/task-123")
+        self.assertEqual(kwargs.get("query_params"), {})
+
+
+@pytest.mark.asyncio
+async def test_process_batch_collects_failures():
+    async def processor(item: str):
+        if item == "bad":
+            raise RuntimeError("boom")
+        return item
+
+    result = await process_batch(
+        ["good", "bad"],
+        processor,
+        {"retry_count": 0, "continue_on_error": True, "concurrency": 1},
+    )
+
+    assert result.totals == {"success": 1, "failure": 1, "total": 2}
+    assert result.failed[0]["error"].lower().startswith("boom")
+
+
+@pytest.mark.asyncio
+async def test_process_batch_halts_when_continue_disabled():
+    async def processor(item: str):
+        if item == "fail":
+            raise RuntimeError("fail")
+        return item
+
+    with pytest.raises(ClickUpServiceError):
+        await process_batch(
+            ["ok", "fail", "skip"],
+            processor,
+            {"retry_count": 0, "continue_on_error": False, "concurrency": 1},
+        )
