@@ -124,6 +124,42 @@ class ToolEndpointTests(TestCase):
         self.assertEqual(path, "/task/task-abc")
         self.assertEqual(kwargs.get("query_params"), {"include_subtasks": "true", "team_id": 999})
 
+    def test_get_workspace_tasks_uses_clickup_team_endpoint(self):
+        client = DummyClient()
+        get_workspace_tasks = self.tool_manager.get_tool("get_workspace_tasks").fn
+
+        with patch("clickup_mcp.server._get_or_create_client", return_value=client), \
+            patch("clickup_mcp.server._normalize_assignees", return_value=[654]):
+            result = get_workspace_tasks(
+                ctx=object(),
+                team_id=555,
+                list_ids=["list-1"],
+                tags=["urgent"],
+                include_closed=True,
+                reverse=True,
+                detail_level="summary",
+                subtasks=False,
+                due_date_gt=1700000000,
+                assignees=["someone"],
+            )
+
+        self.assertEqual(result["status_code"], 200)
+        self.assertEqual(len(client.calls), 1)
+        method, path, kwargs = client.calls[0]
+        self.assertEqual(method, HttpMethod.GET)
+        self.assertEqual(path, "/team/555/task")
+        query = kwargs.get("query_params")
+        self.assertIsInstance(query, dict)
+        self.assertEqual(query.get("page"), 0)
+        self.assertEqual(query.get("list_ids[]"), ["list-1"])
+        self.assertEqual(query.get("tags[]"), ["urgent"])
+        self.assertEqual(query.get("include_closed"), "true")
+        self.assertEqual(query.get("reverse"), "true")
+        self.assertEqual(query.get("detail_level"), "summary")
+        self.assertEqual(query.get("subtasks"), "false")
+        self.assertEqual(query.get("due_date_gt"), 1700000000000)
+        self.assertEqual(query.get("assignees[]"), [654])
+
     def test_get_list_uses_clickup_list_endpoint(self):
         client = DummyClient()
         get_list = self.tool_manager.get_tool("get_list").fn
