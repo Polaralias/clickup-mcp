@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { SearchTasksInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { ApplicationConfig } from "../../config/applicationConfig.js"
+import { requireDefaultTeamId } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
 
 type Input = z.infer<typeof SearchTasksInput>
@@ -10,16 +12,12 @@ type Result = {
   truncated: boolean
 }
 
-function resolveTeamId() {
-  const team = process.env.DEFAULT_TEAM_ID ?? process.env.defaultTeamId
-  if (!team) {
-    throw new Error("DEFAULT_TEAM_ID is required for task search")
-  }
-  return team
+function resolveTeamId(config: ApplicationConfig) {
+  return requireDefaultTeamId(config, "defaultTeamId is required for task search")
 }
 
-export async function searchTasks(input: Input, client: ClickUpClient): Promise<Result> {
-  const teamId = resolveTeamId()
+export async function searchTasks(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
+  const teamId = resolveTeamId(config)
   const query: Record<string, unknown> = {
     page: input.page,
     order_by: "updated",

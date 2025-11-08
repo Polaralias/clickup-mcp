@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { BulkDocSearchInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
 import { docSearch } from "./DocSearch.js"
 
@@ -20,10 +21,10 @@ function resolveConcurrency() {
   return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_CONCURRENCY
 }
 
-export async function bulkDocSearch(input: Input, client: ClickUpClient): Promise<Result> {
+export async function bulkDocSearch(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
   const processor = new BulkProcessor<string, Result[number]>(resolveConcurrency())
   const results = await processor.run(input.queries, async (query) => {
-    const result = await docSearch({ query, limit: input.limit, expandPages: input.expandPages }, client)
+    const result = await docSearch({ query, limit: input.limit, expandPages: input.expandPages }, client, config)
     return {
       query,
       docs: result.docs,

@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { BulkFuzzySearchInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
 import { fuzzySearch } from "./FuzzySearch.js"
 
@@ -19,10 +20,10 @@ function resolveConcurrency() {
   return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_CONCURRENCY
 }
 
-export async function bulkFuzzySearch(input: Input, client: ClickUpClient): Promise<Result> {
+export async function bulkFuzzySearch(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
   const processor = new BulkProcessor<string, Result[number]>(resolveConcurrency())
   const results = await processor.run(input.queries, async (query) => {
-    const result = await fuzzySearch({ query, limit: input.limit }, client)
+    const result = await fuzzySearch({ query, limit: input.limit }, client, config)
     return { query, results: result.results, guidance: result.guidance }
   })
   return results
