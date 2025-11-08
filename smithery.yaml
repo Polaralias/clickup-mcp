@@ -1,0 +1,23 @@
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+startCommand:
+  type: "http"
+  configSchema:
+    type: object
+    properties:
+      defaultTeamId:
+        type: string
+        description: Default ClickUp workspace ID
+      charLimit:
+        type: number
+        description: Character budget for responses
+      maxAttachmentMb:
+        type: number
+        description: Maximum attachment size in MB
+    required: []
+  exampleConfig:
+    defaultTeamId: "team_123"
+    charLimit: 16000
+    maxAttachmentMb: 8
