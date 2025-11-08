@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { ListMembersInput } from "../../../mcp/schemas/hierarchy.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { ApplicationConfig } from "../../config/applicationConfig.js"
+import { requireDefaultTeamId } from "../../config/applicationConfig.js"
 
 type Input = z.infer<typeof ListMembersInput>
 
@@ -8,17 +10,15 @@ type Result = {
   members: unknown[]
 }
 
-function resolveTeamId(teamId?: string) {
-  if (teamId) return teamId
-  const fallback = process.env.DEFAULT_TEAM_ID ?? process.env.defaultTeamId
-  if (!fallback) {
-    throw new Error("DEFAULT_TEAM_ID is required when teamId is not provided")
+function resolveTeamId(config: ApplicationConfig, teamId?: string) {
+  if (teamId?.trim()) {
+    return teamId
   }
-  return fallback
+  return requireDefaultTeamId(config, "defaultTeamId is required when teamId is not provided")
 }
 
-export async function listMembers(input: Input, client: ClickUpClient): Promise<Result> {
-  const teamId = resolveTeamId(input.teamId)
+export async function listMembers(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
+  const teamId = resolveTeamId(config, input.teamId)
   const response = await client.listMembers(teamId)
   return { members: response?.members ?? response }
 }

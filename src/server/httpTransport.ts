@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto"
 import type { Express, Request, Response } from "express"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import type { ApplicationConfig, SessionConfigInput } from "../application/config/applicationConfig.js"
+import { createApplicationConfig } from "../application/config/applicationConfig.js"
+import { extractSessionConfig } from "./sessionConfig.js"
 
 type Session = {
   server: McpServer
@@ -9,9 +12,10 @@ type Session = {
   connectPromise: Promise<void>
   sessionId?: string
   closed: boolean
+  config: ApplicationConfig
 }
 
-export function registerHttpTransport(app: Express, createServer: () => McpServer) {
+export function registerHttpTransport(app: Express, createServer: (config: ApplicationConfig) => McpServer) {
   const sessions = new Map<string, Session>()
 
   function removeSession(session: Session) {
@@ -24,8 +28,9 @@ export function registerHttpTransport(app: Express, createServer: () => McpServe
     }
   }
 
-  function createSession() {
-    const server = createServer()
+  function createSession(configInput: SessionConfigInput) {
+    const config = createApplicationConfig(configInput)
+    const server = createServer(config)
     let session: Session
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
@@ -44,7 +49,8 @@ export function registerHttpTransport(app: Express, createServer: () => McpServe
       server,
       transport,
       connectPromise,
-      closed: false
+      closed: false,
+      config
     }
     transport.onclose = () => {
       if (!session.closed) {
@@ -74,7 +80,11 @@ export function registerHttpTransport(app: Express, createServer: () => McpServe
       }
       return existing
     }
-    return createSession()
+    const config = await extractSessionConfig(req, res)
+    if (!config) {
+      return undefined
+    }
+    return createSession(config)
   }
 
   app.all("/mcp", async (req: Request, res: Response) => {

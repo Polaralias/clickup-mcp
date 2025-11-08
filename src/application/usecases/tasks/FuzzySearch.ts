@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { FuzzySearchInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { ApplicationConfig } from "../../config/applicationConfig.js"
+import { requireDefaultTeamId } from "../../config/applicationConfig.js"
 import { TaskSearchIndex } from "../../services/TaskSearchIndex.js"
 
 const taskIdPattern = /^[0-9]+$/
@@ -12,16 +14,12 @@ type Result = {
   guidance?: string
 }
 
-function resolveTeamId() {
-  const team = process.env.DEFAULT_TEAM_ID ?? process.env.defaultTeamId
-  if (!team) {
-    throw new Error("DEFAULT_TEAM_ID is required for fuzzy search")
-  }
-  return team
+function resolveTeamId(config: ApplicationConfig) {
+  return requireDefaultTeamId(config, "defaultTeamId is required for fuzzy search")
 }
 
-export async function fuzzySearch(input: Input, client: ClickUpClient): Promise<Result> {
-  const teamId = resolveTeamId()
+export async function fuzzySearch(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
+  const teamId = resolveTeamId(config)
   if (taskIdPattern.test(input.query)) {
     const response = await client.searchTasks(teamId, { task_ids: input.query })
     const tasks = Array.isArray(response?.tasks) ? response.tasks : []

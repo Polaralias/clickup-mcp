@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import type { ApplicationConfig } from "../application/config/applicationConfig.js"
 import { ClickUpClient } from "../infrastructure/clickup/ClickUpClient.js"
 import { readOnlyAnnotation, destructiveAnnotation } from "./annotations.js"
 import {
@@ -82,7 +83,7 @@ import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/
 
 const { ZodFirstPartyTypeKind } = z
 
-type ToolHandler = (input: any, client: ClickUpClient) => Promise<unknown>
+type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
 
 type RegistrationOptions = {
   schema: z.ZodTypeAny | null
@@ -118,7 +119,7 @@ function resolveToken() {
   return token
 }
 
-export function registerTools(server: McpServer) {
+export function registerTools(server: McpServer, config: ApplicationConfig) {
   const entries: ToolCatalogueEntry[] = []
 
   function registerClientTool(name: string, options: RegistrationOptions) {
@@ -134,7 +135,7 @@ export function registerTools(server: McpServer) {
       async (rawInput: unknown) => {
         const client = new ClickUpClient(resolveToken())
         const parsed = options.schema ? options.schema.parse(rawInput ?? {}) : {}
-        const result = await options.handler(parsed, client)
+        const result = await options.handler(parsed, client, config)
         return formatContent(result)
       }
     )
@@ -161,7 +162,7 @@ export function registerTools(server: McpServer) {
       description: "Returns server status and limits.",
       ...readOnlyAnnotation
     },
-    async () => formatContent(await health())
+    async () => formatContent(await health(config))
   )
 
   entries.push({ name: "tool_catalogue", description: "Lists available tools.", annotations: readOnlyAnnotation.annotations })
@@ -186,7 +187,7 @@ export function registerTools(server: McpServer) {
       withSafetyConfirmation(async (rawInput: unknown) => {
         const client = new ClickUpClient(resolveToken())
         const parsed = schema.parse(rawInput ?? {})
-        const result = await handler(parsed, client)
+        const result = await handler(parsed, client, config)
         return formatContent(result)
       })
     )
@@ -228,16 +229,16 @@ export function registerTools(server: McpServer) {
   registerDestructive("clickup_add_tags_to_task", "Add tags to a task.", AddTagsInput, addTagsToTask)
   registerDestructive("clickup_remove_tags_from_task", "Remove tags from a task.", RemoveTagsInput, removeTagsFromTask)
 
-  registerReadOnly("clickup_search_tasks", "Structured task search.", SearchTasksInput, async (input, client) => {
-    const result = await searchTasks(input, client)
+  registerReadOnly("clickup_search_tasks", "Structured task search.", SearchTasksInput, async (input, client, config) => {
+    const result = await searchTasks(input, client, config)
     return { tasks: result.results, truncated: result.truncated }
   })
-  registerReadOnly("clickup_fuzzy_search", "Fuzzy search tasks.", FuzzySearchInput, async (input, client) => {
-    const result = await fuzzySearch(input, client)
+  registerReadOnly("clickup_fuzzy_search", "Fuzzy search tasks.", FuzzySearchInput, async (input, client, config) => {
+    const result = await fuzzySearch(input, client, config)
     return { tasks: result.results, guidance: result.guidance }
   })
-  registerReadOnly("clickup_bulk_fuzzy_search", "Bulk fuzzy search for tasks.", BulkFuzzySearchInput, async (input, client) => {
-    const result = await bulkFuzzySearch(input, client)
+  registerReadOnly("clickup_bulk_fuzzy_search", "Bulk fuzzy search for tasks.", BulkFuzzySearchInput, async (input, client, config) => {
+    const result = await bulkFuzzySearch(input, client, config)
     return { queries: result }
   })
 
@@ -246,12 +247,12 @@ export function registerTools(server: McpServer) {
   registerReadOnly("clickup_list_doc_pages", "List doc pages.", ListDocPagesInput, listDocPages)
   registerReadOnly("clickup_get_doc_page", "Get a doc page.", GetDocPageInput, getDocPage)
   registerDestructive("clickup_update_doc_page", "Update a doc page.", UpdateDocPageInput, updateDocPage)
-  registerReadOnly("clickup_doc_search", "Search docs by keyword.", DocSearchInput, async (input, client) => {
-    const result = await docSearch(input, client)
+  registerReadOnly("clickup_doc_search", "Search docs by keyword.", DocSearchInput, async (input, client, config) => {
+    const result = await docSearch(input, client, config)
     return { docs: result.docs, expandedPages: result.expandedPages, guidance: result.guidance }
   })
-  registerReadOnly("clickup_bulk_doc_search", "Bulk doc search.", BulkDocSearchInput, async (input, client) => {
-    const result = await bulkDocSearch(input, client)
+  registerReadOnly("clickup_bulk_doc_search", "Bulk doc search.", BulkDocSearchInput, async (input, client, config) => {
+    const result = await bulkDocSearch(input, client, config)
     return { queries: result }
   })
 
@@ -262,8 +263,8 @@ export function registerTools(server: McpServer) {
   registerDestructive("clickup_update_time_entry", "Update a time entry.", UpdateTimeEntryInput, updateTimeEntry)
   registerDestructive("clickup_delete_time_entry", "Delete a time entry.", DeleteTimeEntryInput, deleteTimeEntry)
 
-  registerReadOnly("clickup_list_time_entries", "List time entries.", ListTimeEntriesInput, async (input, client) => {
-    const result = await listTimeEntries(input, client)
+  registerReadOnly("clickup_list_time_entries", "List time entries.", ListTimeEntriesInput, async (input, client, config) => {
+    const result = await listTimeEntries(input, client, config)
     return { entries: result.entries, truncated: result.truncated }
   })
   registerReadOnly("clickup_report_time_for_tag", "Report time by tag.", ReportTimeForTagInput, reportTimeForTag)

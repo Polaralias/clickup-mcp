@@ -2,6 +2,8 @@ import { Buffer } from "node:buffer"
 import { z } from "zod"
 import { AttachFileInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { ApplicationConfig } from "../../config/applicationConfig.js"
+import { getMaxAttachmentSizeMb } from "../../config/applicationConfig.js"
 
 type Input = z.infer<typeof AttachFileInput>
 
@@ -10,11 +12,8 @@ type Result = {
   attachment?: Record<string, unknown>
 }
 
-const DEFAULT_MAX_MB = 8
-
-function resolveLimitMb() {
-  const limit = Number(process.env.MAX_ATTACHMENT_MB ?? DEFAULT_MAX_MB)
-  return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_MAX_MB
+function resolveLimitMb(config: ApplicationConfig) {
+  return getMaxAttachmentSizeMb(config)
 }
 
 function parseDataUri(dataUri: string) {
@@ -29,11 +28,12 @@ function parseDataUri(dataUri: string) {
   return buffer
 }
 
-export async function attachFileToTask(input: Input, client: ClickUpClient): Promise<Result> {
+export async function attachFileToTask(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
   const buffer = parseDataUri(input.dataUri)
-  const limitBytes = resolveLimitMb() * 1024 * 1024
+  const limitMb = resolveLimitMb(config)
+  const limitBytes = limitMb * 1024 * 1024
   if (buffer.byteLength > limitBytes) {
-    throw new Error(`Attachment exceeds limit of ${resolveLimitMb()}MB`)
+    throw new Error(`Attachment exceeds limit of ${limitMb}MB`)
   }
 
   if (input.dryRun) {
