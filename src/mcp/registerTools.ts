@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { zodToJsonSchema } from "zod-to-json-schema"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { ClickUpClient } from "../infrastructure/clickup/ClickUpClient.js"
 import { readOnlyAnnotation, destructiveAnnotation } from "./annotations.js"
@@ -80,8 +81,6 @@ import { ping } from "../application/usecases/system/Ping.js"
 import { health } from "../application/usecases/system/Health.js"
 import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/system/ToolCatalogue.js"
 
-const { ZodFirstPartyTypeKind } = z
-
 type ToolHandler = (input: any, client: ClickUpClient) => Promise<unknown>
 
 type RegistrationOptions = {
@@ -91,12 +90,15 @@ type RegistrationOptions = {
   handler: ToolHandler
 }
 
-function getInputShape(schema: z.ZodTypeAny | null) {
+type JsonSchema = ReturnType<typeof zodToJsonSchema>
+
+function toJsonSchema(schema: z.ZodTypeAny | null, name: string): JsonSchema | undefined {
   if (!schema) return undefined
-  if (schema._def.typeName === ZodFirstPartyTypeKind.ZodObject) {
-    return (schema as z.ZodObject<any>).shape
-  }
-  return undefined
+  return zodToJsonSchema(schema, { name, target: "jsonSchema7" })
+}
+
+function asInputSchema(schema: JsonSchema | undefined) {
+  return schema as unknown as z.ZodRawShape | undefined
 }
 
 function formatContent(payload: unknown) {
@@ -122,13 +124,13 @@ export function registerTools(server: McpServer) {
   const entries: ToolCatalogueEntry[] = []
 
   function registerClientTool(name: string, options: RegistrationOptions) {
-    const shape = getInputShape(options.schema)
+    const inputSchema = toJsonSchema(options.schema, `${name}_input`)
     entries.push({ name, description: options.description, annotations: options.annotations })
     server.registerTool(
       name,
       {
         description: options.description,
-        inputSchema: shape,
+        inputSchema: asInputSchema(inputSchema),
         annotations: options.annotations
       },
       async (rawInput: unknown) => {
@@ -142,14 +144,15 @@ export function registerTools(server: McpServer) {
 
   // System tools (no client)
   entries.push({ name: "ping", description: "Responds with the provided message." })
+  const pingSchema = z.object({ message: z.string().optional() })
   server.registerTool(
     "ping",
     {
       description: "Responds with the provided message.",
-      inputSchema: z.object({ message: z.string().optional() }).shape
+      inputSchema: asInputSchema(toJsonSchema(pingSchema, "ping_input"))
     },
     async (rawInput: unknown) => {
-      const parsed = z.object({ message: z.string().optional() }).parse(rawInput ?? {})
+      const parsed = pingSchema.parse(rawInput ?? {})
       return formatContent(await ping(parsed.message))
     }
   )
@@ -180,7 +183,7 @@ export function registerTools(server: McpServer) {
       name,
       {
         description,
-        inputSchema: getInputShape(schema),
+        inputSchema: asInputSchema(toJsonSchema(schema, `${name}_input`)),
         ...destructiveAnnotation
       },
       withSafetyConfirmation(async (rawInput: unknown) => {
