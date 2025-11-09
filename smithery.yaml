@@ -16,9 +16,11 @@ startCommand:
       charLimit:
         type: number
         description: Maximum characters returned before responses are truncated
+        minimum: 1
       maxAttachmentMb:
         type: number
         description: Largest file attachment (MB) allowed for uploads
+        minimum: 1
     required: [teamId, apiKey]
   exampleConfig:
     teamId: "team_123"
