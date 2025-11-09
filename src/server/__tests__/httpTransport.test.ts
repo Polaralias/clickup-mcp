@@ -86,14 +86,16 @@ describe("registerHttpTransport authorization", () => {
     return { app, createServer, sessions }
   }
 
-  it("rejects requests without a bearer token", async () => {
-    const { app, createServer } = setup()
+  it("allows creating a session using the apiKey from config when no authorization header is provided", async () => {
+    const { app, sessions } = setup()
 
-    const response = await request(app).post("/mcp").send({ jsonrpc: "2.0", id: 1 })
+    const response = await request(app)
+      .post("/mcp")
+      .query({ teamId: "team", apiKey: "pk_from_config" })
+      .send({ jsonrpc: "2.0", id: 1 })
 
-    expect(response.status).toBe(401)
-    expect(response.body.error.message).toContain("Bearer")
-    expect(createServer).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBe("pk_from_config")
   })
 
   it("accepts ClickUp style tokens without a bearer scheme", async () => {
