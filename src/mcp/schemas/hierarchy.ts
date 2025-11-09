@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { SafetyInput } from "./safety.js"
 
 export const ListSpacesInput = z.object({
   workspaceId: z.string()
@@ -15,6 +16,34 @@ export const ListListsInput = z.object({
 
 export const ListTagsForSpaceInput = z.object({
   spaceId: z.string()
+})
+
+export const CreateSpaceTagInput = SafetyInput.extend({
+  spaceId: z.string().min(1),
+  name: z.string().min(1),
+  foregroundColor: z.string().min(1).optional(),
+  backgroundColor: z.string().min(1).optional()
+})
+
+export const UpdateSpaceTagInput = SafetyInput.extend({
+  spaceId: z.string().min(1),
+  currentName: z.string().min(1),
+  name: z.string().min(1).optional(),
+  foregroundColor: z.string().min(1).optional(),
+  backgroundColor: z.string().min(1).optional()
+}).superRefine((value, ctx) => {
+  if (!value.name && !value.foregroundColor && !value.backgroundColor) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Provide a new name or updated colours",
+      path: ["name"]
+    })
+  }
+})
+
+export const DeleteSpaceTagInput = SafetyInput.extend({
+  spaceId: z.string().min(1),
+  name: z.string().min(1)
 })
 
 export const ListMembersInput = z.object({

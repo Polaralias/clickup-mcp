@@ -156,6 +156,26 @@ export class ClickUpClient {
     return this.request(`/space/${spaceId}/tag`)
   }
 
+  createSpaceTag(spaceId: string, body: Record<string, unknown>) {
+    return this.request(`/space/${spaceId}/tag`, {
+      method: "POST",
+      body
+    })
+  }
+
+  updateSpaceTag(spaceId: string, tagName: string, body: Record<string, unknown>) {
+    return this.request(`/space/${spaceId}/tag/${encodeURIComponent(tagName)}`, {
+      method: "PUT",
+      body
+    })
+  }
+
+  deleteSpaceTag(spaceId: string, tagName: string) {
+    return this.request(`/space/${spaceId}/tag/${encodeURIComponent(tagName)}`, {
+      method: "DELETE"
+    })
+  }
+
   getWorkspaceOverview(workspaceId: string) {
     return this.request(`/team/${workspaceId}`)
   }
