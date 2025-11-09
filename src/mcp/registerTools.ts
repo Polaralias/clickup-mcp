@@ -25,6 +25,10 @@ import {
   FuzzySearchInput,
   BulkFuzzySearchInput,
   CreateDocInput,
+  ListDocumentsInput,
+  GetDocumentInput,
+  GetDocumentPagesInput,
+  CreateDocumentPageInput,
   ListDocPagesInput,
   GetDocPageInput,
   UpdateDocPageInput,
@@ -88,11 +92,15 @@ import { searchTasks } from "../application/usecases/tasks/SearchTasks.js"
 import { fuzzySearch } from "../application/usecases/tasks/FuzzySearch.js"
 import { bulkFuzzySearch } from "../application/usecases/tasks/BulkFuzzySearch.js"
 import { createDoc } from "../application/usecases/docs/CreateDoc.js"
+import { listDocuments } from "../application/usecases/docs/ListDocuments.js"
+import { getDocument } from "../application/usecases/docs/GetDocument.js"
+import { getDocumentPages } from "../application/usecases/docs/GetDocumentPages.js"
 import { listDocPages } from "../application/usecases/docs/ListDocPages.js"
 import { getDocPage } from "../application/usecases/docs/GetDocPage.js"
 import { updateDocPage } from "../application/usecases/docs/UpdateDocPage.js"
 import { docSearch } from "../application/usecases/docs/DocSearch.js"
 import { bulkDocSearch } from "../application/usecases/docs/BulkDocSearch.js"
+import { createDocumentPage } from "../application/usecases/docs/CreateDocumentPage.js"
 import { startTimer } from "../application/usecases/time/StartTimer.js"
 import { stopTimer } from "../application/usecases/time/StopTimer.js"
 import { createTimeEntry } from "../application/usecases/time/CreateTimeEntry.js"
@@ -441,8 +449,32 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   // Docs
   registerDestructive("clickup_create_doc", "Create a doc in ClickUp.", CreateDocInput, createDoc)
+  registerReadOnly(
+    "clickup_list_documents",
+    "List docs with hierarchy summaries and preview snippets. Chain with clickup_get_document for deeper context.",
+    ListDocumentsInput,
+    (input, client, config) => listDocuments(input, client, config)
+  )
+  registerReadOnly(
+    "clickup_get_document",
+    "Fetch a doc with hierarchy summary and page previews ready for follow-up workflows.",
+    GetDocumentInput,
+    (input, client, config) => getDocument(input, client, config)
+  )
+  registerReadOnly(
+    "clickup_get_document_pages",
+    "Fetch specific doc pages with truncated bodies to review before updates.",
+    GetDocumentPagesInput,
+    (input, client, config) => getDocumentPages(input, client, config)
+  )
   registerReadOnly("clickup_list_doc_pages", "List doc pages.", ListDocPagesInput, listDocPages)
   registerReadOnly("clickup_get_doc_page", "Get a doc page.", GetDocPageInput, getDocPage)
+  registerDestructive(
+    "clickup_create_document_page",
+    "Create a doc page with dry-run previews. Chain with clickup_get_document_pages to verify content.",
+    CreateDocumentPageInput,
+    (input, client, config) => createDocumentPage(input, client, config)
+  )
   registerDestructive("clickup_update_doc_page", "Update a doc page.", UpdateDocPageInput, updateDocPage)
   registerReadOnly("clickup_doc_search", "Search docs by keyword.", DocSearchInput, async (input, client, config) => {
     const result = await docSearch(input, client, config)

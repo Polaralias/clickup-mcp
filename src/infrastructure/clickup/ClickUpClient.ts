@@ -329,8 +329,33 @@ export class ClickUpClient {
     })
   }
 
+  listDocuments(workspaceId: string, filters: Record<string, string | number | boolean | undefined> = {}) {
+    return this.request(`/team/${workspaceId}/doc`, {
+      method: "GET",
+      searchParams: filters
+    })
+  }
+
+  getDocument(workspaceId: string, docId: string) {
+    return this.request(`/team/${workspaceId}/doc/${docId}`)
+  }
+
   listDocPages(docId: string) {
     return this.request(`/doc/${docId}/page`)
+  }
+
+  bulkGetDocumentPages(docId: string, pageIds: string[]) {
+    return this.request(`/doc/${docId}/page/bulk`, {
+      method: "POST",
+      body: { page_ids: pageIds }
+    })
+  }
+
+  createDocumentPage(docId: string, body: Record<string, unknown>) {
+    return this.request(`/doc/${docId}/page`, {
+      method: "POST",
+      body
+    })
   }
 
   getDocPage(docId: string, pageId: string) {
