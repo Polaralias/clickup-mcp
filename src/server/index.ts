@@ -8,13 +8,14 @@ import { startStdioTransport } from "./stdioTransport.js"
 import { sessionConfigJsonSchema } from "./sessionConfig.js"
 import type { ApplicationConfig } from "../application/config/applicationConfig.js"
 import { registerTools } from "../mcp/registerTools.js"
+import type { SessionAuthContext } from "./sessionAuth.js"
 
-function createServer(config: ApplicationConfig) {
+function createServer(config: ApplicationConfig, auth: SessionAuthContext) {
   const server = new McpServer({
     name: "ClickUp MCP",
     version: "1.0.0"
   })
-  registerTools(server, config)
+  registerTools(server, config, auth)
   return server
 }
 
