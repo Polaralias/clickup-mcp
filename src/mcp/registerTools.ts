@@ -43,6 +43,9 @@ import {
   ListFoldersInput,
   ListListsInput,
   ListTagsForSpaceInput,
+  CreateSpaceTagInput,
+  UpdateSpaceTagInput,
+  DeleteSpaceTagInput,
   ListMembersInput,
   ResolveMembersInput,
   ResolvePathToIdsInput,
@@ -104,6 +107,9 @@ import { listSpaces } from "../application/usecases/hierarchy/ListSpaces.js"
 import { listFolders } from "../application/usecases/hierarchy/ListFolders.js"
 import { listLists } from "../application/usecases/hierarchy/ListLists.js"
 import { listTagsForSpace } from "../application/usecases/hierarchy/ListTagsForSpace.js"
+import { createSpaceTag } from "../application/usecases/hierarchy/CreateSpaceTag.js"
+import { updateSpaceTag } from "../application/usecases/hierarchy/UpdateSpaceTag.js"
+import { deleteSpaceTag } from "../application/usecases/hierarchy/DeleteSpaceTag.js"
 import { listMembers } from "../application/usecases/hierarchy/ListMembers.js"
 import { resolveMembers } from "../application/usecases/hierarchy/ResolveMembers.js"
 import { resolvePathToIds } from "../application/usecases/hierarchy/ResolvePathToIds.js"
@@ -265,6 +271,25 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
   registerReadOnly("clickup_resolve_members", "Resolve identifiers to ClickUp members.", ResolveMembersInput, resolveMembers)
   registerReadOnly("clickup_list_tags_for_space", "List tags configured for a space.", ListTagsForSpaceInput, listTagsForSpace)
+
+  registerDestructive(
+    "clickup_create_space_tag",
+    "Create a space-level tag with optional custom colours.",
+    CreateSpaceTagInput,
+    async (input, client) => createSpaceTag(input, client)
+  )
+  registerDestructive(
+    "clickup_update_space_tag",
+    "Update a space-level tag's name or colours.",
+    UpdateSpaceTagInput,
+    async (input, client) => updateSpaceTag(input, client)
+  )
+  registerDestructive(
+    "clickup_delete_space_tag",
+    "Delete a space-level tag.",
+    DeleteSpaceTagInput,
+    async (input, client) => deleteSpaceTag(input, client)
+  )
 
   // Hierarchy management
   registerDestructive(
