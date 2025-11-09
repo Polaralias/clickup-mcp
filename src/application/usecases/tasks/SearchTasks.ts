@@ -4,6 +4,10 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { requireTeamId } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
+import { TaskSearchIndex } from "../../services/TaskSearchIndex.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
+import { normaliseTaskRecord } from "./resolveTaskReference.js"
+import type { TaskResolutionRecord } from "./resolveTaskReference.js"
 
 type Input = z.infer<typeof SearchTasksInput>
 
@@ -16,7 +20,12 @@ function resolveTeamId(config: ApplicationConfig) {
   return requireTeamId(config, "teamId is required for task search")
 }
 
-export async function searchTasks(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
+export async function searchTasks(
+  input: Input,
+  client: ClickUpClient,
+  config: ApplicationConfig,
+  catalogue?: TaskCatalogue
+): Promise<Result> {
   const teamId = resolveTeamId(config)
   const query: Record<string, unknown> = {
     page: input.page,
@@ -28,8 +37,23 @@ export async function searchTasks(input: Input, client: ClickUpClient, config: A
   if (input.tagIds) query.tags = input.tagIds.join(",")
   if (input.status) query.statuses = input.status
 
-  const response = await client.searchTasks(teamId, query)
-  const tasks = Array.isArray(response?.tasks) ? response.tasks : []
+  const cached = catalogue?.getSearchEntry(teamId, query)
+
+  let tasks: unknown[]
+
+  if (cached) {
+    tasks = cached.tasks
+  } else {
+    const response = await client.searchTasks(teamId, query)
+    tasks = Array.isArray(response?.tasks) ? response.tasks : []
+    const records: TaskResolutionRecord[] = tasks
+      .map((task) => normaliseTaskRecord(task))
+      .filter((task): task is TaskResolutionRecord => Boolean(task))
+    const index = new TaskSearchIndex()
+    index.index(records)
+    catalogue?.storeSearchEntry({ teamId, params: query, tasks, records, index })
+  }
+
   const { items, truncated } = truncateList(tasks, input.pageSize)
   return { results: items, truncated }
 }

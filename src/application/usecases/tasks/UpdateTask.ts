@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { UpdateTaskInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
 type Input = z.infer<typeof UpdateTaskInput>
 
@@ -9,7 +10,11 @@ type Result = {
   task?: Record<string, unknown>
 }
 
-export async function updateTask(input: Input, client: ClickUpClient): Promise<Result> {
+export async function updateTask(
+  input: Input,
+  client: ClickUpClient,
+  catalogue?: TaskCatalogue
+): Promise<Result> {
   const payload: Record<string, unknown> = {}
   if (input.name !== undefined) payload.name = input.name
   if (input.description !== undefined) payload.description = input.description
@@ -24,5 +29,7 @@ export async function updateTask(input: Input, client: ClickUpClient): Promise<R
   }
 
   const task = await client.updateTask(input.taskId, payload)
+  catalogue?.invalidateTask(input.taskId)
+  catalogue?.invalidateSearch()
   return { task }
 }

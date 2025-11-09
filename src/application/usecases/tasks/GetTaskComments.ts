@@ -4,6 +4,7 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
 import { resolveTaskReference } from "./resolveTaskReference.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
 type Input = z.infer<typeof GetTaskCommentsInput>
 
@@ -118,13 +119,14 @@ function ensureTaskUrl(taskId: string, candidate?: unknown) {
 export async function getTaskComments(
   input: Input,
   client: ClickUpClient,
-  _config: ApplicationConfig
+  _config: ApplicationConfig,
+  catalogue?: TaskCatalogue
 ): Promise<Result> {
   const resolution = resolveTaskReference({
     taskId: input.taskId,
     taskName: input.taskName,
     context: input.context
-  })
+  }, catalogue)
   const response = await client.listTaskComments(resolution.taskId)
   const commentArray = Array.isArray(response?.comments)
     ? response.comments

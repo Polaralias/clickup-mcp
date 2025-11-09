@@ -1,4 +1,5 @@
 import { TaskSearchIndex } from "../../services/TaskSearchIndex.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 import type { TaskLookupContext } from "../../../mcp/schemas/task.js"
 
 const numericIdPattern = /^[0-9]+$/
@@ -42,7 +43,7 @@ function toNumber(value: unknown): number | undefined {
   return undefined
 }
 
-function normaliseRecord(candidate: unknown): TaskResolutionRecord | undefined {
+export function normaliseTaskRecord(candidate: unknown): TaskResolutionRecord | undefined {
   if (!candidate || typeof candidate !== "object") {
     return undefined
   }
@@ -90,34 +91,49 @@ function normaliseRecord(candidate: unknown): TaskResolutionRecord | undefined {
   return { id, name, description, status, updatedAt: updatedAtCandidate, listId, listName, listUrl, url }
 }
 
-function buildIndex(context?: TaskLookupContext) {
+function buildRecords(context?: TaskLookupContext) {
   const tasks = context?.tasks
   if (!Array.isArray(tasks) || tasks.length === 0) {
     return undefined
   }
   const records = tasks
-    .map((task) => normaliseRecord(task))
+    .map((task) => normaliseTaskRecord(task))
     .filter((task): task is TaskResolutionRecord => Boolean(task && task.id))
   if (records.length === 0) {
     return undefined
   }
+  return records
+}
+
+function ensureIndex(records: TaskResolutionRecord[], catalogue?: TaskCatalogue) {
+  if (!records || records.length === 0) {
+    return undefined
+  }
+  const cached = catalogue?.getContextIndex(records)
+  if (cached) {
+    return cached
+  }
   const index = new TaskSearchIndex()
   index.index(records)
+  catalogue?.storeContextIndex({ records, index })
   return { index, records }
 }
 
-export function resolveTaskReference(input: TaskReferenceInput): TaskResolution {
+export function resolveTaskReference(input: TaskReferenceInput, catalogue?: TaskCatalogue): TaskResolution {
   if (input.taskId) {
-    return { taskId: input.taskId, method: "direct" }
+    const record = catalogue?.lookupTask(input.taskId)
+    return { taskId: input.taskId, method: "direct", record }
   }
   const query = input.taskName?.trim()
   if (!query) {
     throw new Error("taskId or taskName is required")
   }
   if (numericIdPattern.test(query)) {
-    return { taskId: query, method: "direct" }
+    const record = catalogue?.lookupTask(query)
+    return { taskId: query, method: "direct", record }
   }
-  const contextIndex = buildIndex(input.context)
+  const records = buildRecords(input.context)
+  const contextIndex = records ? ensureIndex(records, catalogue) : undefined
   if (!contextIndex) {
     throw new Error("Task context is required to resolve by taskName")
   }
