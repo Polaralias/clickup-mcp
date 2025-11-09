@@ -1,5 +1,9 @@
 import type { StatusInput, HierarchyPathInput } from "../../../mcp/schemas/structure.js"
 import type { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import {
+  HierarchyDirectory,
+  HierarchyEnsureOptions
+} from "../../services/HierarchyDirectory.js"
 import { resolvePathToIds } from "./ResolvePathToIds.js"
 
 export type NormalisedStatus = {
@@ -49,10 +53,12 @@ export type PathResolution = Awaited<ReturnType<typeof resolvePathToIds>>
 
 export async function resolveIdsFromPath(
   path: HierarchyPathInput | undefined,
-  client: ClickUpClient
+  client: ClickUpClient,
+  directory: HierarchyDirectory,
+  options: HierarchyEnsureOptions = {}
 ): Promise<PathResolution | undefined> {
   if (!path || path.length === 0) {
     return undefined
   }
-  return resolvePathToIds({ path }, client)
+  return resolvePathToIds({ path, forceRefresh: options.forceRefresh }, client, directory, options)
 }

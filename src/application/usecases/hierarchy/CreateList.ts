@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { CreateListInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
 import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
 
 type Input = z.infer<typeof CreateListInput>
@@ -11,8 +12,12 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function createList(input: Input, client: ClickUpClient): Promise<Result> {
-  const resolution = await resolveIdsFromPath(input.path, client)
+export async function createList(
+  input: Input,
+  client: ClickUpClient,
+  directory: HierarchyDirectory
+): Promise<Result> {
+  const resolution = await resolveIdsFromPath(input.path, client, directory)
   const spaceId = input.spaceId ?? resolution?.spaceId
   const folderId = input.folderId ?? resolution?.folderId
 
@@ -49,6 +54,11 @@ export async function createList(input: Input, client: ClickUpClient): Promise<R
   const list = folderId
     ? await client.createListInFolder(folderId, payload)
     : await client.createListInSpace(spaceId!, payload)
+  if (folderId) {
+    directory.invalidateListsForFolder(folderId)
+  } else if (spaceId) {
+    directory.invalidateListsForSpace(spaceId)
+  }
 
   const listId = readString(list, ["id", "list_id"]) ?? readString(list, ["listId"])
   const listUrl = readString(list, ["url", "list_url", "view_url"])

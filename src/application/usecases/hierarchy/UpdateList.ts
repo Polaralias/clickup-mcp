@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { UpdateListInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
 import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
 
 type Input = z.infer<typeof UpdateListInput>
@@ -11,8 +12,12 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function updateList(input: Input, client: ClickUpClient): Promise<Result> {
-  const resolution = await resolveIdsFromPath(input.path, client)
+export async function updateList(
+  input: Input,
+  client: ClickUpClient,
+  directory: HierarchyDirectory
+): Promise<Result> {
+  const resolution = await resolveIdsFromPath(input.path, client, directory)
   const listId = input.listId ?? resolution?.listId
   if (!listId) {
     throw new Error("Provide listId or include a list segment in path")
@@ -47,6 +52,11 @@ export async function updateList(input: Input, client: ClickUpClient): Promise<R
   })
 
   const list = await client.updateList(listId, payload)
+  if (resolution?.folderId) {
+    directory.invalidateListsForFolder(resolution.folderId)
+  } else if (resolution?.spaceId) {
+    directory.invalidateListsForSpace(resolution.spaceId)
+  }
   const listUrl = readString(list, ["url", "list_url", "view_url"])
 
   const summary = compactRecord({

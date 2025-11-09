@@ -8,6 +8,11 @@ import { listWorkspaces } from "./ListWorkspaces.js"
 import { listSpaces } from "./ListSpaces.js"
 import { listFolders } from "./ListFolders.js"
 import { listLists } from "./ListLists.js"
+import {
+  HierarchyDirectory,
+  HierarchyEnsureOptions,
+  HierarchyCacheMetadata
+} from "../../services/HierarchyDirectory.js"
 
 const DEFAULT_MAX_WORKSPACES = 3
 const DEFAULT_MAX_SPACES_PER_WORKSPACE = 6
@@ -53,6 +58,12 @@ type Result = {
   shape: {
     layers: Array<{ level: string; path: string; description: string }>
     containerFields: ["items", "truncated", "guidance"]
+  }
+  cache?: {
+    workspaces?: HierarchyCacheMetadata
+    spaces?: HierarchyCacheMetadata[]
+    folders?: HierarchyCacheMetadata[]
+    lists?: HierarchyCacheMetadata[]
   }
 }
 
@@ -203,7 +214,7 @@ function createDepthSkippedContainer<T>(kind: string, context: string, maxDepth:
   return buildContainer([], true, depthGuidance(kind, context, maxDepth, required))
 }
 
-function normaliseSelectors(input: Input, config: ApplicationConfig): WorkspaceSelector[] {
+function normaliseSelectors(input: Input, config: ApplicationConfig | undefined): WorkspaceSelector[] {
   const selectors: WorkspaceSelector[] = []
   if (Array.isArray(input.workspaces)) {
     for (const item of input.workspaces) {
@@ -226,7 +237,7 @@ function normaliseSelectors(input: Input, config: ApplicationConfig): WorkspaceS
       }
     }
   }
-  if (selectors.length === 0 && config.teamId) {
+  if (selectors.length === 0 && config?.teamId) {
     selectors.push({ id: config.teamId })
   }
   return selectors
@@ -235,7 +246,8 @@ function normaliseSelectors(input: Input, config: ApplicationConfig): WorkspaceS
 export async function getWorkspaceHierarchy(
   input: Input,
   client: ClickUpClient,
-  config: ApplicationConfig
+  config: ApplicationConfig | undefined,
+  directory: HierarchyDirectory
 ): Promise<Result> {
   const maxDepth = Math.min(input.maxDepth ?? DEFAULT_MAX_DEPTH, MAX_DEPTH)
   const workspaceLimit = input.maxWorkspaces ?? DEFAULT_MAX_WORKSPACES
@@ -247,7 +259,16 @@ export async function getWorkspaceHierarchy(
 
   const selectors = normaliseSelectors(input, config)
 
-  const { workspaces: rawWorkspaces } = await listWorkspaces(client)
+  const ensureOptions: HierarchyEnsureOptions = { forceRefresh: input.forceRefresh }
+  const spaceCaches: HierarchyCacheMetadata[] = []
+  const folderCaches: HierarchyCacheMetadata[] = []
+  const listCaches: HierarchyCacheMetadata[] = []
+
+  const { workspaces: rawWorkspaces, cache: workspacesCache } = await listWorkspaces(
+    client,
+    directory,
+    ensureOptions
+  )
   const allWorkspaces = ensureArray(rawWorkspaces)
 
   const workspaceById = new Map<string, Record<string, unknown>>()
@@ -333,7 +354,13 @@ export async function getWorkspaceHierarchy(
           spaces: buildContainer([], false)
         }
       }
-      const spaceResponse = await listSpaces({ workspaceId }, client)
+      const spaceResponse = await listSpaces(
+        { workspaceId, forceRefresh: input.forceRefresh },
+        client,
+        directory,
+        ensureOptions
+      )
+      spaceCaches.push(spaceResponse.cache)
       const spaces = ensureArray(spaceResponse.spaces)
       const { items, truncated } = truncateList(spaces, spacesLimit)
       const spaceNodes = items.map((space) => ({ space }))
@@ -376,7 +403,13 @@ export async function getWorkspaceHierarchy(
               folderContexts: []
             }
           }
-          const listsResponse = await listLists({ spaceId }, client)
+          const listsResponse = await listLists(
+            { spaceId, forceRefresh: input.forceRefresh },
+            client,
+            directory,
+            ensureOptions
+          )
+          listCaches.push(listsResponse.cache)
           const spaceLists = ensureArray(listsResponse.lists)
           const { items: limitedLists, truncated: listsTruncated } = truncateList(spaceLists, listsPerSpaceLimit)
           const listNodes = limitedLists.map((list) => ({ list }))
@@ -384,7 +417,13 @@ export async function getWorkspaceHierarchy(
             ? limitGuidance("lists", spaceDescription, listsPerSpaceLimit)
             : undefined
 
-          const foldersResponse = await listFolders({ spaceId }, client)
+          const foldersResponse = await listFolders(
+            { spaceId, forceRefresh: input.forceRefresh },
+            client,
+            directory,
+            ensureOptions
+          )
+          folderCaches.push(foldersResponse.cache)
           const spaceFolders = ensureArray(foldersResponse.folders)
           const { items: limitedFolders, truncated: foldersTruncated } = truncateList(spaceFolders, foldersLimit)
           const folderNodes = limitedFolders.map((folder) => ({ folder }))
@@ -428,7 +467,13 @@ export async function getWorkspaceHierarchy(
                   lists: buildContainer([], false)
                 }
               }
-              const listsResponse = await listLists({ folderId }, client)
+              const listsResponse = await listLists(
+                { folderId, spaceId: resolveSpaceId(context.spaceNode.space), forceRefresh: input.forceRefresh },
+                client,
+                directory,
+                ensureOptions
+              )
+              listCaches.push(listsResponse.cache)
               const folderLists = ensureArray(listsResponse.lists)
               const { items: limitedLists, truncated } = truncateList(folderLists, listsPerFolderLimit)
               const listNodes = limitedLists.map((list) => ({ list }))
@@ -471,6 +516,12 @@ export async function getWorkspaceHierarchy(
     }
   }
 
+  const cache: Result["cache"] = {}
+  if (workspacesCache) cache.workspaces = workspacesCache
+  if (spaceCaches.length > 0) cache.spaces = spaceCaches
+  if (folderCaches.length > 0) cache.folders = folderCaches
+  if (listCaches.length > 0) cache.lists = listCaches
+
   return {
     workspaces: workspaceContainer,
     unmatchedSelectors: unmatchedSelectors.length > 0 ? unmatchedSelectors : undefined,
@@ -503,6 +554,7 @@ export async function getWorkspaceHierarchy(
         }
       ],
       containerFields: ["items", "truncated", "guidance"]
-    }
+    },
+    cache: Object.keys(cache).length > 0 ? cache : undefined
   }
 }
