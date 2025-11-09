@@ -1,8 +1,7 @@
 import express from "express"
 import request from "supertest"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { registerHttpTransport } from "./httpTransport.js"
-import * as sessionConfigModule from "./sessionConfig.js"
+import type { registerHttpTransport as registerHttpTransportType } from "./httpTransport.js"
 
 vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
   class FakeStreamableHTTPServerTransport {
@@ -33,17 +32,24 @@ function createStubServer(): McpServerLike {
   }
 }
 
+async function loadRegisterHttpTransport() {
+  const module = await import("./httpTransport.js")
+  return module.registerHttpTransport as typeof registerHttpTransportType
+}
+
 describe("registerHttpTransport", () => {
   let app: express.Express
 
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.resetModules()
     app = express()
     app.use(express.json())
   })
 
   it("responds with 422 when session config validation fails", async () => {
     const createServer = vi.fn(() => createStubServer())
+    const registerHttpTransport = await loadRegisterHttpTransport()
     registerHttpTransport(app, createServer)
 
     const response = await request(app)
@@ -57,11 +63,18 @@ describe("registerHttpTransport", () => {
 
   it("responds with 401 when no authorization token is available", async () => {
     const createServer = vi.fn(() => createStubServer())
-    registerHttpTransport(app, createServer)
+    const configSpy = vi.fn().mockResolvedValue({ teamId: "team", apiKey: "" })
 
-    const configSpy = vi
-      .spyOn(sessionConfigModule, "extractSessionConfig")
-      .mockResolvedValue({ teamId: "team", apiKey: "" })
+    vi.doMock("./sessionConfig.js", async () => {
+      const actual = await vi.importActual<typeof import("./sessionConfig.js")>("./sessionConfig.js")
+      return {
+        ...actual,
+        extractSessionConfig: configSpy
+      }
+    })
+
+    const registerHttpTransport = await loadRegisterHttpTransport()
+    registerHttpTransport(app, createServer)
 
     const response = await request(app).post("/mcp")
 
