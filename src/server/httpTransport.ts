@@ -109,11 +109,7 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
   }
 
   async function ensureSession(req: Request, res: Response) {
-    const token = parseAuthorizationHeader(req.header("authorization"))
-    if (!token) {
-      respondWithAuthError(res, 401, "Provide a valid Bearer token in the Authorization header")
-      return undefined
-    }
+    const headerToken = parseAuthorizationHeader(req.header("authorization"))
     const header = req.headers["mcp-session-id"]
     const sessionId = Array.isArray(header) ? header[header.length - 1] : header
     if (sessionId) {
@@ -129,7 +125,7 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
         })
         return undefined
       }
-      if (existing.auth.token !== token) {
+      if (headerToken && existing.auth.token !== headerToken) {
         respondWithAuthError(res, 403, "Session is owned by a different authorization token")
         return undefined
       }
@@ -137,6 +133,16 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
     }
     const config = await extractSessionConfig(req, res)
     if (!config) {
+      return undefined
+    }
+    const configToken = config.apiKey?.trim()
+    const token = headerToken ?? configToken
+    if (!token) {
+      respondWithAuthError(
+        res,
+        401,
+        "Provide a valid Bearer token in the Authorization header or include an apiKey in the session configuration"
+      )
       return undefined
     }
     return createSession(config, { token })
