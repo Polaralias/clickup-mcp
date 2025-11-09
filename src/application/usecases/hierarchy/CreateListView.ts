@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { CreateListViewInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
 import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
 
 type Input = z.infer<typeof CreateListViewInput>
@@ -11,8 +12,12 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function createListView(input: Input, client: ClickUpClient): Promise<Result> {
-  const resolution = await resolveIdsFromPath(input.path, client)
+export async function createListView(
+  input: Input,
+  client: ClickUpClient,
+  directory: HierarchyDirectory
+): Promise<Result> {
+  const resolution = await resolveIdsFromPath(input.path, client, directory)
   const listId = input.listId ?? resolution?.listId
   if (!listId) {
     throw new Error("Provide listId or include a list segment in path")

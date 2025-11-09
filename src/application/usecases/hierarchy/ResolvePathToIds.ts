@@ -1,6 +1,11 @@
 import { z } from "zod"
 import { ResolvePathToIdsInput } from "../../../mcp/schemas/hierarchy.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import {
+  HierarchyDirectory,
+  HierarchyEnsureOptions,
+  HierarchyCacheMetadata
+} from "../../services/HierarchyDirectory.js"
 
 type Input = z.infer<typeof ResolvePathToIdsInput>
 
@@ -9,6 +14,12 @@ type Result = {
   spaceId?: string
   folderId?: string
   listId?: string
+  cache?: {
+    workspaces?: HierarchyCacheMetadata
+    spaces?: HierarchyCacheMetadata
+    folders?: HierarchyCacheMetadata
+    lists?: HierarchyCacheMetadata
+  }
 }
 
 function findByName(items: any[], name: string) {
@@ -19,13 +30,25 @@ function findByName(items: any[], name: string) {
   })
 }
 
-export async function resolvePathToIds(input: Input, client: ClickUpClient): Promise<Result> {
+export async function resolvePathToIds(
+  input: Input,
+  client: ClickUpClient,
+  directory: HierarchyDirectory,
+  options: HierarchyEnsureOptions = {}
+): Promise<Result> {
   const result: Result = {}
+  const cache: Result["cache"] = {}
+  const ensureOptions: HierarchyEnsureOptions = {
+    forceRefresh: options.forceRefresh ?? input.forceRefresh
+  }
 
   for (const segment of input.path) {
     if (segment.type === "workspace") {
-      const workspacesResponse = await client.listWorkspaces()
-      const workspaces = Array.isArray(workspacesResponse?.teams) ? workspacesResponse.teams : workspacesResponse
+      const { items: workspaces, cache: workspaceCache } = await directory.ensureWorkspaces(
+        () => client.listWorkspaces(),
+        ensureOptions
+      )
+      cache.workspaces = workspaceCache
       const match = findByName(workspaces ?? [], segment.name)
       if (!match) throw new Error(`Workspace not found: ${segment.name}`)
       result.workspaceId = match.id ?? match.team_id
@@ -35,8 +58,12 @@ export async function resolvePathToIds(input: Input, client: ClickUpClient): Pro
       if (!result.workspaceId) {
         throw new Error("Resolve workspace before space")
       }
-      const spacesResponse = await client.listSpaces(result.workspaceId)
-      const spaces = Array.isArray(spacesResponse?.spaces) ? spacesResponse.spaces : spacesResponse
+      const { items: spaces, cache: spacesCache } = await directory.ensureSpaces(
+        result.workspaceId,
+        () => client.listSpaces(result.workspaceId!),
+        ensureOptions
+      )
+      cache.spaces = spacesCache
       const match = findByName(spaces ?? [], segment.name)
       if (!match) throw new Error(`Space not found: ${segment.name}`)
       result.spaceId = match.id ?? match.space_id
@@ -46,8 +73,12 @@ export async function resolvePathToIds(input: Input, client: ClickUpClient): Pro
       if (!result.spaceId) {
         throw new Error("Resolve space before folder")
       }
-      const foldersResponse = await client.listFolders(result.spaceId)
-      const folders = Array.isArray(foldersResponse?.folders) ? foldersResponse.folders : foldersResponse
+      const { items: folders, cache: foldersCache } = await directory.ensureFolders(
+        result.spaceId,
+        () => client.listFolders(result.spaceId!),
+        ensureOptions
+      )
+      cache.folders = foldersCache
       const match = findByName(folders ?? [], segment.name)
       if (!match) throw new Error(`Folder not found: ${segment.name}`)
       result.folderId = match.id ?? match.folder_id
@@ -57,12 +88,21 @@ export async function resolvePathToIds(input: Input, client: ClickUpClient): Pro
       if (!result.spaceId && !result.folderId) {
         throw new Error("Resolve space or folder before list")
       }
-      const listsResponse = await client.listLists(result.spaceId ?? "", result.folderId)
-      const lists = Array.isArray(listsResponse?.lists) ? listsResponse.lists : listsResponse
+      const { items: lists, cache: listsCache } = await directory.ensureLists(
+        result.spaceId,
+        result.folderId,
+        () => client.listLists(result.spaceId ?? "", result.folderId),
+        ensureOptions
+      )
+      cache.lists = listsCache
       const match = findByName(lists ?? [], segment.name)
       if (!match) throw new Error(`List not found: ${segment.name}`)
       result.listId = match.id ?? match.list_id
     }
+  }
+
+  if (Object.keys(cache).length > 0) {
+    result.cache = cache
   }
 
   return result

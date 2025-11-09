@@ -45,6 +45,7 @@ import {
   ReportTimeForSpaceTagInput,
   GetTaskTimeEntriesInput,
   GetCurrentTimeEntryInput,
+  ListWorkspacesInput,
   ListSpacesInput,
   ListFoldersInput,
   ListListsInput,
@@ -132,6 +133,7 @@ import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWork
 import { findMemberByName } from "../application/usecases/members/FindMemberByName.js"
 import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
 import { MemberDirectory } from "../application/services/MemberDirectory.js"
+import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -191,6 +193,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
 
   const createClient = () => new ClickUpClient(config.apiKey)
   const sessionMemberDirectory = new MemberDirectory()
+  const sessionHierarchyDirectory = new HierarchyDirectory()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const shape = getInputShape(options.schema)
@@ -273,23 +276,49 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   }
 
   // Hierarchy tools
-  registerReadOnly("clickup_list_workspaces", "List workspaces accessible to the token.", null, async (_input, client) => listWorkspaces(client))
-  registerReadOnly("clickup_list_spaces", "List spaces within a workspace.", ListSpacesInput, listSpaces)
-  registerReadOnly("clickup_list_folders", "List folders within a space.", ListFoldersInput, listFolders)
+  registerReadOnly(
+    "clickup_list_workspaces",
+    "List workspaces accessible to the token.",
+    ListWorkspacesInput.optional(),
+    async (input = {}, client) =>
+      listWorkspaces(client, sessionHierarchyDirectory, { forceRefresh: input?.forceRefresh })
+  )
+  registerReadOnly(
+    "clickup_list_spaces",
+    "List spaces within a workspace.",
+    ListSpacesInput,
+    (input, client) => listSpaces(input, client, sessionHierarchyDirectory)
+  )
+  registerReadOnly(
+    "clickup_list_folders",
+    "List folders within a space.",
+    ListFoldersInput,
+    (input, client) => listFolders(input, client, sessionHierarchyDirectory)
+  )
   registerReadOnly("clickup_list_lists", "List lists for a space or folder.", ListListsInput, async (input, client) => {
     if (!input.spaceId && !input.folderId) {
       throw new Error("Provide spaceId or folderId")
     }
-    return listLists(input, client)
+    return listLists(input, client, sessionHierarchyDirectory)
   })
-  registerReadOnly("clickup_get_workspace_overview", "Fetch workspace overview.", GetWorkspaceOverviewInput, getWorkspaceOverview)
+  registerReadOnly(
+    "clickup_get_workspace_overview",
+    "Fetch workspace overview.",
+    GetWorkspaceOverviewInput,
+    (input, client) => getWorkspaceOverview(input, client, sessionHierarchyDirectory)
+  )
   registerReadOnly(
     "clickup_get_workspace_hierarchy",
     "Fetch nested spaces, folders and lists with depth and limit controls.",
     GetWorkspaceHierarchyInput,
-    (input, client, config) => getWorkspaceHierarchy(input, client, config)
+    (input, client, config) => getWorkspaceHierarchy(input, client, config, sessionHierarchyDirectory)
   )
-  registerReadOnly("clickup_resolve_path_to_ids", "Resolve workspace path elements to IDs.", ResolvePathToIdsInput, resolvePathToIds)
+  registerReadOnly(
+    "clickup_resolve_path_to_ids",
+    "Resolve workspace path elements to IDs.",
+    ResolvePathToIdsInput,
+    (input, client) => resolvePathToIds(input, client, sessionHierarchyDirectory)
+  )
   registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
   registerReadOnly(
     "clickup_resolve_members",
@@ -335,49 +364,49 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
     "clickup_create_folder",
     "Create a folder within a space, supporting optional custom statuses and dry-run previews.",
     CreateFolderInput,
-    async (input, client) => createFolder(input, client)
+    async (input, client) => createFolder(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_update_folder",
     "Update a folder's name, description, or statuses.",
     UpdateFolderInput,
-    async (input, client) => updateFolder(input, client)
+    async (input, client) => updateFolder(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_delete_folder",
     "Delete a folder.",
     DeleteFolderInput,
-    async (input, client) => deleteFolder(input, client)
+    async (input, client) => deleteFolder(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_create_list",
     "Create a list within a space or folder with optional status overrides.",
     CreateListInput,
-    async (input, client) => createList(input, client)
+    async (input, client) => createList(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_update_list",
     "Update a list's name, description, or statuses.",
     UpdateListInput,
-    async (input, client) => updateList(input, client)
+    async (input, client) => updateList(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_delete_list",
     "Delete a list.",
     DeleteListInput,
-    async (input, client) => deleteList(input, client)
+    async (input, client) => deleteList(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_create_list_view",
     "Create a view scoped to a list with optional status filters.",
     CreateListViewInput,
-    async (input, client) => createListView(input, client)
+    async (input, client) => createListView(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_create_space_view",
     "Create a view scoped to a space with optional status filters.",
     CreateSpaceViewInput,
-    async (input, client) => createSpaceView(input, client)
+    async (input, client) => createSpaceView(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_update_view",

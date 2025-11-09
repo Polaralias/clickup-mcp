@@ -1,17 +1,24 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
 
+export const ListWorkspacesInput = z.object({
+  forceRefresh: z.boolean().optional()
+})
+
 export const ListSpacesInput = z.object({
-  workspaceId: z.string()
+  workspaceId: z.string(),
+  forceRefresh: z.boolean().optional()
 })
 
 export const ListFoldersInput = z.object({
-  spaceId: z.string()
+  spaceId: z.string(),
+  forceRefresh: z.boolean().optional()
 })
 
 export const ListListsInput = z.object({
   folderId: z.string().optional(),
-  spaceId: z.string().optional()
+  spaceId: z.string().optional(),
+  forceRefresh: z.boolean().optional()
 })
 
 export const ListTagsForSpaceInput = z.object({
@@ -63,11 +70,13 @@ export const HierarchyPathSegment = z.object({
 })
 
 export const ResolvePathToIdsInput = z.object({
-  path: z.array(HierarchyPathSegment)
+  path: z.array(HierarchyPathSegment),
+  forceRefresh: z.boolean().optional()
 })
 
 export const GetWorkspaceOverviewInput = z.object({
-  workspaceId: z.string()
+  workspaceId: z.string(),
+  forceRefresh: z.boolean().optional()
 })
 
 const WorkspaceSelector = z
@@ -89,5 +98,6 @@ export const GetWorkspaceHierarchyInput = z.object({
   maxFoldersPerSpace: z.number().int().min(1).optional(),
   maxListsPerSpace: z.number().int().min(1).optional(),
   maxListsPerFolder: z.number().int().min(1).optional(),
-  concurrency: z.number().int().min(1).optional()
+  concurrency: z.number().int().min(1).optional(),
+  forceRefresh: z.boolean().optional()
 })

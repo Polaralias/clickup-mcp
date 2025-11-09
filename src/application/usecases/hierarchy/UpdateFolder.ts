@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { UpdateFolderInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
 import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
 
 type Input = z.infer<typeof UpdateFolderInput>
@@ -11,8 +12,12 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function updateFolder(input: Input, client: ClickUpClient): Promise<Result> {
-  const resolution = await resolveIdsFromPath(input.path, client)
+export async function updateFolder(
+  input: Input,
+  client: ClickUpClient,
+  directory: HierarchyDirectory
+): Promise<Result> {
+  const resolution = await resolveIdsFromPath(input.path, client, directory)
   const folderId = input.folderId ?? resolution?.folderId
   if (!folderId) {
     throw new Error("Provide folderId or include a folder segment in path")
@@ -47,6 +52,10 @@ export async function updateFolder(input: Input, client: ClickUpClient): Promise
   })
 
   const folder = await client.updateFolder(folderId, payload)
+  if (resolution?.spaceId) {
+    directory.invalidateFolders(resolution.spaceId)
+  }
+  directory.invalidateListsForFolder(folderId)
   const nested = (folder as Record<string, unknown>)?.folder
   const folderUrl =
     readString(folder, ["url", "folder_url", "view_url"]) ??

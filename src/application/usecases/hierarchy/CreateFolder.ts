@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { CreateFolderInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
 import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
 
 type Input = z.infer<typeof CreateFolderInput>
@@ -11,8 +12,12 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function createFolder(input: Input, client: ClickUpClient): Promise<Result> {
-  const resolution = await resolveIdsFromPath(input.path, client)
+export async function createFolder(
+  input: Input,
+  client: ClickUpClient,
+  directory: HierarchyDirectory
+): Promise<Result> {
+  const resolution = await resolveIdsFromPath(input.path, client, directory)
   const spaceId = input.spaceId ?? resolution?.spaceId
   if (!spaceId) {
     throw new Error("Provide spaceId or include a space segment in path")
@@ -45,6 +50,7 @@ export async function createFolder(input: Input, client: ClickUpClient): Promise
   })
 
   const folder = await client.createFolder(spaceId, payload)
+  directory.invalidateFolders(spaceId)
   const nested = (folder as Record<string, unknown>)?.folder
   const folderId =
     readString(folder, ["id", "folder_id"]) ??
