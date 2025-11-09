@@ -22,7 +22,8 @@ export const ListListsInput = z.object({
 })
 
 export const ListTagsForSpaceInput = z.object({
-  spaceId: z.string()
+  spaceId: z.string(),
+  forceRefresh: z.boolean().optional()
 })
 
 export const CreateSpaceTagInput = SafetyInput.extend({

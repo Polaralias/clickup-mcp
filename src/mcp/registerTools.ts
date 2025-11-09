@@ -135,6 +135,7 @@ import { resolveAssignees } from "../application/usecases/members/ResolveAssigne
 import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
+import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -196,6 +197,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   const sessionMemberDirectory = new MemberDirectory()
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
+  const sessionSpaceTagCache = new SpaceTagCache()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const shape = getInputShape(options.schema)
@@ -340,25 +342,30 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
     ResolveAssigneesInput,
     (input, client, config) => resolveAssignees(input, client, config, sessionMemberDirectory)
   )
-  registerReadOnly("clickup_list_tags_for_space", "List tags configured for a space.", ListTagsForSpaceInput, listTagsForSpace)
+  registerReadOnly(
+    "clickup_list_tags_for_space",
+    "List tags configured for a space.",
+    ListTagsForSpaceInput,
+    (input, client) => listTagsForSpace(input, client, sessionSpaceTagCache)
+  )
 
   registerDestructive(
     "clickup_create_space_tag",
     "Create a space-level tag with optional custom colours.",
     CreateSpaceTagInput,
-    async (input, client) => createSpaceTag(input, client)
+    async (input, client) => createSpaceTag(input, client, sessionSpaceTagCache)
   )
   registerDestructive(
     "clickup_update_space_tag",
     "Update a space-level tag's name or colours.",
     UpdateSpaceTagInput,
-    async (input, client) => updateSpaceTag(input, client)
+    async (input, client) => updateSpaceTag(input, client, sessionSpaceTagCache)
   )
   registerDestructive(
     "clickup_delete_space_tag",
     "Delete a space-level tag.",
     DeleteSpaceTagInput,
-    async (input, client) => deleteSpaceTag(input, client)
+    async (input, client) => deleteSpaceTag(input, client, sessionSpaceTagCache)
   )
 
   // Hierarchy management

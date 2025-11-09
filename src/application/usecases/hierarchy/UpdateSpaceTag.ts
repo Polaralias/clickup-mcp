@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { UpdateSpaceTagInput } from "../../../mcp/schemas/hierarchy.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { SpaceTagCache } from "../../services/SpaceTagCache.js"
 import {
   buildColors,
   findTagByName,
@@ -23,7 +24,11 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function updateSpaceTag(input: Input, client: ClickUpClient): Promise<Result> {
+export async function updateSpaceTag(
+  input: Input,
+  client: ClickUpClient,
+  cache: SpaceTagCache
+): Promise<Result> {
   const foreground = normaliseHexColor(input.foregroundColor, "foreground")
   const background = normaliseHexColor(input.backgroundColor, "background")
   const nextSteps = [
@@ -31,7 +36,7 @@ export async function updateSpaceTag(input: Input, client: ClickUpClient): Promi
     "Update automations or filters that reference this tag if its name changed."
   ]
 
-  const existing = await loadSpaceTags(input.spaceId, client)
+  const existing = await loadSpaceTags(input.spaceId, client, cache)
   const current = findTagByName(existing, input.currentName)
   if (!current) {
     throw new Error(`Tag \"${input.currentName}\" was not found in this space`)
@@ -89,6 +94,8 @@ export async function updateSpaceTag(input: Input, client: ClickUpClient): Promi
       background !== undefined ? background : current.colors?.background
     )
   })
+
+  cache.invalidate(input.spaceId)
 
   return {
     tag: summary,

@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { CreateSpaceTagInput } from "../../../mcp/schemas/hierarchy.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { SpaceTagCache } from "../../services/SpaceTagCache.js"
 import {
   buildColors,
   findTagByName,
@@ -23,12 +24,16 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function createSpaceTag(input: Input, client: ClickUpClient): Promise<Result> {
+export async function createSpaceTag(
+  input: Input,
+  client: ClickUpClient,
+  cache: SpaceTagCache
+): Promise<Result> {
   const foreground = normaliseHexColor(input.foregroundColor, "foreground")
   const background = normaliseHexColor(input.backgroundColor, "background")
   const colors = buildColors(foreground, background)
 
-  const existing = await loadSpaceTags(input.spaceId, client)
+  const existing = await loadSpaceTags(input.spaceId, client, cache)
   if (findTagByName(existing, input.name)) {
     throw new Error(`Tag \"${input.name}\" already exists in this space`)
   }
@@ -60,6 +65,8 @@ export async function createSpaceTag(input: Input, client: ClickUpClient): Promi
     name: input.name,
     colors
   })
+
+  cache.invalidate(input.spaceId)
 
   return {
     tag: summary,

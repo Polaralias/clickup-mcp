@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { DeleteSpaceTagInput } from "../../../mcp/schemas/hierarchy.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { SpaceTagCache } from "../../services/SpaceTagCache.js"
 import { findTagByName, loadSpaceTags, SpaceTagSummary } from "./tagShared.js"
 
 type Input = z.infer<typeof DeleteSpaceTagInput>
@@ -16,8 +17,12 @@ type Result = {
   nextSteps: string[]
 }
 
-export async function deleteSpaceTag(input: Input, client: ClickUpClient): Promise<Result> {
-  const existing = await loadSpaceTags(input.spaceId, client)
+export async function deleteSpaceTag(
+  input: Input,
+  client: ClickUpClient,
+  cache: SpaceTagCache
+): Promise<Result> {
+  const existing = await loadSpaceTags(input.spaceId, client, cache)
   const current = findTagByName(existing, input.name)
   if (!current) {
     throw new Error(`Tag \"${input.name}\" was not found in this space`)
@@ -40,6 +45,8 @@ export async function deleteSpaceTag(input: Input, client: ClickUpClient): Promi
   }
 
   await client.deleteSpaceTag(input.spaceId, current.name)
+
+  cache.invalidate(input.spaceId)
 
   return {
     removedTag: current,
