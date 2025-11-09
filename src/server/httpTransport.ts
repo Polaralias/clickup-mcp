@@ -19,6 +19,8 @@ type Session = {
 
 type CreateServer = (config: ApplicationConfig, auth: SessionAuthContext) => McpServer
 
+export type { CreateServer }
+
 const unauthorizedError = {
   jsonrpc: "2.0",
   error: {
