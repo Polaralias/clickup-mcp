@@ -140,11 +140,7 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
     const configToken = config.apiKey?.trim()
     const token = headerToken ?? configToken
     if (!token) {
-      respondWithAuthError(
-        res,
-        401,
-        "Provide a valid Bearer token in the Authorization header or include an apiKey in the session configuration"
-      )
+      respondWithAuthError(res, 401, "Provide a valid apiKey in the session configuration")
       return undefined
     }
     return createSession(config, { token })

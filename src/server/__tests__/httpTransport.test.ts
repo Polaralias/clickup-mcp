@@ -1,9 +1,11 @@
 import express from "express"
+import cors from "cors"
 import request from "supertest"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ApplicationConfig } from "../../application/config/applicationConfig.js"
 import { registerHttpTransport } from "../httpTransport.js"
 import type { SessionAuthContext } from "../sessionAuth.js"
+import { createCorsOptions } from "../cors.js"
 
 const { createdTransports, StreamableTransportMock } = vi.hoisted(() => {
   const transports: Array<{ sessionId?: string; onclose?: () => void }> = []
@@ -73,6 +75,7 @@ describe("registerHttpTransport authorization", () => {
 
   function setup() {
     const app = express()
+    app.use(cors(createCorsOptions()))
     app.use(express.json())
     const sessions: SessionRecord[] = []
     const createServer = vi.fn((_config: ApplicationConfig, auth: SessionAuthContext) => {
@@ -110,6 +113,17 @@ describe("registerHttpTransport authorization", () => {
     expect(sessions[0]?.auth.token).toBe("pk_bracket")
   })
 
+  it("accepts Smithery config payloads posted in the request body", async () => {
+    const { app, sessions } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .send({ config: { teamId: "team", apiKey: "pk_body" } })
+
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBe("pk_body")
+  })
+
   it("accepts ClickUp style tokens without a bearer scheme", async () => {
     const { app, sessions } = setup()
 
@@ -121,6 +135,20 @@ describe("registerHttpTransport authorization", () => {
 
     expect(response.status).toBe(200)
     expect(sessions[0]?.auth.token).toBe("pk_test_clickup_token")
+  })
+
+  it("rejects session creation when apiKey is omitted", async () => {
+    const { app } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .set("Authorization", "Bearer runtime_token")
+      .query({ teamId: "team" })
+      .send({ jsonrpc: "2.0", id: 1 })
+
+    expect(response.status).toBeGreaterThanOrEqual(400)
+    expect(response.status).toBeLessThan(500)
+    expect(response.body).toBeTruthy()
   })
 
   it("prevents sessions from being hijacked by a different token", async () => {
@@ -152,5 +180,22 @@ describe("registerHttpTransport authorization", () => {
 
     expect(hijack.status).toBe(403)
     expect(hijack.body.error.message).toContain("different")
+  })
+
+  it("allows authorization headers during CORS preflight", async () => {
+    const { app } = setup()
+
+    const response = await request(app)
+      .options("/mcp")
+      .set("Origin", "https://example.com")
+      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Headers", "authorization")
+
+    expect(response.status).toBe(204)
+    const allowHeaders = response.headers["access-control-allow-headers"]
+    expect(allowHeaders).toBeDefined()
+    const headerValue = Array.isArray(allowHeaders) ? allowHeaders.join(",") : allowHeaders
+    expect(headerValue).toContain("authorization")
+    expect(response.headers["access-control-allow-credentials"]).toBe("true")
   })
 })
