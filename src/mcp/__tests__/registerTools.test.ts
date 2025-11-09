@@ -4,6 +4,8 @@ import { createApplicationConfig } from "../../application/config/applicationCon
 import type { SessionAuthContext } from "../../server/sessionAuth.js"
 
 const createdClientTokens: string[] = []
+const listMembersCalls: Array<{ token: string; teamId: string }> = []
+const memberResponses = new Map<string, { members: Array<Record<string, unknown>> }>()
 
 vi.mock("../../infrastructure/clickup/ClickUpClient.js", () => {
   return {
@@ -15,6 +17,10 @@ vi.mock("../../infrastructure/clickup/ClickUpClient.js", () => {
       }
       async listWorkspaces() {
         return { teams: [] }
+      }
+      async listMembers(teamId: string) {
+        listMembersCalls.push({ token: this.token, teamId })
+        return memberResponses.get(this.token) ?? { members: [] }
       }
     }
   }
@@ -49,6 +55,8 @@ function createStubServer(): StubServer {
 describe("registerTools", () => {
   beforeEach(() => {
     createdClientTokens.length = 0
+    listMembersCalls.length = 0
+    memberResponses.clear()
   })
 
   async function registerAndInvoke(token: string) {
@@ -65,5 +73,52 @@ describe("registerTools", () => {
 
     await registerAndInvoke("token-b")
     expect(createdClientTokens).toEqual(["token-a", "token-b"])
+  })
+
+  it("isolates member directory caches per session token", async () => {
+    const config = createApplicationConfig({ defaultTeamId: "team-1" })
+
+    memberResponses.set("token-a", {
+      members: [
+        { id: "1", name: "Alice A", email: "alice@example.com" }
+      ]
+    })
+    memberResponses.set("token-b", {
+      members: [
+        { id: "2", name: "Bob B", email: "bob@example.com" }
+      ]
+    })
+
+    const stubA = createStubServer()
+    const stubB = createStubServer()
+
+    registerTools(stubA.server as any, config, { token: "token-a" })
+    registerTools(stubB.server as any, config, { token: "token-b" })
+
+    const parse = (result: unknown) => {
+      const text = (result as any)?.content?.[0]?.text
+      if (typeof text !== "string") {
+        throw new Error("Unexpected tool response format")
+      }
+      return JSON.parse(text)
+    }
+
+    const firstA = parse(
+      await stubA.invoke("clickup_find_member_by_name", { teamId: "team-1", query: "Alice" })
+    )
+    expect(listMembersCalls.filter((call) => call.token === "token-a")).toHaveLength(1)
+    expect(firstA.matches[0]?.memberId).toBe("1")
+
+    const firstB = parse(
+      await stubB.invoke("clickup_find_member_by_name", { teamId: "team-1", query: "Bob" })
+    )
+    expect(listMembersCalls.filter((call) => call.token === "token-b")).toHaveLength(1)
+    expect(firstB.matches[0]?.memberId).toBe("2")
+
+    const secondA = parse(
+      await stubA.invoke("clickup_find_member_by_name", { teamId: "team-1", query: "Alice" })
+    )
+    expect(listMembersCalls.filter((call) => call.token === "token-a")).toHaveLength(1)
+    expect(secondA.matches[0]?.memberId).toBe("1")
   })
 })

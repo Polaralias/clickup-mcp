@@ -3,7 +3,11 @@ import { FindMemberByNameInput } from "../../../mcp/schemas/members.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { requireDefaultTeamId } from "../../config/applicationConfig.js"
-import { memberDirectory, type MemberDirectoryCacheMetadata, type MemberMatch } from "../../services/MemberDirectory.js"
+import {
+  MemberDirectory,
+  type MemberDirectoryCacheMetadata,
+  type MemberMatch
+} from "../../services/MemberDirectory.js"
 
 type Input = z.infer<typeof FindMemberByNameInput>
 
@@ -23,12 +27,13 @@ function resolveTeamId(config: ApplicationConfig, teamId?: string) {
 export async function findMemberByName(
   input: Input,
   client: ClickUpClient,
-  config: ApplicationConfig
+  config: ApplicationConfig,
+  directory: MemberDirectory
 ): Promise<Result> {
   const teamId = resolveTeamId(config, input.teamId)
   const limit = input.limit && input.limit > 0 ? input.limit : 5
 
-  const { matches, cache } = await memberDirectory.search(
+  const { matches, cache } = await directory.search(
     teamId,
     input.query,
     () => client.listMembers(teamId),
