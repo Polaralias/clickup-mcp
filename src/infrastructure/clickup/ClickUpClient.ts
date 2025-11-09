@@ -119,6 +119,10 @@ export class ClickUpClient {
     })
   }
 
+  getList(listId: string) {
+    return this.request(`/list/${listId}`)
+  }
+
   deleteList(listId: string) {
     return this.request(`/list/${listId}`, {
       method: "DELETE"

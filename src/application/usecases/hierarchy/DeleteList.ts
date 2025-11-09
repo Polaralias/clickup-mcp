@@ -2,7 +2,7 @@ import { z } from "zod"
 import { DeleteListInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
-import { resolveIdsFromPath } from "./structureShared.js"
+import { resolveIdsFromPath, resolveListParents } from "./structureShared.js"
 
 type Input = z.infer<typeof DeleteListInput>
 
@@ -36,11 +36,18 @@ export async function deleteList(
     }
   }
 
+  const parentContext =
+    resolution?.folderId || resolution?.spaceId
+      ? { folderId: resolution?.folderId, spaceId: resolution?.spaceId }
+      : await resolveListParents(listId, client)
+
   await client.deleteList(listId)
-  if (resolution?.folderId) {
-    directory.invalidateListsForFolder(resolution.folderId)
-  } else if (resolution?.spaceId) {
-    directory.invalidateListsForSpace(resolution.spaceId)
+  if (parentContext?.folderId) {
+    directory.invalidateListsForFolder(parentContext.folderId)
+  } else if (parentContext?.spaceId) {
+    directory.invalidateListsForSpace(parentContext.spaceId)
+  } else {
+    directory.invalidateAllLists()
   }
   return {
     status: "deleted",
