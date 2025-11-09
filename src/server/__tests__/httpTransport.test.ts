@@ -98,6 +98,18 @@ describe("registerHttpTransport authorization", () => {
     expect(sessions[0]?.auth.token).toBe("pk_from_config")
   })
 
+  it("accepts Smithery bracket encoded config parameters", async () => {
+    const { app, sessions } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .query({ "config[teamId]": "team", "config[apiKey]": "pk_bracket" })
+      .send({ jsonrpc: "2.0", id: 1 })
+
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBe("pk_bracket")
+  })
+
   it("accepts ClickUp style tokens without a bearer scheme", async () => {
     const { app, sessions } = setup()
 
