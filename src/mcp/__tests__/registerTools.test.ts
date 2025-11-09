@@ -3,8 +3,8 @@ import { registerTools } from "../registerTools.js"
 import { createApplicationConfig } from "../../application/config/applicationConfig.js"
 import type { SessionAuthContext } from "../../server/sessionAuth.js"
 
-const createdClientTokens: string[] = []
-const listMembersCalls: Array<{ token: string; teamId: string }> = []
+const createdClientKeys: string[] = []
+const listMembersCalls: Array<{ apiKey: string; teamId: string }> = []
 const memberResponses = new Map<string, { members: Array<Record<string, unknown>> }>()
 
 vi.mock("../../infrastructure/clickup/ClickUpClient.js", () => {
@@ -13,13 +13,13 @@ vi.mock("../../infrastructure/clickup/ClickUpClient.js", () => {
       token: string
       constructor(token: string) {
         this.token = token
-        createdClientTokens.push(token)
+        createdClientKeys.push(token)
       }
       async listWorkspaces() {
         return { teams: [] }
       }
       async listMembers(teamId: string) {
-        listMembersCalls.push({ token: this.token, teamId })
+        listMembersCalls.push({ apiKey: this.token, teamId })
         return memberResponses.get(this.token) ?? { members: [] }
       }
     }
@@ -54,13 +54,13 @@ function createStubServer(): StubServer {
 
 describe("registerTools", () => {
   beforeEach(() => {
-    createdClientTokens.length = 0
+    createdClientKeys.length = 0
     listMembersCalls.length = 0
     memberResponses.clear()
   })
 
   async function registerAndInvoke(token: string) {
-    const config = createApplicationConfig({})
+    const config = createApplicationConfig({ teamId: "team-1", apiKey: token })
     const auth: SessionAuthContext = { token }
     const stub = createStubServer()
     registerTools(stub.server as any, config, auth)
@@ -69,14 +69,15 @@ describe("registerTools", () => {
 
   it("isolates ClickUp clients per session token", async () => {
     await registerAndInvoke("token-a")
-    expect(createdClientTokens).toEqual(["token-a"])
+    expect(createdClientKeys).toEqual(["token-a"])
 
     await registerAndInvoke("token-b")
-    expect(createdClientTokens).toEqual(["token-a", "token-b"])
+    expect(createdClientKeys).toEqual(["token-a", "token-b"])
   })
 
   it("isolates member directory caches per session token", async () => {
-    const config = createApplicationConfig({ defaultTeamId: "team-1" })
+    const configA = createApplicationConfig({ teamId: "team-1", apiKey: "token-a" })
+    const configB = createApplicationConfig({ teamId: "team-1", apiKey: "token-b" })
 
     memberResponses.set("token-a", {
       members: [
@@ -92,8 +93,8 @@ describe("registerTools", () => {
     const stubA = createStubServer()
     const stubB = createStubServer()
 
-    registerTools(stubA.server as any, config, { token: "token-a" })
-    registerTools(stubB.server as any, config, { token: "token-b" })
+    registerTools(stubA.server as any, configA, { token: "token-a" })
+    registerTools(stubB.server as any, configB, { token: "token-b" })
 
     const parse = (result: unknown) => {
       const text = (result as any)?.content?.[0]?.text
@@ -106,19 +107,19 @@ describe("registerTools", () => {
     const firstA = parse(
       await stubA.invoke("clickup_find_member_by_name", { teamId: "team-1", query: "Alice" })
     )
-    expect(listMembersCalls.filter((call) => call.token === "token-a")).toHaveLength(1)
+    expect(listMembersCalls.filter((call) => call.apiKey === "token-a")).toHaveLength(1)
     expect(firstA.matches[0]?.memberId).toBe("1")
 
     const firstB = parse(
       await stubB.invoke("clickup_find_member_by_name", { teamId: "team-1", query: "Bob" })
     )
-    expect(listMembersCalls.filter((call) => call.token === "token-b")).toHaveLength(1)
+    expect(listMembersCalls.filter((call) => call.apiKey === "token-b")).toHaveLength(1)
     expect(firstB.matches[0]?.memberId).toBe("2")
 
     const secondA = parse(
       await stubA.invoke("clickup_find_member_by_name", { teamId: "team-1", query: "Alice" })
     )
-    expect(listMembersCalls.filter((call) => call.token === "token-a")).toHaveLength(1)
+    expect(listMembersCalls.filter((call) => call.apiKey === "token-a")).toHaveLength(1)
     expect(secondA.matches[0]?.memberId).toBe("1")
   })
 })

@@ -7,17 +7,21 @@ startCommand:
   configSchema:
     type: object
     properties:
-      defaultTeamId:
+      teamId:
         type: string
-        description: Default ClickUp workspace ID
+        description: ClickUp workspace ID applied when tool inputs omit one
+      apiKey:
+        type: string
+        description: ClickUp personal API token used for all API requests
       charLimit:
         type: number
-        description: Character budget for responses
+        description: Maximum characters returned before responses are truncated
       maxAttachmentMb:
         type: number
-        description: Maximum attachment size in MB
-    required: []
+        description: Largest file attachment (MB) allowed for uploads
+    required: [teamId, apiKey]
   exampleConfig:
-    defaultTeamId: "team_123"
+    teamId: "team_123"
+    apiKey: "pk_123"
     charLimit: 16000
     maxAttachmentMb: 8

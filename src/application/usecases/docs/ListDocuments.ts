@@ -65,7 +65,7 @@ export async function listDocuments(
   const workspaceId = resolveWorkspaceId(
     input.workspaceId,
     config,
-    "defaultTeamId is required to list docs"
+    "teamId is required to list docs"
   )
   const filters = buildFilters(input)
   const response = await client.listDocuments(workspaceId, filters)

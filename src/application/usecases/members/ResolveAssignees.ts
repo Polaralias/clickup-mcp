@@ -2,7 +2,7 @@ import { z } from "zod"
 import { ResolveAssigneesInput } from "../../../mcp/schemas/members.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 import {
   MemberDirectory,
   type MemberDirectoryCacheMetadata,
@@ -23,7 +23,7 @@ function resolveTeamId(config: ApplicationConfig, teamId?: string) {
   if (teamId?.trim()) {
     return teamId
   }
-  return requireDefaultTeamId(config, "defaultTeamId is required to resolve assignees")
+  return requireTeamId(config, "teamId is required to resolve assignees")
 }
 
 export async function resolveAssignees(

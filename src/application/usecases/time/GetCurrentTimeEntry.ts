@@ -2,7 +2,7 @@ import { z } from "zod"
 import { GetCurrentTimeEntryInput } from "../../../mcp/schemas/time.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 
 type Input = z.infer<typeof GetCurrentTimeEntryInput>
 
@@ -17,7 +17,7 @@ function resolveTeamId(input: Input, config: ApplicationConfig): string {
   if (input.teamId) {
     return input.teamId
   }
-  return requireDefaultTeamId(config, "defaultTeamId is required to resolve the current timer")
+  return requireTeamId(config, "teamId is required to resolve the current timer")
 }
 
 function normaliseEntry(value: unknown): Record<string, unknown> | null {

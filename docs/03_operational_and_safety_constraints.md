@@ -108,7 +108,8 @@ Exact names can be adjusted, but the behaviour must respect these ideas.
 
 `smithery.yaml` should provide an optional configuration schema for session specific settings, for example:
 
-- Default workspace or team
+- Workspace or team ID
+- ClickUp API token
 - Character budget
 - Attachment size limit
 
@@ -118,7 +119,7 @@ These values are parsed from incoming HTTP requests using the Smithery SDK helpe
 
 - Global behaviour such as timeouts and hard limits derive from environment variables.
 - Session configuration can override some defaults on a per session basis.
-- Secrets such as `CLICKUP_API_TOKEN` are not passed through Smithery config and must always come from environment variables or a secure secret manager.
+- Secrets such as `CLICKUP_API_TOKEN` are supplied through session configuration or environment variables and must always be handled via secure channels.
 
 ## 4. Safety constraints and patterns
 
