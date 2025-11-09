@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { MockInstance } from "vitest"
 import type { ClickUpClient } from "../../../../infrastructure/clickup/ClickUpClient.js"
 import { SpaceTagCache } from "../../../services/SpaceTagCache.js"
 import { listTagsForSpace } from "../ListTagsForSpace.js"
@@ -7,24 +8,28 @@ import { createSpaceTag } from "../CreateSpaceTag.js"
 import { updateSpaceTag } from "../UpdateSpaceTag.js"
 import { deleteSpaceTag } from "../DeleteSpaceTag.js"
 
+type MethodMock<K extends keyof ClickUpClient> = ClickUpClient[K] extends (...args: any[]) => any
+  ? MockInstance<ClickUpClient[K]>
+  : never
+
 type ClientStubs = {
   client: ClickUpClient
-  listTagsForSpace: ReturnType<typeof vi.fn>
-  createSpaceTag: ReturnType<typeof vi.fn>
-  updateSpaceTag: ReturnType<typeof vi.fn>
-  deleteSpaceTag: ReturnType<typeof vi.fn>
+  listTagsForSpace: MethodMock<"listTagsForSpace">
+  createSpaceTag: MethodMock<"createSpaceTag">
+  updateSpaceTag: MethodMock<"updateSpaceTag">
+  deleteSpaceTag: MethodMock<"deleteSpaceTag">
 }
 
 function createStubClient(): ClientStubs {
-  const listTagsForSpace = vi.fn<Parameters<ClickUpClient["listTagsForSpace"]>, Promise<unknown>>()
-  const createSpaceTag = vi.fn<Parameters<ClickUpClient["createSpaceTag"]>, Promise<unknown>>()
-  const updateSpaceTag = vi.fn<Parameters<ClickUpClient["updateSpaceTag"]>, Promise<unknown>>()
-  const deleteSpaceTag = vi.fn<Parameters<ClickUpClient["deleteSpaceTag"]>, Promise<unknown>>()
+  const listTagsForSpace = vi.fn<ClickUpClient["listTagsForSpace"]>()
+  const createSpaceTag = vi.fn<ClickUpClient["createSpaceTag"]>()
+  const updateSpaceTag = vi.fn<ClickUpClient["updateSpaceTag"]>()
+  const deleteSpaceTag = vi.fn<ClickUpClient["deleteSpaceTag"]>()
   const client = {
-    listTagsForSpace,
-    createSpaceTag,
-    updateSpaceTag,
-    deleteSpaceTag
+    listTagsForSpace: listTagsForSpace as unknown as ClickUpClient["listTagsForSpace"],
+    createSpaceTag: createSpaceTag as unknown as ClickUpClient["createSpaceTag"],
+    updateSpaceTag: updateSpaceTag as unknown as ClickUpClient["updateSpaceTag"],
+    deleteSpaceTag: deleteSpaceTag as unknown as ClickUpClient["deleteSpaceTag"]
   } as unknown as ClickUpClient
   return { client, listTagsForSpace, createSpaceTag, updateSpaceTag, deleteSpaceTag }
 }

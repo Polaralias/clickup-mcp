@@ -13,8 +13,14 @@ const taskIdPattern = /^[0-9]+$/
 type Input = z.infer<typeof FuzzySearchInput>
 
 type Result = {
-  results: Array<Record<string, unknown>>
+  results: Array<TaskResolutionRecord & { score?: number }>
   guidance?: string
+}
+
+function toRecords(candidates: unknown[]): TaskResolutionRecord[] {
+  return candidates
+    .map((task) => normaliseTaskRecord(task))
+    .filter((task): task is TaskResolutionRecord => Boolean(task))
 }
 
 function resolveTeamId(config: ApplicationConfig) {
@@ -32,18 +38,15 @@ export async function fuzzySearch(
     const params = { task_ids: input.query }
     const cached = catalogue?.getSearchEntry(teamId, params)
     if (cached) {
-      const tasks = Array.isArray(cached.tasks) ? cached.tasks : []
-      return { results: tasks.slice(0, input.limit) }
+      return { results: cached.records.slice(0, input.limit) }
     }
     const response = await client.searchTasks(teamId, params)
     const tasks = Array.isArray(response?.tasks) ? response.tasks : []
-    const records: TaskResolutionRecord[] = tasks
-      .map((task) => normaliseTaskRecord(task))
-      .filter((task): task is TaskResolutionRecord => Boolean(task))
+    const records = toRecords(tasks)
     const index = new TaskSearchIndex()
     index.index(records)
     catalogue?.storeSearchEntry({ teamId, params, tasks, records, index })
-    return { results: tasks.slice(0, input.limit) }
+    return { results: records.slice(0, input.limit) }
   }
 
   const params = { search: input.query, page: 0 }
@@ -58,9 +61,7 @@ export async function fuzzySearch(
   } else {
     const response = await client.searchTasks(teamId, params)
     const tasks = Array.isArray(response?.tasks) ? response.tasks : []
-    const records: TaskResolutionRecord[] = tasks
-      .map((task) => normaliseTaskRecord(task))
-      .filter((task): task is TaskResolutionRecord => Boolean(task))
+    const records = toRecords(tasks)
     index = new TaskSearchIndex()
     index.index(records)
     catalogue?.storeSearchEntry({ teamId, params, tasks, records, index })
