@@ -44,7 +44,7 @@ describe("registerHttpTransport", () => {
 
   it("responds with 422 when session config validation fails", async () => {
     const createServer = vi.fn(() => createStubServer())
-    registerHttpTransport(app, createServer)
+    registerHttpTransport(app, createServer as any)
 
     const response = await request(app)
       .post("/mcp")
@@ -57,7 +57,7 @@ describe("registerHttpTransport", () => {
 
   it("responds with 401 when no authorization token is available", async () => {
     const createServer = vi.fn(() => createStubServer())
-    registerHttpTransport(app, createServer)
+    registerHttpTransport(app, createServer as any)
 
     const configSpy = vi
       .spyOn(sessionConfigModule, "extractSessionConfig")

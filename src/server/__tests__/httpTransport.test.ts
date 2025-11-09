@@ -141,4 +141,40 @@ describe("registerHttpTransport authorization", () => {
     expect(hijack.status).toBe(403)
     expect(hijack.body.error.message).toContain("different")
   })
+
+  it("allows initialize requests without valid credentials (guest session)", async () => {
+    const { app, sessions } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .send({ jsonrpc: "2.0", method: "initialize", id: 1 })
+
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBe("scanner")
+    expect(sessions[0]?.config.apiKey).toBe("scanner")
+    expect(sessions[0]?.config.teamId).toBe("scanner")
+  })
+
+  it("allows initialize requests with empty config values (guest session)", async () => {
+    const { app, sessions } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .query({ teamId: "", apiKey: "" })
+      .send({ jsonrpc: "2.0", method: "initialize", id: 1 })
+
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBe("scanner")
+    expect(sessions[0]?.config.apiKey).toBe("scanner")
+  })
+
+  it("rejects non-initialize requests without valid credentials", async () => {
+    const { app } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .send({ jsonrpc: "2.0", method: "list_tools", id: 1 })
+
+    expect(response.status).toBe(422)
+  })
 })

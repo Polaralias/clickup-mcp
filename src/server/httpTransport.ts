@@ -131,6 +131,19 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
       }
       return existing
     }
+    
+    // Check if this is an initialize request (e.g., Smithery deployment scanner)
+    const isInitializeRequest = req.body?.method === "initialize"
+    
+    // For initialize requests without credentials, create a guest session
+    if (isInitializeRequest && !headerToken) {
+      const guestConfig: SessionConfigInput = {
+        teamId: "scanner",
+        apiKey: "scanner"
+      }
+      return createSession(guestConfig, { token: "scanner" })
+    }
+    
     const config = await extractSessionConfig(req, res)
     if (!config) {
       return undefined
