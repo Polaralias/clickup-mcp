@@ -144,8 +144,17 @@ import { deleteView } from "../application/usecases/hierarchy/DeleteView.js"
 import { ping } from "../application/usecases/system/Ping.js"
 import { health } from "../application/usecases/system/Health.js"
 import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/system/ToolCatalogue.js"
+import type { SessionAuthContext } from "../server/sessionAuth.js"
 
 const { ZodFirstPartyTypeKind } = z
+
+function requireSessionToken(auth: SessionAuthContext) {
+  const token = auth.token.trim()
+  if (!token) {
+    throw new Error("Missing ClickUp auth token for session")
+  }
+  return token
+}
 
 type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
 
@@ -175,16 +184,11 @@ function formatContent(payload: unknown) {
   }
 }
 
-function resolveToken() {
-  const token = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken ?? ""
-  if (!token) {
-    throw new Error("CLICKUP_API_TOKEN is required")
-  }
-  return token
-}
-
-export function registerTools(server: McpServer, config: ApplicationConfig) {
+export function registerTools(server: McpServer, config: ApplicationConfig, auth: SessionAuthContext) {
   const entries: ToolCatalogueEntry[] = []
+  const sessionToken = requireSessionToken(auth)
+
+  const createClient = () => new ClickUpClient(sessionToken)
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const shape = getInputShape(options.schema)
@@ -197,7 +201,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
         annotations: options.annotations
       },
       async (rawInput: unknown) => {
-        const client = new ClickUpClient(resolveToken())
+        const client = createClient()
         const parsed = options.schema ? options.schema.parse(rawInput ?? {}) : {}
         const result = await options.handler(parsed, client, config)
         return formatContent(result)
@@ -249,7 +253,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
         ...destructiveAnnotation
       },
       withSafetyConfirmation(async (rawInput: unknown) => {
-        const client = new ClickUpClient(resolveToken())
+        const client = createClient()
         const parsed = schema.parse(rawInput ?? {})
         const result = await handler(parsed, client, config)
         return formatContent(result)
