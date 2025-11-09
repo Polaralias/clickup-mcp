@@ -13,6 +13,11 @@ import {
   AttachFileInput,
   AddTagsInput,
   RemoveTagsInput,
+  CreateTasksBulkInput,
+  UpdateTasksBulkInput,
+  MoveTasksBulkInput,
+  DeleteTasksBulkInput,
+  AddTagsBulkInput,
   GetTaskInput,
   ListTasksInListInput,
   GetTaskCommentsInput,
@@ -56,6 +61,11 @@ import { commentTask } from "../application/usecases/tasks/CommentTask.js"
 import { attachFileToTask } from "../application/usecases/tasks/AttachFileToTask.js"
 import { addTagsToTask } from "../application/usecases/tasks/AddTagsToTask.js"
 import { removeTagsFromTask } from "../application/usecases/tasks/RemoveTagsFromTask.js"
+import { createTasksBulk } from "../application/usecases/tasks/CreateTasksBulk.js"
+import { updateTasksBulk } from "../application/usecases/tasks/UpdateTasksBulk.js"
+import { moveTasksBulk } from "../application/usecases/tasks/MoveTasksBulk.js"
+import { deleteTasksBulk } from "../application/usecases/tasks/DeleteTasksBulk.js"
+import { addTagsBulk } from "../application/usecases/tasks/AddTagsBulk.js"
 import { getTask } from "../application/usecases/tasks/GetTask.js"
 import { listTasksInList } from "../application/usecases/tasks/ListTasksInList.js"
 import { getTaskComments } from "../application/usecases/tasks/GetTaskComments.js"
@@ -252,13 +262,43 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   // Task tools
   registerDestructive("clickup_create_task", "Create a task in ClickUp.", CreateTaskInput, createTask)
+  registerDestructive(
+    "clickup_create_tasks_bulk",
+    "Create multiple tasks with shared defaults and dry-run previews.",
+    CreateTasksBulkInput,
+    createTasksBulk
+  )
   registerDestructive("clickup_update_task", "Update an existing task.", UpdateTaskInput, updateTask)
+  registerDestructive(
+    "clickup_update_tasks_bulk",
+    "Update multiple tasks in parallel with concurrency safeguards.",
+    UpdateTasksBulkInput,
+    updateTasksBulk
+  )
   registerDestructive("clickup_delete_task", "Delete a task.", DeleteTaskInput, deleteTask)
+  registerDestructive(
+    "clickup_delete_tasks_bulk",
+    "Delete multiple tasks with confirmation and optional dry run.",
+    DeleteTasksBulkInput,
+    deleteTasksBulk
+  )
   registerDestructive("clickup_move_task", "Move a task to a different list.", MoveTaskInput, moveTask)
+  registerDestructive(
+    "clickup_move_tasks_bulk",
+    "Move multiple tasks to new lists.",
+    MoveTasksBulkInput,
+    moveTasksBulk
+  )
   registerDestructive("clickup_duplicate_task", "Duplicate a task.", DuplicateTaskInput, duplicateTask)
   registerDestructive("clickup_comment_task", "Add a comment to a task.", CommentTaskInput, commentTask)
   registerDestructive("clickup_attach_file_to_task", "Attach a file to a task.", AttachFileInput, attachFileToTask)
   registerDestructive("clickup_add_tags_to_task", "Add tags to a task.", AddTagsInput, addTagsToTask)
+  registerDestructive(
+    "clickup_add_tags_bulk",
+    "Add tags across multiple tasks with shared defaults.",
+    AddTagsBulkInput,
+    addTagsBulk
+  )
   registerDestructive("clickup_remove_tags_from_task", "Remove tags from a task.", RemoveTagsInput, removeTagsFromTask)
 
   registerReadOnly("clickup_search_tasks", "Structured task search.", SearchTasksInput, async (input, client, config) => {
