@@ -372,6 +372,10 @@ export class ClickUpClient {
     })
   }
 
+  getTaskTimeEntries(taskId: string) {
+    return this.request(`/task/${taskId}/time`)
+  }
+
   updateTimeEntry(entryId: string, body: Record<string, unknown>) {
     return this.request(`/time_entry/${entryId}`, {
       method: "PUT",
@@ -390,6 +394,10 @@ export class ClickUpClient {
       method: "GET",
       searchParams: query as Record<string, string>
     })
+  }
+
+  getCurrentTimeEntry(teamId: string) {
+    return this.request(`/team/${teamId}/time_entries/current`)
   }
 
   reportTime(path: string, query: Record<string, unknown>) {

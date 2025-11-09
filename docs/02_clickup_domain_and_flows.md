@@ -165,6 +165,10 @@ The server should make it easy for an agent to:
   - Container (list, folder, space)
   - Workspace
 
+Workspace-level tools (listing entries, pulling the current running timer, aggregated reports) rely on a team/workspace ID and
+default to the configured `defaultTeamId` when one is not supplied. When the goal is to inspect a single task in detail, agents
+should prefer the task-scoped time entry helper to avoid unnecessary aggregation and reduce the chance of truncation.
+
 Reporting tools should:
 
 - Accept filters such as date ranges, tags and user IDs

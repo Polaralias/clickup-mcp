@@ -55,3 +55,12 @@ export const ReportTimeForSpaceTagInput = z.object({
   from: z.string().optional(),
   to: z.string().optional()
 })
+
+export const GetTaskTimeEntriesInput = z.object({
+  taskId: z.string(),
+  pageSize: z.number().int().min(1).max(100).default(20)
+})
+
+export const GetCurrentTimeEntryInput = z.object({
+  teamId: z.string().optional()
+})
