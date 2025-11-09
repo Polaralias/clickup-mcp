@@ -38,7 +38,9 @@ import {
   ListMembersInput,
   ResolveMembersInput,
   ResolvePathToIdsInput,
-  GetWorkspaceOverviewInput
+  GetWorkspaceOverviewInput,
+  ListReferenceLinksInput,
+  FetchReferencePageInput
 } from "./schemas/index.js"
 import { withSafetyConfirmation } from "../application/safety/withSafetyConfirmation.js"
 import { createTask } from "../application/usecases/tasks/CreateTask.js"
@@ -68,6 +70,8 @@ import { listTimeEntries } from "../application/usecases/time/ListTimeEntries.js
 import { reportTimeForTag } from "../application/usecases/time/ReportTimeForTag.js"
 import { reportTimeForContainer } from "../application/usecases/time/ReportTimeForContainer.js"
 import { reportTimeForSpaceTag } from "../application/usecases/time/ReportTimeForSpaceTag.js"
+import { listReferenceLinks } from "../application/usecases/reference/ListReferenceLinks.js"
+import { fetchReferencePage } from "../application/usecases/reference/FetchReferencePage.js"
 import { listWorkspaces } from "../application/usecases/hierarchy/ListWorkspaces.js"
 import { listSpaces } from "../application/usecases/hierarchy/ListSpaces.js"
 import { listFolders } from "../application/usecases/hierarchy/ListFolders.js"
@@ -217,6 +221,20 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
   registerReadOnly("clickup_resolve_members", "Resolve identifiers to ClickUp members.", ResolveMembersInput, resolveMembers)
   registerReadOnly("clickup_list_tags_for_space", "List tags configured for a space.", ListTagsForSpaceInput, listTagsForSpace)
+
+  // Reference
+  registerReadOnly(
+    "clickup_list_reference_links",
+    "List ClickUp API reference sidebar links (public reference material, no workspace data).",
+    ListReferenceLinksInput,
+    async (input) => listReferenceLinks(input)
+  )
+  registerReadOnly(
+    "clickup_fetch_reference_page",
+    "Fetch a ClickUp API reference page for summarisation (public reference material, no workspace data).",
+    FetchReferencePageInput,
+    async (input, _client, config) => fetchReferencePage(input, config)
+  )
 
   // Task tools
   registerDestructive("clickup_create_task", "Create a task in ClickUp.", CreateTaskInput, createTask)
