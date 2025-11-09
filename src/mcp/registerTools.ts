@@ -54,6 +54,8 @@ import {
   DeleteSpaceTagInput,
   ListMembersInput,
   ResolveMembersInput,
+  FindMemberByNameInput,
+  ResolveAssigneesInput,
   ResolvePathToIdsInput,
   GetWorkspaceOverviewInput,
   GetWorkspaceHierarchyInput,
@@ -127,6 +129,8 @@ import { resolveMembers } from "../application/usecases/hierarchy/ResolveMembers
 import { resolvePathToIds } from "../application/usecases/hierarchy/ResolvePathToIds.js"
 import { getWorkspaceOverview } from "../application/usecases/hierarchy/GetWorkspaceOverview.js"
 import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWorkspaceHierarchy.js"
+import { findMemberByName } from "../application/usecases/members/FindMemberByName.js"
+import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -281,7 +285,24 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   )
   registerReadOnly("clickup_resolve_path_to_ids", "Resolve workspace path elements to IDs.", ResolvePathToIdsInput, resolvePathToIds)
   registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
-  registerReadOnly("clickup_resolve_members", "Resolve identifiers to ClickUp members.", ResolveMembersInput, resolveMembers)
+  registerReadOnly(
+    "clickup_resolve_members",
+    "Resolve identifiers to ClickUp members with fuzzy matching and cache visibility.",
+    ResolveMembersInput,
+    resolveMembers
+  )
+  registerReadOnly(
+    "clickup_find_member_by_name",
+    "Search members with fuzzy matching; use refresh=true to bypass the cached directory when data changes.",
+    FindMemberByNameInput,
+    (input, client, config) => findMemberByName(input, client, config)
+  )
+  registerReadOnly(
+    "clickup_resolve_assignees",
+    "Resolve potential task assignees from human-friendly identifiers. Results include scores and cache metadata.",
+    ResolveAssigneesInput,
+    (input, client, config) => resolveAssignees(input, client, config)
+  )
   registerReadOnly("clickup_list_tags_for_space", "List tags configured for a space.", ListTagsForSpaceInput, listTagsForSpace)
 
   registerDestructive(

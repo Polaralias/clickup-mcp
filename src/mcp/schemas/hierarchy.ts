@@ -51,7 +51,10 @@ export const ListMembersInput = z.object({
 })
 
 export const ResolveMembersInput = z.object({
-  identifiers: z.array(z.string())
+  identifiers: z.array(z.string().min(1)),
+  teamId: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(10).optional(),
+  refresh: z.boolean().optional()
 })
 
 export const HierarchyPathSegment = z.object({

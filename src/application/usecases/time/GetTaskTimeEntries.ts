@@ -46,7 +46,10 @@ export async function getTaskTimeEntries(input: Input, client: ClickUpClient): P
   const response = await client.getTaskTimeEntries(input.taskId)
   const rawEntries = Array.isArray(response?.data) ? response.data : []
   const entryCount = rawEntries.length
-  const totalDurationMs = rawEntries.reduce((total, entry) => total + extractDuration(entry), 0)
+  const totalDurationMs = rawEntries.reduce(
+    (total: number, entry: unknown) => total + extractDuration(entry),
+    0
+  )
   const { items, truncated } = truncateList(rawEntries, input.pageSize)
   const guidance = truncated
     ? `Showing the first ${items.length} of ${entryCount} entries. Increase pageSize (max 100) for more detail.`
