@@ -104,6 +104,21 @@ export class ClickUpClient {
     })
   }
 
+  getTask(taskId: string) {
+    return this.request(`/task/${taskId}`)
+  }
+
+  listTasksInList(listId: string, query: Record<string, unknown> = {}) {
+    return this.request(`/list/${listId}/task`, {
+      method: "GET",
+      searchParams: query as Record<string, string | number | boolean | undefined>
+    })
+  }
+
+  listTaskComments(taskId: string) {
+    return this.request(`/task/${taskId}/comment`)
+  }
+
   createTask(listId: string, body: Record<string, unknown>) {
     return this.request(`/list/${listId}/task`, {
       method: "POST",
