@@ -131,6 +131,7 @@ import { getWorkspaceOverview } from "../application/usecases/hierarchy/GetWorks
 import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWorkspaceHierarchy.js"
 import { findMemberByName } from "../application/usecases/members/FindMemberByName.js"
 import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
+import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -189,6 +190,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   const sessionToken = requireSessionToken(auth)
 
   const createClient = () => new ClickUpClient(sessionToken)
+  const sessionMemberDirectory = new MemberDirectory()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const shape = getInputShape(options.schema)
@@ -293,19 +295,19 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
     "clickup_resolve_members",
     "Resolve identifiers to ClickUp members with fuzzy matching and cache visibility.",
     ResolveMembersInput,
-    resolveMembers
+    (input, client, config) => resolveMembers(input, client, config, sessionMemberDirectory)
   )
   registerReadOnly(
     "clickup_find_member_by_name",
     "Search members with fuzzy matching; use refresh=true to bypass the cached directory when data changes.",
     FindMemberByNameInput,
-    (input, client, config) => findMemberByName(input, client, config)
+    (input, client, config) => findMemberByName(input, client, config, sessionMemberDirectory)
   )
   registerReadOnly(
     "clickup_resolve_assignees",
     "Resolve potential task assignees from human-friendly identifiers. Results include scores and cache metadata.",
     ResolveAssigneesInput,
-    (input, client, config) => resolveAssignees(input, client, config)
+    (input, client, config) => resolveAssignees(input, client, config, sessionMemberDirectory)
   )
   registerReadOnly("clickup_list_tags_for_space", "List tags configured for a space.", ListTagsForSpaceInput, listTagsForSpace)
 
