@@ -43,7 +43,8 @@ export async function getDocumentPages(
   const orderedMetadata = orderMetadata(metadataAll as Record<string, unknown>[], input.pageIds)
 
   const previewLimit = resolvePreviewLimit(config, input.previewCharLimit)
-  const detailedPages = await fetchPages(client, docId, input.pageIds)
+  const explicitIds = Array.from(new Set(input.pageIds))
+  const detailedPages = await fetchPages(client, docId, explicitIds)
   const pageEntries = buildPageEntries(
     orderedMetadata as Record<string, unknown>[],
     detailedPages,
