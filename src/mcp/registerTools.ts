@@ -39,6 +39,7 @@ import {
   ResolveMembersInput,
   ResolvePathToIdsInput,
   GetWorkspaceOverviewInput,
+  GetWorkspaceHierarchyInput,
   ListReferenceLinksInput,
   FetchReferencePageInput
 } from "./schemas/index.js"
@@ -81,6 +82,7 @@ import { listMembers } from "../application/usecases/hierarchy/ListMembers.js"
 import { resolveMembers } from "../application/usecases/hierarchy/ResolveMembers.js"
 import { resolvePathToIds } from "../application/usecases/hierarchy/ResolvePathToIds.js"
 import { getWorkspaceOverview } from "../application/usecases/hierarchy/GetWorkspaceOverview.js"
+import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWorkspaceHierarchy.js"
 import { ping } from "../application/usecases/system/Ping.js"
 import { health } from "../application/usecases/system/Health.js"
 import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/system/ToolCatalogue.js"
@@ -217,6 +219,12 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     return listLists(input, client)
   })
   registerReadOnly("clickup_get_workspace_overview", "Fetch workspace overview.", GetWorkspaceOverviewInput, getWorkspaceOverview)
+  registerReadOnly(
+    "clickup_get_workspace_hierarchy",
+    "Fetch nested spaces, folders and lists with depth and limit controls.",
+    GetWorkspaceHierarchyInput,
+    (input, client, config) => getWorkspaceHierarchy(input, client, config)
+  )
   registerReadOnly("clickup_resolve_path_to_ids", "Resolve workspace path elements to IDs.", ResolvePathToIdsInput, resolvePathToIds)
   registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
   registerReadOnly("clickup_resolve_members", "Resolve identifiers to ClickUp members.", ResolveMembersInput, resolveMembers)
