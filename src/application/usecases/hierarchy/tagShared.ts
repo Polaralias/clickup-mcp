@@ -1,4 +1,5 @@
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { SpaceTagCache } from "../../services/SpaceTagCache.js"
 import { readString } from "./structureShared.js"
 
 export type SpaceTagSummary = {
@@ -8,6 +9,10 @@ export type SpaceTagSummary = {
     foreground?: string
     background?: string
   }
+}
+
+export type LoadSpaceTagsOptions = {
+  forceRefresh?: boolean
 }
 
 function normaliseTagName(value: string) {
@@ -73,13 +78,45 @@ export function buildColors(
   return Object.keys(result).length > 0 ? result : undefined
 }
 
-export async function loadSpaceTags(spaceId: string, client: ClickUpClient): Promise<SpaceTagSummary[]> {
+function extractTagCollection(response: unknown): unknown[] {
+  if (Array.isArray(response)) {
+    return response
+  }
+  if (response && typeof response === "object") {
+    const candidate = (response as Record<string, unknown>).tags
+    if (Array.isArray(candidate)) {
+      return candidate as unknown[]
+    }
+  }
+  return []
+}
+
+export async function ensureSpaceTagCollection(
+  spaceId: string,
+  client: ClickUpClient,
+  cache: SpaceTagCache,
+  options: LoadSpaceTagsOptions = {}
+): Promise<unknown[]> {
+  if (!options.forceRefresh) {
+    const cached = cache.read(spaceId)
+    if (cached) {
+      return cached
+    }
+  }
+
   const response = await client.listTagsForSpace(spaceId)
-  const collection: unknown[] = Array.isArray(response)
-    ? response
-    : response && typeof response === "object" && Array.isArray((response as Record<string, unknown>).tags)
-      ? ((response as Record<string, unknown>).tags as unknown[])
-      : []
+  const collection = extractTagCollection(response)
+  cache.store(spaceId, collection)
+  return [...collection]
+}
+
+export async function loadSpaceTags(
+  spaceId: string,
+  client: ClickUpClient,
+  cache: SpaceTagCache,
+  options: LoadSpaceTagsOptions = {}
+): Promise<SpaceTagSummary[]> {
+  const collection = await ensureSpaceTagCollection(spaceId, client, cache, options)
   return collection
     .map((candidate: unknown) => mapSpaceTag(candidate, spaceId))
     .filter((tag): tag is SpaceTagSummary => Boolean(tag))
