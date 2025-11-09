@@ -25,11 +25,13 @@ export const ResolveMembersInput = z.object({
   identifiers: z.array(z.string())
 })
 
+export const HierarchyPathSegment = z.object({
+  type: z.enum(["workspace", "space", "folder", "list"]),
+  name: z.string()
+})
+
 export const ResolvePathToIdsInput = z.object({
-  path: z.array(z.object({
-    type: z.enum(["workspace", "space", "folder", "list"]),
-    name: z.string()
-  }))
+  path: z.array(HierarchyPathSegment)
 })
 
 export const GetWorkspaceOverviewInput = z.object({

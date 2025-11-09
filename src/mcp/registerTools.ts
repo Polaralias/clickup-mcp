@@ -49,7 +49,17 @@ import {
   GetWorkspaceOverviewInput,
   GetWorkspaceHierarchyInput,
   ListReferenceLinksInput,
-  FetchReferencePageInput
+  FetchReferencePageInput,
+  CreateFolderInput,
+  UpdateFolderInput,
+  DeleteFolderInput,
+  CreateListInput,
+  UpdateListInput,
+  DeleteListInput,
+  CreateListViewInput,
+  CreateSpaceViewInput,
+  UpdateViewInput,
+  DeleteViewInput
 } from "./schemas/index.js"
 import { withSafetyConfirmation } from "../application/safety/withSafetyConfirmation.js"
 import { createTask } from "../application/usecases/tasks/CreateTask.js"
@@ -99,6 +109,16 @@ import { resolveMembers } from "../application/usecases/hierarchy/ResolveMembers
 import { resolvePathToIds } from "../application/usecases/hierarchy/ResolvePathToIds.js"
 import { getWorkspaceOverview } from "../application/usecases/hierarchy/GetWorkspaceOverview.js"
 import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWorkspaceHierarchy.js"
+import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
+import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
+import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
+import { createList } from "../application/usecases/hierarchy/CreateList.js"
+import { updateList } from "../application/usecases/hierarchy/UpdateList.js"
+import { deleteList } from "../application/usecases/hierarchy/DeleteList.js"
+import { createListView } from "../application/usecases/hierarchy/CreateListView.js"
+import { createSpaceView } from "../application/usecases/hierarchy/CreateSpaceView.js"
+import { updateView } from "../application/usecases/hierarchy/UpdateView.js"
+import { deleteView } from "../application/usecases/hierarchy/DeleteView.js"
 import { ping } from "../application/usecases/system/Ping.js"
 import { health } from "../application/usecases/system/Health.js"
 import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/system/ToolCatalogue.js"
@@ -245,6 +265,68 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
   registerReadOnly("clickup_resolve_members", "Resolve identifiers to ClickUp members.", ResolveMembersInput, resolveMembers)
   registerReadOnly("clickup_list_tags_for_space", "List tags configured for a space.", ListTagsForSpaceInput, listTagsForSpace)
+
+  // Hierarchy management
+  registerDestructive(
+    "clickup_create_folder",
+    "Create a folder within a space, supporting optional custom statuses and dry-run previews.",
+    CreateFolderInput,
+    async (input, client) => createFolder(input, client)
+  )
+  registerDestructive(
+    "clickup_update_folder",
+    "Update a folder's name, description, or statuses.",
+    UpdateFolderInput,
+    async (input, client) => updateFolder(input, client)
+  )
+  registerDestructive(
+    "clickup_delete_folder",
+    "Delete a folder.",
+    DeleteFolderInput,
+    async (input, client) => deleteFolder(input, client)
+  )
+  registerDestructive(
+    "clickup_create_list",
+    "Create a list within a space or folder with optional status overrides.",
+    CreateListInput,
+    async (input, client) => createList(input, client)
+  )
+  registerDestructive(
+    "clickup_update_list",
+    "Update a list's name, description, or statuses.",
+    UpdateListInput,
+    async (input, client) => updateList(input, client)
+  )
+  registerDestructive(
+    "clickup_delete_list",
+    "Delete a list.",
+    DeleteListInput,
+    async (input, client) => deleteList(input, client)
+  )
+  registerDestructive(
+    "clickup_create_list_view",
+    "Create a view scoped to a list with optional status filters.",
+    CreateListViewInput,
+    async (input, client) => createListView(input, client)
+  )
+  registerDestructive(
+    "clickup_create_space_view",
+    "Create a view scoped to a space with optional status filters.",
+    CreateSpaceViewInput,
+    async (input, client) => createSpaceView(input, client)
+  )
+  registerDestructive(
+    "clickup_update_view",
+    "Update a view's name, type, description, or filters.",
+    UpdateViewInput,
+    async (input, client) => updateView(input, client)
+  )
+  registerDestructive(
+    "clickup_delete_view",
+    "Delete a view.",
+    DeleteViewInput,
+    async (input, client) => deleteView(input, client)
+  )
 
   // Reference
   registerReadOnly(

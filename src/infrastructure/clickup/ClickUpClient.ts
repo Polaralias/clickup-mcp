@@ -78,6 +78,80 @@ export class ClickUpClient {
     return this.request(`/space/${spaceId}/list`)
   }
 
+  createFolder(spaceId: string, body: Record<string, unknown>) {
+    return this.request(`/space/${spaceId}/folder`, {
+      method: "POST",
+      body
+    })
+  }
+
+  updateFolder(folderId: string, body: Record<string, unknown>) {
+    return this.request(`/folder/${folderId}`, {
+      method: "PUT",
+      body
+    })
+  }
+
+  deleteFolder(folderId: string) {
+    return this.request(`/folder/${folderId}`, {
+      method: "DELETE"
+    })
+  }
+
+  createListInSpace(spaceId: string, body: Record<string, unknown>) {
+    return this.request(`/space/${spaceId}/list`, {
+      method: "POST",
+      body
+    })
+  }
+
+  createListInFolder(folderId: string, body: Record<string, unknown>) {
+    return this.request(`/folder/${folderId}/list`, {
+      method: "POST",
+      body
+    })
+  }
+
+  updateList(listId: string, body: Record<string, unknown>) {
+    return this.request(`/list/${listId}`, {
+      method: "PUT",
+      body
+    })
+  }
+
+  deleteList(listId: string) {
+    return this.request(`/list/${listId}`, {
+      method: "DELETE"
+    })
+  }
+
+  createListView(listId: string, body: Record<string, unknown>) {
+    return this.request(`/list/${listId}/view`, {
+      method: "POST",
+      body
+    })
+  }
+
+  createSpaceView(spaceId: string, body: Record<string, unknown>) {
+    return this.request(`/space/${spaceId}/view`, {
+      method: "POST",
+      body
+    })
+  }
+
+  updateView(viewId: string, body: Record<string, unknown>) {
+    return this.request(`/view/${viewId}`, {
+      method: "PUT",
+      body
+    })
+  }
+
+  deleteView(viewId: string) {
+    return this.request(`/view/${viewId}`, {
+      method: "DELETE"
+    })
+  }
+
   listTagsForSpace(spaceId: string) {
     return this.request(`/space/${spaceId}/tag`)
   }
