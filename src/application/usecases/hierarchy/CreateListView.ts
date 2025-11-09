@@ -1,0 +1,67 @@
+import { z } from "zod"
+import { CreateListViewInput } from "../../../mcp/schemas/structure.js"
+import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
+
+type Input = z.infer<typeof CreateListViewInput>
+
+type Result = {
+  preview?: Record<string, unknown>
+  view?: Record<string, unknown>
+  nextSteps: string[]
+}
+
+export async function createListView(input: Input, client: ClickUpClient): Promise<Result> {
+  const resolution = await resolveIdsFromPath(input.path, client)
+  const listId = input.listId ?? resolution?.listId
+  if (!listId) {
+    throw new Error("Provide listId or include a list segment in path")
+  }
+
+  const statuses = normaliseStatuses(input.statuses)
+  const statusFilters = statuses?.map((status) => status.status)
+  const nextSteps = [
+    "Share the view URL with collaborators once created.",
+    "Use clickup_update_view to refine filters or layout if needed.",
+    "Add tasks with clickup_create_task so the view shows meaningful data."
+  ]
+
+  if (input.dryRun) {
+    return {
+      preview: {
+        action: "create",
+        listId,
+        name: input.name,
+        viewType: input.viewType ?? "list",
+        description: input.description,
+        statusFilters: statusFilters ?? []
+      },
+      nextSteps
+    }
+  }
+
+  const payload = compactRecord({
+    name: input.name,
+    type: input.viewType ?? "list",
+    filters: statusFilters ? { statuses: statusFilters } : undefined,
+    settings: input.description ? { description: input.description } : undefined
+  })
+
+  const view = await client.createListView(listId, payload)
+  const viewId = readString(view, ["id", "view_id"]) ?? readString(view, ["viewId"])
+  const viewUrl = readString(view, ["url", "view_url"])
+
+  const summary = compactRecord({
+    id: viewId,
+    name: readString(view, ["name"]) ?? input.name,
+    url: viewUrl,
+    listId,
+    description: input.description,
+    type: input.viewType ?? "list"
+  })
+
+  return {
+    view: summary,
+    nextSteps
+  }
+}
