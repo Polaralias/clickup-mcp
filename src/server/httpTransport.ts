@@ -46,10 +46,10 @@ function parseAuthorizationHeader(header: string | undefined) {
   if (!trimmed) {
     return undefined
   }
-  const [scheme, ...rest] = trimmed.split(/\s+/)
-  if (rest.length === 0) {
-    return undefined
+  if (!trimmed.includes(" ")) {
+    return trimmed
   }
+  const [scheme, ...rest] = trimmed.split(/\s+/)
   if (scheme.toLowerCase() !== "bearer") {
     return undefined
   }

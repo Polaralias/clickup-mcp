@@ -96,6 +96,19 @@ describe("registerHttpTransport authorization", () => {
     expect(createServer).not.toHaveBeenCalled()
   })
 
+  it("accepts ClickUp style tokens without a bearer scheme", async () => {
+    const { app, sessions } = setup()
+
+    const response = await request(app)
+      .post("/mcp")
+      .set("Authorization", "pk_test_clickup_token")
+      .query({ teamId: "team", apiKey: "pk_test_clickup_token" })
+      .send({ jsonrpc: "2.0", id: 1 })
+
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBe("pk_test_clickup_token")
+  })
+
   it("prevents sessions from being hijacked by a different token", async () => {
     const { app } = setup()
 
