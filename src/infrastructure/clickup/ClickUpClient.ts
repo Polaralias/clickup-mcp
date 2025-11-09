@@ -188,6 +188,46 @@ export class ClickUpClient {
     })
   }
 
+  createTasksBulk(teamId: string, tasks: Array<Record<string, unknown>>) {
+    return this.request(`/task/bulk`, {
+      method: "POST",
+      searchParams: { team_id: teamId },
+      body: { tasks }
+    })
+  }
+
+  updateTasksBulk(teamId: string, tasks: Array<Record<string, unknown>>) {
+    return this.request(`/task/bulk`, {
+      method: "PUT",
+      searchParams: { team_id: teamId },
+      body: { tasks }
+    })
+  }
+
+  moveTasksBulk(teamId: string, moves: Array<Record<string, unknown>>) {
+    return this.request(`/task/move/bulk`, {
+      method: "POST",
+      searchParams: { team_id: teamId },
+      body: { tasks: moves }
+    })
+  }
+
+  deleteTasksBulk(teamId: string, taskIds: string[]) {
+    return this.request(`/task/bulk`, {
+      method: "DELETE",
+      searchParams: { team_id: teamId },
+      body: { task_ids: taskIds }
+    })
+  }
+
+  addTagsBulk(teamId: string, operations: Array<Record<string, unknown>>) {
+    return this.request(`/task/tag/bulk`, {
+      method: "POST",
+      searchParams: { team_id: teamId },
+      body: { operations }
+    })
+  }
+
   createDoc(folderId: string, body: Record<string, unknown>) {
     return this.request(`/folder/${folderId}/doc`, {
       method: "POST",
