@@ -39,6 +39,8 @@ import {
   ReportTimeForTagInput,
   ReportTimeForContainerInput,
   ReportTimeForSpaceTagInput,
+  GetTaskTimeEntriesInput,
+  GetCurrentTimeEntryInput,
   ListSpacesInput,
   ListFoldersInput,
   ListListsInput,
@@ -100,6 +102,8 @@ import { listTimeEntries } from "../application/usecases/time/ListTimeEntries.js
 import { reportTimeForTag } from "../application/usecases/time/ReportTimeForTag.js"
 import { reportTimeForContainer } from "../application/usecases/time/ReportTimeForContainer.js"
 import { reportTimeForSpaceTag } from "../application/usecases/time/ReportTimeForSpaceTag.js"
+import { getTaskTimeEntries } from "../application/usecases/time/GetTaskTimeEntries.js"
+import { getCurrentTimeEntry } from "../application/usecases/time/GetCurrentTimeEntry.js"
 import { listReferenceLinks } from "../application/usecases/reference/ListReferenceLinks.js"
 import { fetchReferencePage } from "../application/usecases/reference/FetchReferencePage.js"
 import { listWorkspaces } from "../application/usecases/hierarchy/ListWorkspaces.js"
@@ -455,6 +459,38 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   registerDestructive("clickup_create_time_entry", "Create a manual time entry.", CreateTimeEntryInput, createTimeEntry)
   registerDestructive("clickup_update_time_entry", "Update a time entry.", UpdateTimeEntryInput, updateTimeEntry)
   registerDestructive("clickup_delete_time_entry", "Delete a time entry.", DeleteTimeEntryInput, deleteTimeEntry)
+
+  registerReadOnly(
+    "clickup_get_task_time_entries",
+    "Fetch recent time entries for a task with token-aware truncation.",
+    GetTaskTimeEntriesInput,
+    async (input, client) => {
+      const result = await getTaskTimeEntries(input, client)
+      return {
+        taskId: result.taskId,
+        entryCount: result.entryCount,
+        totalDurationMs: result.totalDurationMs,
+        entries: result.entries,
+        truncated: result.truncated,
+        guidance: result.guidance
+      }
+    }
+  )
+
+  registerReadOnly(
+    "clickup_get_current_time_entry",
+    "Retrieve the currently running time entry for a workspace.",
+    GetCurrentTimeEntryInput,
+    async (input, client, config) => {
+      const result = await getCurrentTimeEntry(input, client, config)
+      return {
+        teamId: result.teamId,
+        active: result.active,
+        entry: result.entry,
+        guidance: result.guidance
+      }
+    }
+  )
 
   registerReadOnly("clickup_list_time_entries", "List time entries.", ListTimeEntriesInput, async (input, client, config) => {
     const result = await listTimeEntries(input, client, config)
