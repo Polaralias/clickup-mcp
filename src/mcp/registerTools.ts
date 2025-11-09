@@ -134,6 +134,7 @@ import { findMemberByName } from "../application/usecases/members/FindMemberByNa
 import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
 import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
+import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -194,6 +195,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   const createClient = () => new ClickUpClient(config.apiKey)
   const sessionMemberDirectory = new MemberDirectory()
   const sessionHierarchyDirectory = new HierarchyDirectory()
+  const sessionTaskCatalogue = new TaskCatalogue()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const shape = getInputShape(options.schema)
@@ -436,71 +438,111 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   )
 
   // Task tools
-  registerDestructive("clickup_create_task", "Create a task in ClickUp.", CreateTaskInput, createTask)
+  registerDestructive(
+    "clickup_create_task",
+    "Create a task in ClickUp.",
+    CreateTaskInput,
+    async (input, client) => createTask(input, client, sessionTaskCatalogue)
+  )
   registerDestructive(
     "clickup_create_tasks_bulk",
     "Create multiple tasks with shared defaults and dry-run previews.",
     CreateTasksBulkInput,
-    createTasksBulk
+    async (input, client, config) => createTasksBulk(input, client, config, sessionTaskCatalogue)
   )
-  registerDestructive("clickup_update_task", "Update an existing task.", UpdateTaskInput, updateTask)
+  registerDestructive(
+    "clickup_update_task",
+    "Update an existing task.",
+    UpdateTaskInput,
+    async (input, client) => updateTask(input, client, sessionTaskCatalogue)
+  )
   registerDestructive(
     "clickup_update_tasks_bulk",
     "Update multiple tasks in parallel with concurrency safeguards.",
     UpdateTasksBulkInput,
-    updateTasksBulk
+    async (input, client, config) => updateTasksBulk(input, client, config, sessionTaskCatalogue)
   )
-  registerDestructive("clickup_delete_task", "Delete a task.", DeleteTaskInput, deleteTask)
+  registerDestructive(
+    "clickup_delete_task",
+    "Delete a task.",
+    DeleteTaskInput,
+    async (input, client) => deleteTask(input, client, sessionTaskCatalogue)
+  )
   registerDestructive(
     "clickup_delete_tasks_bulk",
     "Delete multiple tasks with confirmation and optional dry run.",
     DeleteTasksBulkInput,
-    deleteTasksBulk
+    async (input, client, config) => deleteTasksBulk(input, client, config, sessionTaskCatalogue)
   )
-  registerDestructive("clickup_move_task", "Move a task to a different list.", MoveTaskInput, moveTask)
+  registerDestructive(
+    "clickup_move_task",
+    "Move a task to a different list.",
+    MoveTaskInput,
+    async (input, client) => moveTask(input, client, sessionTaskCatalogue)
+  )
   registerDestructive(
     "clickup_move_tasks_bulk",
     "Move multiple tasks to new lists.",
     MoveTasksBulkInput,
-    moveTasksBulk
+    async (input, client, config) => moveTasksBulk(input, client, config, sessionTaskCatalogue)
   )
   registerDestructive("clickup_duplicate_task", "Duplicate a task.", DuplicateTaskInput, duplicateTask)
   registerDestructive("clickup_comment_task", "Add a comment to a task.", CommentTaskInput, commentTask)
   registerDestructive("clickup_attach_file_to_task", "Attach a file to a task.", AttachFileInput, attachFileToTask)
-  registerDestructive("clickup_add_tags_to_task", "Add tags to a task.", AddTagsInput, addTagsToTask)
+  registerDestructive(
+    "clickup_add_tags_to_task",
+    "Add tags to a task.",
+    AddTagsInput,
+    async (input, client) => addTagsToTask(input, client, sessionTaskCatalogue)
+  )
   registerDestructive(
     "clickup_add_tags_bulk",
     "Add tags across multiple tasks with shared defaults.",
     AddTagsBulkInput,
-    addTagsBulk
+    async (input, client, config) => addTagsBulk(input, client, config, sessionTaskCatalogue)
   )
-  registerDestructive("clickup_remove_tags_from_task", "Remove tags from a task.", RemoveTagsInput, removeTagsFromTask)
+  registerDestructive(
+    "clickup_remove_tags_from_task",
+    "Remove tags from a task.",
+    RemoveTagsInput,
+    async (input, client) => removeTagsFromTask(input, client, sessionTaskCatalogue)
+  )
 
   registerReadOnly("clickup_search_tasks", "Structured task search.", SearchTasksInput, async (input, client, config) => {
-    const result = await searchTasks(input, client, config)
+    const result = await searchTasks(input, client, config, sessionTaskCatalogue)
     return { tasks: result.results, truncated: result.truncated }
   })
   registerReadOnly("clickup_fuzzy_search", "Fuzzy search tasks.", FuzzySearchInput, async (input, client, config) => {
-    const result = await fuzzySearch(input, client, config)
+    const result = await fuzzySearch(input, client, config, sessionTaskCatalogue)
     return { tasks: result.results, guidance: result.guidance }
   })
-  registerReadOnly("clickup_bulk_fuzzy_search", "Bulk fuzzy search for tasks.", BulkFuzzySearchInput, async (input, client, config) => {
-    const result = await bulkFuzzySearch(input, client, config)
-    return { queries: result }
-  })
+  registerReadOnly(
+    "clickup_bulk_fuzzy_search",
+    "Bulk fuzzy search for tasks.",
+    BulkFuzzySearchInput,
+    async (input, client, config) => {
+      const result = await bulkFuzzySearch(input, client, config, sessionTaskCatalogue)
+      return { queries: result }
+    }
+  )
 
-  registerReadOnly("clickup_get_task", "Fetch task details with context-aware truncation.", GetTaskInput, getTask)
+  registerReadOnly(
+    "clickup_get_task",
+    "Fetch task details with context-aware truncation.",
+    GetTaskInput,
+    (input, client, config) => getTask(input, client, config, sessionTaskCatalogue)
+  )
   registerReadOnly(
     "clickup_list_tasks_in_list",
     "List tasks inside a ClickUp list with optional pagination and filters.",
     ListTasksInListInput,
-    listTasksInList
+    (input, client, config) => listTasksInList(input, client, config, sessionTaskCatalogue)
   )
   registerReadOnly(
     "clickup_get_task_comments",
     "Retrieve recent comments for a task, keeping responses token-friendly.",
     GetTaskCommentsInput,
-    getTaskComments
+    (input, client, config) => getTaskComments(input, client, config, sessionTaskCatalogue)
   )
 
   // Docs

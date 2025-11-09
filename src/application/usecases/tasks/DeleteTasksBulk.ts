@@ -4,6 +4,7 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import { deleteTask } from "./DeleteTask.js"
 import { formatError, runBulk, summariseBulk } from "./bulkShared.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
 const CONCURRENCY_LIMIT = 5
 
@@ -13,7 +14,12 @@ type Target = {
   taskId: string
 }
 
-export async function deleteTasksBulk(input: Input, client: ClickUpClient, _config: ApplicationConfig) {
+export async function deleteTasksBulk(
+  input: Input,
+  client: ClickUpClient,
+  _config: ApplicationConfig,
+  catalogue?: TaskCatalogue
+) {
   const targets: Target[] = input.tasks.map((task) => ({ taskId: task.taskId }))
   const outcomes = await runBulk(targets, async (target) => {
     const payloadBase = {
@@ -28,7 +34,7 @@ export async function deleteTasksBulk(input: Input, client: ClickUpClient, _conf
     }
 
     try {
-      const result = await deleteTask(resultInput, client)
+      const result = await deleteTask(resultInput, client, catalogue)
       if (input.dryRun) {
         return {
           success: true as const,

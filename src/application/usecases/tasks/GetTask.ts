@@ -5,6 +5,7 @@ import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
 import { resolveTaskReference } from "./resolveTaskReference.js"
 import type { TaskResolution } from "./resolveTaskReference.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
 const DEFAULT_DETAIL_LIMIT = 10
 
@@ -177,13 +178,18 @@ function buildList(payload: any, fallback?: TaskResolution["record"]) {
   return { id: listId, name: listName, url: listUrl }
 }
 
-export async function getTask(input: Input, client: ClickUpClient, _config: ApplicationConfig): Promise<Result> {
+export async function getTask(
+  input: Input,
+  client: ClickUpClient,
+  _config: ApplicationConfig,
+  catalogue?: TaskCatalogue
+): Promise<Result> {
   const detailLimit = input.detailLimit ?? DEFAULT_DETAIL_LIMIT
   const resolution = resolveTaskReference({
     taskId: input.taskId,
     taskName: input.taskName,
     context: input.context
-  })
+  }, catalogue)
 
   const response = await client.getTask(resolution.taskId)
   const payload = response?.task ?? response ?? {}

@@ -4,6 +4,7 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import { createTask } from "./CreateTask.js"
 import { formatError, runBulk, summariseBulk } from "./bulkShared.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
 const CONCURRENCY_LIMIT = 5
 
@@ -32,7 +33,12 @@ function normaliseTasks(input: Input): NormalisedCreateTask[] {
   }))
 }
 
-export async function createTasksBulk(input: Input, client: ClickUpClient, _config: ApplicationConfig) {
+export async function createTasksBulk(
+  input: Input,
+  client: ClickUpClient,
+  _config: ApplicationConfig,
+  catalogue?: TaskCatalogue
+) {
   const tasks = normaliseTasks(input)
   const outcomes = await runBulk(tasks, async (task) => {
     const payloadBase = {
@@ -54,7 +60,7 @@ export async function createTasksBulk(input: Input, client: ClickUpClient, _conf
     }
 
     try {
-      const result = await createTask(resultInput, client)
+      const result = await createTask(resultInput, client, catalogue)
       if (input.dryRun) {
         return {
           success: true as const,

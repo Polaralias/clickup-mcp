@@ -3,8 +3,10 @@ import { ListTasksInListInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
-import { resolveTaskReference } from "./resolveTaskReference.js"
+import { resolveTaskReference, normaliseTaskRecord } from "./resolveTaskReference.js"
 import type { TaskResolution } from "./resolveTaskReference.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
+import type { TaskResolutionRecord } from "./resolveTaskReference.js"
 
 type Input = z.infer<typeof ListTasksInListInput>
 
@@ -134,7 +136,11 @@ type ListResolution = {
   taskResolution?: TaskResolution
 }
 
-async function resolveListDetails(input: Input, client: ClickUpClient): Promise<ListResolution> {
+async function resolveListDetails(
+  input: Input,
+  client: ClickUpClient,
+  catalogue?: TaskCatalogue
+): Promise<ListResolution> {
   if (input.listId) {
     return { listId: input.listId, method: "direct" }
   }
@@ -142,7 +148,7 @@ async function resolveListDetails(input: Input, client: ClickUpClient): Promise<
     taskId: input.taskId,
     taskName: input.taskName,
     context: input.context
-  })
+  }, catalogue)
   if (resolution.record?.listId) {
     return {
       listId: resolution.record.listId,
@@ -180,43 +186,89 @@ async function resolveListDetails(input: Input, client: ClickUpClient): Promise<
 export async function listTasksInList(
   input: Input,
   client: ClickUpClient,
-  _config: ApplicationConfig
+  _config: ApplicationConfig,
+  catalogue?: TaskCatalogue
 ): Promise<Result> {
-  const listResolution = await resolveListDetails(input, client)
-  const query: Record<string, unknown> = {
-    page: input.page,
-    archived: input.includeClosed ? true : undefined,
-    subtasks: input.includeSubtasks ? true : undefined
+  const listResolution = await resolveListDetails(input, client, catalogue)
+  const filters = {
+    includeClosed: input.includeClosed,
+    includeSubtasks: input.includeSubtasks
   }
-  const response = await client.listTasksInList(listResolution.listId, query)
-  const rawTasks: unknown[] = Array.isArray(response?.tasks)
-    ? response.tasks
-    : Array.isArray(response)
-      ? response
-      : []
-  const mappedTasks = rawTasks
-    .map((task) => mapTask(task, input.assigneePreviewLimit))
-    .filter((task): task is TaskListItem => Boolean(task))
-  const { items, truncated } = truncateList<TaskListItem>(mappedTasks, input.limit)
-  const total = mappedTasks.length
+  const cached = catalogue?.getListPage(listResolution.listId, filters, input.page)
 
-  const listCarrier = rawTasks.find((task) => {
-    if (!task || typeof task !== "object") {
-      return false
+  let baseTasks: TaskListItem[]
+  let total: number
+  let listName = listResolution.listName
+  let listUrl = listResolution.listUrl
+
+  if (cached) {
+    baseTasks = Array.isArray(cached.items)
+      ? (cached.items as TaskListItem[])
+      : cached.tasks.map((task) => ({
+          id: task.id,
+          name: task.name,
+          status: task.status,
+          url: task.url ?? `https://app.clickup.com/t/${task.id}`,
+          assignees: [],
+          assigneesTruncated: false
+        }))
+    total = cached.total
+    listName = listName ?? cached.listName
+    listUrl = listUrl ?? cached.listUrl
+  } else {
+    const query: Record<string, unknown> = {
+      page: input.page,
+      archived: input.includeClosed ? true : undefined,
+      subtasks: input.includeSubtasks ? true : undefined
     }
-    const candidate = (task as Record<string, unknown>).list
-    if (!candidate || typeof candidate !== "object") {
-      return false
-    }
-    const listRecord = candidate as Record<string, unknown>
-    return typeof listRecord.name === "string" || typeof listRecord.url === "string"
-  }) as { list?: { name?: string; url?: string } } | undefined
-  const listName =
-    listResolution.listName ??
-    (listCarrier && typeof listCarrier.list?.name === "string" ? listCarrier.list.name : undefined)
-  const listUrl =
-    listResolution.listUrl ??
-    (listCarrier && typeof listCarrier.list?.url === "string" ? listCarrier.list.url : undefined)
+    const response = await client.listTasksInList(listResolution.listId, query)
+    const rawTasks: unknown[] = Array.isArray(response?.tasks)
+      ? response.tasks
+      : Array.isArray(response)
+        ? response
+        : []
+    const mappedTasks = rawTasks
+      .map((task) => mapTask(task, input.assigneePreviewLimit))
+      .filter((task): task is TaskListItem => Boolean(task))
+
+    const listCarrier = rawTasks.find((task) => {
+      if (!task || typeof task !== "object") {
+        return false
+      }
+      const candidate = (task as Record<string, unknown>).list
+      if (!candidate || typeof candidate !== "object") {
+        return false
+      }
+      const listRecord = candidate as Record<string, unknown>
+      return typeof listRecord.name === "string" || typeof listRecord.url === "string"
+    }) as { list?: { name?: string; url?: string } } | undefined
+
+    listName =
+      listName ??
+      (listCarrier && typeof listCarrier.list?.name === "string" ? listCarrier.list.name : undefined)
+    listUrl =
+      listUrl ?? (listCarrier && typeof listCarrier.list?.url === "string" ? listCarrier.list.url : undefined)
+
+    baseTasks = mappedTasks
+    total = mappedTasks.length
+
+    const records: TaskResolutionRecord[] = rawTasks
+      .map((task) => normaliseTaskRecord(task))
+      .filter((task): task is TaskResolutionRecord => Boolean(task))
+
+    catalogue?.storeListPage({
+      listId: listResolution.listId,
+      filters,
+      page: input.page,
+      tasks: records,
+      items: mappedTasks,
+      total,
+      listName,
+      listUrl
+    })
+  }
+
+  const { items, truncated } = truncateList<TaskListItem>(baseTasks, input.limit)
 
   const guidance = truncated
     ? "Task list truncated for token safety. Increase limit or paginate with page to see more results."

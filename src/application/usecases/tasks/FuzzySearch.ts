@@ -4,6 +4,9 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { requireTeamId } from "../../config/applicationConfig.js"
 import { TaskSearchIndex } from "../../services/TaskSearchIndex.js"
+import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
+import { normaliseTaskRecord } from "./resolveTaskReference.js"
+import type { TaskResolutionRecord } from "./resolveTaskReference.js"
 
 const taskIdPattern = /^[0-9]+$/
 
@@ -18,36 +21,52 @@ function resolveTeamId(config: ApplicationConfig) {
   return requireTeamId(config, "teamId is required for fuzzy search")
 }
 
-export async function fuzzySearch(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
+export async function fuzzySearch(
+  input: Input,
+  client: ClickUpClient,
+  config: ApplicationConfig,
+  catalogue?: TaskCatalogue
+): Promise<Result> {
   const teamId = resolveTeamId(config)
   if (taskIdPattern.test(input.query)) {
-    const response = await client.searchTasks(teamId, { task_ids: input.query })
+    const params = { task_ids: input.query }
+    const cached = catalogue?.getSearchEntry(teamId, params)
+    if (cached) {
+      const tasks = Array.isArray(cached.tasks) ? cached.tasks : []
+      return { results: tasks.slice(0, input.limit) }
+    }
+    const response = await client.searchTasks(teamId, params)
     const tasks = Array.isArray(response?.tasks) ? response.tasks : []
+    const records: TaskResolutionRecord[] = tasks
+      .map((task) => normaliseTaskRecord(task))
+      .filter((task): task is TaskResolutionRecord => Boolean(task))
+    const index = new TaskSearchIndex()
+    index.index(records)
+    catalogue?.storeSearchEntry({ teamId, params, tasks, records, index })
     return { results: tasks.slice(0, input.limit) }
   }
 
-  const response = await client.searchTasks(teamId, { search: input.query, page: 0 })
-  const tasks = Array.isArray(response?.tasks) ? response.tasks : []
-  const index = new TaskSearchIndex()
-  index.index(
-    tasks.map((task: any) => ({
-      id: task.id ?? task.task_id ?? "",
-      name: task.name ?? "",
-      description: task.description ?? "",
-      status: task.status?.status,
-      updatedAt: task.date_updated ? Number(task.date_updated) : undefined,
-      listId: task.list?.id ?? task.list_id ?? task.listId,
-      listName: task.list?.name ?? task.list_name ?? task.listName,
-      listUrl: task.list?.url ?? task.list_url ?? task.listUrl,
-      url:
-        typeof task.url === "string"
-          ? task.url
-          : task.id || task.task_id
-            ? `https://app.clickup.com/t/${task.id ?? task.task_id}`
-            : undefined
-    }))
-  )
-  const results = index.search(input.query, input.limit)
+  const params = { search: input.query, page: 0 }
+  const cached = catalogue?.getSearchEntry(teamId, params)
+
+  let index: TaskSearchIndex
+  let results: ReturnType<TaskSearchIndex["search"]>
+
+  if (cached) {
+    index = cached.index
+    results = index.search(input.query, input.limit)
+  } else {
+    const response = await client.searchTasks(teamId, params)
+    const tasks = Array.isArray(response?.tasks) ? response.tasks : []
+    const records: TaskResolutionRecord[] = tasks
+      .map((task) => normaliseTaskRecord(task))
+      .filter((task): task is TaskResolutionRecord => Boolean(task))
+    index = new TaskSearchIndex()
+    index.index(records)
+    catalogue?.storeSearchEntry({ teamId, params, tasks, records, index })
+    results = index.search(input.query, input.limit)
+  }
+
   return {
     results,
     guidance: results.length === 0 ? "No fuzzy matches. Try a more specific query or use search." : undefined
