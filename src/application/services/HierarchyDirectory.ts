@@ -217,7 +217,7 @@ export class HierarchyDirectory {
   invalidateFolders(spaceId?: string) {
     if (!spaceId) {
       this.folders.clear()
-      this.invalidateLists()
+      this.invalidateAllLists()
       return
     }
     for (const [key, entry] of this.folders.entries()) {
@@ -243,7 +243,7 @@ export class HierarchyDirectory {
     }
   }
 
-  private invalidateLists() {
+  invalidateAllLists() {
     this.lists.clear()
   }
 }
