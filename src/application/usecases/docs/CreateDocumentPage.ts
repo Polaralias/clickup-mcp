@@ -3,6 +3,7 @@ import { CreateDocumentPageInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { buildContentPreview, resolvePreviewLimit } from "./docUtils.js"
+import { DocSearchCache } from "../../services/DocSearchCache.js"
 
 type Input = z.infer<typeof CreateDocumentPageInput>
 
@@ -22,7 +23,8 @@ type Result = {
 export async function createDocumentPage(
   input: Input,
   client: ClickUpClient,
-  config: ApplicationConfig
+  config: ApplicationConfig,
+  cache?: DocSearchCache
 ): Promise<Result> {
   const previewLimit = resolvePreviewLimit(config)
   const content = input.content ?? ""
@@ -55,6 +57,7 @@ export async function createDocumentPage(
   }
 
   const page = await client.createDocumentPage(input.docId, payload)
+  cache?.invalidateDoc(input.docId)
   return {
     preview: basePreview,
     page,

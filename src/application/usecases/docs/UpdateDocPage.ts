@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { UpdateDocPageInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { DocSearchCache } from "../../services/DocSearchCache.js"
 
 type Input = z.infer<typeof UpdateDocPageInput>
 
@@ -9,7 +10,11 @@ type Result = {
   page?: Record<string, unknown>
 }
 
-export async function updateDocPage(input: Input, client: ClickUpClient): Promise<Result> {
+export async function updateDocPage(
+  input: Input,
+  client: ClickUpClient,
+  cache?: DocSearchCache
+): Promise<Result> {
   const payload: Record<string, unknown> = {}
   if (input.title !== undefined) payload.name = input.title
   if (input.content !== undefined) payload.content = input.content
@@ -19,5 +24,6 @@ export async function updateDocPage(input: Input, client: ClickUpClient): Promis
   }
 
   const page = await client.updateDocPage(input.docId, input.pageId, payload)
+  cache?.invalidateDoc(input.docId)
   return { page }
 }

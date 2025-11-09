@@ -102,6 +102,7 @@ describe("registerHttpTransport authorization", () => {
     const first = await request(app)
       .post("/mcp")
       .set("Authorization", "Bearer token-a")
+      .query({ teamId: "team-1", apiKey: "token-1" })
       .send({ jsonrpc: "2.0", id: 1 })
 
     expect(first.status).toBe(200)
@@ -112,6 +113,7 @@ describe("registerHttpTransport authorization", () => {
       .post("/mcp")
       .set("Authorization", "Bearer token-a")
       .set("mcp-session-id", firstTransport.sessionId!)
+      .query({ teamId: "team-1", apiKey: "token-1" })
       .send({ jsonrpc: "2.0", id: 2 })
 
     expect(valid.status).toBe(200)
@@ -120,6 +122,7 @@ describe("registerHttpTransport authorization", () => {
       .post("/mcp")
       .set("Authorization", "Bearer token-b")
       .set("mcp-session-id", firstTransport.sessionId!)
+      .query({ teamId: "team-1", apiKey: "token-1" })
       .send({ jsonrpc: "2.0", id: 3 })
 
     expect(hijack.status).toBe(403)

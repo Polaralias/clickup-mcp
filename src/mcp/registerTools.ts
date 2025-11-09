@@ -135,6 +135,7 @@ import { resolveAssignees } from "../application/usecases/members/ResolveAssigne
 import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
+import { DocSearchCache } from "../application/services/DocSearchCache.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -196,6 +197,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   const sessionMemberDirectory = new MemberDirectory()
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
+  const sessionDocSearchCache = new DocSearchCache()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const shape = getInputShape(options.schema)
@@ -546,7 +548,12 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   )
 
   // Docs
-  registerDestructive("clickup_create_doc", "Create a doc in ClickUp.", CreateDocInput, createDoc)
+  registerDestructive(
+    "clickup_create_doc",
+    "Create a doc in ClickUp.",
+    CreateDocInput,
+    (input, client) => createDoc(input, client, sessionDocSearchCache)
+  )
   registerReadOnly(
     "clickup_list_documents",
     "List docs with hierarchy summaries and preview snippets. Chain with clickup_get_document for deeper context.",
@@ -571,15 +578,20 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
     "clickup_create_document_page",
     "Create a doc page with dry-run previews. Chain with clickup_get_document_pages to verify content.",
     CreateDocumentPageInput,
-    (input, client, config) => createDocumentPage(input, client, config)
+    (input, client, config) => createDocumentPage(input, client, config, sessionDocSearchCache)
   )
-  registerDestructive("clickup_update_doc_page", "Update a doc page.", UpdateDocPageInput, updateDocPage)
+  registerDestructive(
+    "clickup_update_doc_page",
+    "Update a doc page.",
+    UpdateDocPageInput,
+    (input, client) => updateDocPage(input, client, sessionDocSearchCache)
+  )
   registerReadOnly("clickup_doc_search", "Search docs by keyword.", DocSearchInput, async (input, client, config) => {
-    const result = await docSearch(input, client, config)
+    const result = await docSearch(input, client, config, sessionDocSearchCache)
     return { docs: result.docs, expandedPages: result.expandedPages, guidance: result.guidance }
   })
   registerReadOnly("clickup_bulk_doc_search", "Bulk doc search.", BulkDocSearchInput, async (input, client, config) => {
-    const result = await bulkDocSearch(input, client, config)
+    const result = await bulkDocSearch(input, client, config, sessionDocSearchCache)
     return { queries: result }
   })
 

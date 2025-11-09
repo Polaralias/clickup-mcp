@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { CreateDocInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { DocSearchCache } from "../../services/DocSearchCache.js"
 
 type Input = z.infer<typeof CreateDocInput>
 
@@ -9,7 +10,11 @@ type Result = {
   doc?: Record<string, unknown>
 }
 
-export async function createDoc(input: Input, client: ClickUpClient): Promise<Result> {
+export async function createDoc(
+  input: Input,
+  client: ClickUpClient,
+  cache?: DocSearchCache
+): Promise<Result> {
   if (input.dryRun) {
     return {
       preview: {
@@ -25,5 +30,6 @@ export async function createDoc(input: Input, client: ClickUpClient): Promise<Re
     content: input.content
   }
   const doc = await client.createDoc(input.folderId, payload)
+  cache?.invalidateAll()
   return { doc }
 }

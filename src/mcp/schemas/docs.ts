@@ -62,11 +62,13 @@ export const UpdateDocPageInput = SafetyInput.extend({
 export const DocSearchInput = z.object({
   query: z.string().min(1),
   limit: z.number().int().min(1).max(25).default(10),
-  expandPages: z.boolean().default(false)
+  expandPages: z.boolean().default(false),
+  forceRefresh: z.boolean().optional()
 })
 
 export const BulkDocSearchInput = z.object({
   queries: z.array(z.string().min(1)),
   limit: z.number().int().min(1).max(10).default(5),
-  expandPages: z.boolean().default(false)
+  expandPages: z.boolean().default(false),
+  forceRefresh: z.boolean().optional()
 })
