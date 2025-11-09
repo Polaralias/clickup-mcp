@@ -13,6 +13,9 @@ import {
   AttachFileInput,
   AddTagsInput,
   RemoveTagsInput,
+  GetTaskInput,
+  ListTasksInListInput,
+  GetTaskCommentsInput,
   SearchTasksInput,
   FuzzySearchInput,
   BulkFuzzySearchInput,
@@ -53,6 +56,9 @@ import { commentTask } from "../application/usecases/tasks/CommentTask.js"
 import { attachFileToTask } from "../application/usecases/tasks/AttachFileToTask.js"
 import { addTagsToTask } from "../application/usecases/tasks/AddTagsToTask.js"
 import { removeTagsFromTask } from "../application/usecases/tasks/RemoveTagsFromTask.js"
+import { getTask } from "../application/usecases/tasks/GetTask.js"
+import { listTasksInList } from "../application/usecases/tasks/ListTasksInList.js"
+import { getTaskComments } from "../application/usecases/tasks/GetTaskComments.js"
 import { searchTasks } from "../application/usecases/tasks/SearchTasks.js"
 import { fuzzySearch } from "../application/usecases/tasks/FuzzySearch.js"
 import { bulkFuzzySearch } from "../application/usecases/tasks/BulkFuzzySearch.js"
@@ -267,6 +273,20 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     const result = await bulkFuzzySearch(input, client, config)
     return { queries: result }
   })
+
+  registerReadOnly("clickup_get_task", "Fetch task details with context-aware truncation.", GetTaskInput, getTask)
+  registerReadOnly(
+    "clickup_list_tasks_in_list",
+    "List tasks inside a ClickUp list with optional pagination and filters.",
+    ListTasksInListInput,
+    listTasksInList
+  )
+  registerReadOnly(
+    "clickup_get_task_comments",
+    "Retrieve recent comments for a task, keeping responses token-friendly.",
+    GetTaskCommentsInput,
+    getTaskComments
+  )
 
   // Docs
   registerDestructive("clickup_create_doc", "Create a doc in ClickUp.", CreateDocInput, createDoc)

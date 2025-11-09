@@ -7,6 +7,10 @@ type TaskRecord = {
   description?: string
   status?: string
   updatedAt?: number
+  listId?: string
+  listName?: string
+  listUrl?: string
+  url?: string
 }
 
 const fuseOptions: IFuseOptions<TaskRecord> = {
@@ -25,7 +29,9 @@ export class TaskSearchIndex {
 
   index(tasks: TaskRecord[]) {
     tasks.forEach((task) => {
-      this.tasks.set(task.id, task)
+      if (task.id) {
+        this.tasks.set(task.id, task)
+      }
     })
     this.fuse.setCollection(Array.from(this.tasks.values()))
   }

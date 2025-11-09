@@ -35,7 +35,16 @@ export async function fuzzySearch(input: Input, client: ClickUpClient, config: A
       name: task.name ?? "",
       description: task.description ?? "",
       status: task.status?.status,
-      updatedAt: task.date_updated ? Number(task.date_updated) : undefined
+      updatedAt: task.date_updated ? Number(task.date_updated) : undefined,
+      listId: task.list?.id ?? task.list_id ?? task.listId,
+      listName: task.list?.name ?? task.list_name ?? task.listName,
+      listUrl: task.list?.url ?? task.list_url ?? task.listUrl,
+      url:
+        typeof task.url === "string"
+          ? task.url
+          : task.id || task.task_id
+            ? `https://app.clickup.com/t/${task.id ?? task.task_id}`
+            : undefined
     }))
   )
   const results = index.search(input.query, input.limit)
