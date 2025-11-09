@@ -4,7 +4,8 @@ import { z } from "zod"
 import type { SessionConfigInput } from "../application/config/applicationConfig.js"
 
 export const SessionConfigSchema = z.object({
-  defaultTeamId: z.string().trim().min(1).optional(),
+  teamId: z.string().trim().min(1),
+  apiKey: z.string().trim().min(1),
   charLimit: z.number().positive().optional(),
   maxAttachmentMb: z.number().positive().optional()
 })
@@ -18,22 +19,28 @@ export const sessionConfigJsonSchema = {
   type: "object",
   "x-query-style": "dot+bracket",
   properties: {
-    defaultTeamId: {
+    teamId: {
       type: "string",
-      description: "Default ClickUp workspace ID used when a tool input does not provide one."
+      description: "ClickUp workspace ID applied to requests when a tool input omits it."
+    },
+    apiKey: {
+      type: "string",
+      description: "ClickUp personal API token used to authenticate requests made by the server."
     },
     charLimit: {
       type: "number",
-      description: "Character budget for responses before truncation.",
+      description:
+        "Maximum number of characters returned in tool responses before truncation indicators are added.",
       minimum: 1
     },
     maxAttachmentMb: {
       type: "number",
-      description: "Maximum attachment size allowed when uploading files (MB).",
+      description:
+        "Largest file attachment (in megabytes) the server will upload; larger files are rejected before calling ClickUp.",
       minimum: 1
     }
   },
-  required: [] as string[],
+  required: ["teamId", "apiKey"],
   additionalProperties: false
 }
 

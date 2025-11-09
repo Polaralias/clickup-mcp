@@ -2,7 +2,7 @@ import { z } from "zod"
 import { ReportTimeForSpaceTagInput } from "../../../mcp/schemas/time.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 
 type Input = z.infer<typeof ReportTimeForSpaceTagInput>
 
@@ -11,7 +11,7 @@ type Result = {
 }
 
 function resolveTeamId(config: ApplicationConfig) {
-  return requireDefaultTeamId(config, "defaultTeamId is required for time reporting")
+  return requireTeamId(config, "teamId is required for time reporting")
 }
 
 export async function reportTimeForSpaceTag(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {

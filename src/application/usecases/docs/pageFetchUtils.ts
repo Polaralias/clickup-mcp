@@ -1,5 +1,5 @@
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
 import type { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import { extractPageId } from "./docUtils.js"
@@ -15,7 +15,7 @@ export function resolveWorkspaceId(workspaceId: string | undefined, config: Appl
   if (workspaceId) {
     return workspaceId
   }
-  return requireDefaultTeamId(config, message)
+  return requireTeamId(config, message)
 }
 
 export function resolveConcurrency() {

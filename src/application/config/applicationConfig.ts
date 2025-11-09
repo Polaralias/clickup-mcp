@@ -6,13 +6,15 @@ const DEFAULT_ATTACHMENT_LIMIT_MB = 8
 const NumberSchema = z.number().finite().positive()
 
 export type SessionConfigInput = {
-  defaultTeamId?: string
+  teamId?: string
+  apiKey?: string
   charLimit?: number
   maxAttachmentMb?: number
 }
 
 export type ApplicationConfig = {
-  defaultTeamId?: string
+  teamId: string
+  apiKey: string
   charLimit: number
   maxAttachmentMb: number
 }
@@ -55,18 +57,39 @@ function resolveEnvNumber(keys: string[]): number | undefined {
   return undefined
 }
 
-function resolveDefaultTeamId(candidate?: string) {
+function resolveTeamId(candidate?: string) {
   const value = candidate?.trim()
   if (value) {
     return value
   }
-  const envValue = process.env.DEFAULT_TEAM_ID ?? process.env.defaultTeamId
+  const envValue =
+    process.env.TEAM_ID ??
+    process.env.teamId ??
+    process.env.DEFAULT_TEAM_ID ??
+    process.env.defaultTeamId
+  const trimmed = envValue?.trim()
+  return trimmed || undefined
+}
+
+function resolveApiKey(candidate?: string) {
+  const value = candidate?.trim()
+  if (value) {
+    return value
+  }
+  const envValue = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken
   const trimmed = envValue?.trim()
   return trimmed || undefined
 }
 
 export function createApplicationConfig(input: SessionConfigInput): ApplicationConfig {
-  const defaultTeamId = resolveDefaultTeamId(input.defaultTeamId)
+  const teamId = resolveTeamId(input.teamId)
+  if (!teamId) {
+    throw new Error("teamId is required")
+  }
+  const apiKey = resolveApiKey(input.apiKey)
+  if (!apiKey) {
+    throw new Error("apiKey is required")
+  }
   const charLimit = coalesceNumber(
     input.charLimit,
     () => resolveEnvNumber(["CHAR_LIMIT", "charLimit"]),
@@ -78,15 +101,17 @@ export function createApplicationConfig(input: SessionConfigInput): ApplicationC
     () => DEFAULT_ATTACHMENT_LIMIT_MB
   ) ?? DEFAULT_ATTACHMENT_LIMIT_MB
   return {
-    defaultTeamId,
+    teamId,
+    apiKey,
     charLimit,
     maxAttachmentMb
   }
 }
 
-export function requireDefaultTeamId(config: ApplicationConfig, message: string) {
-  if (config.defaultTeamId) {
-    return config.defaultTeamId
+export function requireTeamId(config: ApplicationConfig, message: string) {
+  const teamId = config.teamId?.trim()
+  if (teamId) {
+    return teamId
   }
   throw new Error(message)
 }

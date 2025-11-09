@@ -2,7 +2,7 @@ import { z } from "zod"
 import { SearchTasksInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
 
 type Input = z.infer<typeof SearchTasksInput>
@@ -13,7 +13,7 @@ type Result = {
 }
 
 function resolveTeamId(config: ApplicationConfig) {
-  return requireDefaultTeamId(config, "defaultTeamId is required for task search")
+  return requireTeamId(config, "teamId is required for task search")
 }
 
 export async function searchTasks(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {

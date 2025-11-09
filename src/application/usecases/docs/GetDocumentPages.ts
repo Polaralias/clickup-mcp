@@ -32,7 +32,7 @@ export async function getDocumentPages(
   const workspaceId = resolveWorkspaceId(
     input.workspaceId,
     config,
-    "defaultTeamId is required to fetch doc pages"
+    "teamId is required to fetch doc pages"
   )
   const docResponse = await client.getDocument(workspaceId, input.docId)
   const doc = (docResponse?.doc ?? docResponse ?? {}) as DocRecord

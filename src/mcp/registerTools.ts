@@ -187,9 +187,9 @@ function formatContent(payload: unknown) {
 
 export function registerTools(server: McpServer, config: ApplicationConfig, auth: SessionAuthContext) {
   const entries: ToolCatalogueEntry[] = []
-  const sessionToken = requireSessionToken(auth)
+  requireSessionToken(auth)
 
-  const createClient = () => new ClickUpClient(sessionToken)
+  const createClient = () => new ClickUpClient(config.apiKey)
   const sessionMemberDirectory = new MemberDirectory()
 
   function registerClientTool(name: string, options: RegistrationOptions) {

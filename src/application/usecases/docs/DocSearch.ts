@@ -2,7 +2,7 @@ import { z } from "zod"
 import { DocSearchInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
 
 const DEFAULT_CONCURRENCY = 5
@@ -16,7 +16,7 @@ type Result = {
 }
 
 function resolveTeamId(config: ApplicationConfig) {
-  return requireDefaultTeamId(config, "defaultTeamId is required for doc search")
+  return requireTeamId(config, "teamId is required for doc search")
 }
 
 function resolveConcurrency() {

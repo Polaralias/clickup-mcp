@@ -2,7 +2,7 @@ import { z } from "zod"
 import { ListMembersInput } from "../../../mcp/schemas/hierarchy.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireDefaultTeamId } from "../../config/applicationConfig.js"
+import { requireTeamId } from "../../config/applicationConfig.js"
 
 type Input = z.infer<typeof ListMembersInput>
 
@@ -14,7 +14,7 @@ function resolveTeamId(config: ApplicationConfig, teamId?: string) {
   if (teamId?.trim()) {
     return teamId
   }
-  return requireDefaultTeamId(config, "defaultTeamId is required when teamId is not provided")
+  return requireTeamId(config, "teamId is required when a tool input does not provide one")
 }
 
 export async function listMembers(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {

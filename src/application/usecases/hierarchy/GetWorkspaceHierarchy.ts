@@ -226,8 +226,8 @@ function normaliseSelectors(input: Input, config: ApplicationConfig): WorkspaceS
       }
     }
   }
-  if (selectors.length === 0 && config.defaultTeamId) {
-    selectors.push({ id: config.defaultTeamId })
+  if (selectors.length === 0 && config.teamId) {
+    selectors.push({ id: config.teamId })
   }
   return selectors
 }
