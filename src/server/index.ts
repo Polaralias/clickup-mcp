@@ -29,6 +29,28 @@ async function start() {
     app.get("/.well-known/mcp-config", (_req, res) => {
       res.json(sessionConfigJsonSchema)
     })
+    
+    app.use("/mcp", (req, res, next) => {
+      const body = req.body
+      if (body && typeof body === "object" && typeof body.method === "string") {
+        const method = body.method
+        if (method === "initialize" || method === "tools/list") {
+          const hasTeamId = !!req.query.teamId || !!(req.query as any)["config[teamId]"]
+          const hasApiKey = !!req.query.apiKey || !!(req.query as any)["config[apiKey]"]
+          
+          if (!hasTeamId || !hasApiKey) {
+            if (!hasTeamId) {
+              req.query.teamId = "placeholder"
+            }
+            if (!hasApiKey) {
+              req.query.apiKey = "placeholder"
+            }
+          }
+        }
+      }
+      next()
+    })
+    
     registerHttpTransport(app, createServer)
     const port = Number(process.env.PORT ?? 8081)
     app.listen(port)
