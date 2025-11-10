@@ -91,48 +91,42 @@ describe("extractSessionConfig", () => {
     expect(config?.apiKey).toBe("pk_2")
   })
 
-  it("returns HTTP 200 with JSON-RPC error when teamId is missing", async () => {
+  it("returns HTTP 400 with plain error when teamId is missing", async () => {
     const req = createMockRequest({ apiKey: "pk_123" })
     const res = createMockResponse()
     
     const config = await extractSessionConfig(req, res)
     
     expect(config).toBeUndefined()
-    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32602, message: "Invalid configuration: missing teamId" }
+      error: "Invalid configuration: missing teamId"
     })
   })
 
-  it("returns HTTP 200 with JSON-RPC error when apiKey is missing", async () => {
+  it("returns HTTP 400 with plain error when apiKey is missing", async () => {
     const req = createMockRequest({ teamId: "team_123" })
     const res = createMockResponse()
     
     const config = await extractSessionConfig(req, res)
     
     expect(config).toBeUndefined()
-    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32602, message: "Invalid configuration: missing apiKey" }
+      error: "Invalid configuration: missing apiKey"
     })
   })
 
-  it("returns HTTP 200 with JSON-RPC error when both are missing", async () => {
+  it("returns HTTP 400 with plain error when both are missing", async () => {
     const req = createMockRequest({})
     const res = createMockResponse()
     
     const config = await extractSessionConfig(req, res)
     
     expect(config).toBeUndefined()
-    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32602, message: "Invalid configuration: missing teamId, apiKey" }
+      error: "Invalid configuration: missing teamId, apiKey"
     })
   })
 
