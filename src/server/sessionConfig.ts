@@ -3,29 +3,11 @@ import { parseAndValidateConfig } from "@smithery/sdk"
 import { z } from "zod"
 import type { SessionConfigInput } from "../application/config/applicationConfig.js"
 
-const optionalPositiveNumber = z.preprocess(
-  (value) => {
-    if (value === undefined || value === null) {
-      return undefined
-    }
-    if (typeof value === "string") {
-      const trimmed = value.trim()
-      if (!trimmed) {
-        return undefined
-      }
-      const parsed = Number(trimmed)
-      return Number.isFinite(parsed) ? parsed : value
-    }
-    return value
-  },
-  z.union([z.number().positive(), z.undefined()])
-)
-
 export const SessionConfigSchema = z.object({
   teamId: z.string().trim().min(1),
   apiKey: z.string().trim().min(1),
-  charLimit: optionalPositiveNumber,
-  maxAttachmentMb: optionalPositiveNumber
+  charLimit: z.number().positive().optional(),
+  maxAttachmentMb: z.number().positive().optional()
 })
 
 type ParsedConfig = z.infer<typeof SessionConfigSchema>
