@@ -4,7 +4,7 @@ export function createCorsOptions(): CorsOptions {
   return {
     origin: "*",
     credentials: false,
-    allowedHeaders: ["content-type", "mcp-session-id", "authorization"],
+    allowedHeaders: ["content-type", "mcp-session-id"],
     exposedHeaders: ["mcp-session-id", "mcp-protocol-version"],
     methods: ["GET", "POST", "OPTIONS"],
     preflightContinue: false
