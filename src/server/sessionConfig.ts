@@ -30,67 +30,6 @@ export const SessionConfigSchema = z.object({
 
 type ParsedConfig = z.infer<typeof SessionConfigSchema>
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-}
-
-function normaliseQuery(query: Request["query"]): Record<string, unknown> {
-  if (!isPlainObject(query)) {
-    return {}
-  }
-
-  const normalised: Record<string, unknown> = {}
-
-  const assign = (key: string, value: unknown) => {
-    if (!(key in normalised)) {
-      normalised[key] = value
-    }
-  }
-
-  const normaliseKey = (rawKey: string): string => {
-    const dotted = rawKey.replace(/\[([^\]]+)\]/g, ".$1")
-    if (dotted === "config") {
-      return ""
-    }
-    if (dotted.startsWith("config.")) {
-      return dotted.slice("config.".length)
-    }
-    return dotted
-  }
-
-  const handle = (key: string, value: unknown) => {
-    if (!key) {
-      if (isPlainObject(value)) {
-        for (const [nestedKey, nestedValue] of Object.entries(value)) {
-          handle(normaliseKey(nestedKey), nestedValue)
-        }
-      }
-      return
-    }
-
-    if (Array.isArray(value)) {
-      assign(key, value)
-      return
-    }
-
-    if (isPlainObject(value)) {
-      for (const [nestedKey, nestedValue] of Object.entries(value)) {
-        const combinedKey = `${key}.${nestedKey}`
-        handle(normaliseKey(combinedKey), nestedValue)
-      }
-      return
-    }
-
-    assign(key, value)
-  }
-
-  for (const [rawKey, rawValue] of Object.entries(query)) {
-    handle(normaliseKey(rawKey), rawValue)
-  }
-
-  return normalised
-}
-
 export const sessionConfigJsonSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
   title: "ClickUp MCP Session Configuration",
@@ -124,8 +63,7 @@ export const sessionConfigJsonSchema = {
 }
 
 export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
-  const requestForValidation = { ...req, query: normaliseQuery(req.query) } as Request
-  const result = parseAndValidateConfig(requestForValidation, SessionConfigSchema)
+  const result = parseAndValidateConfig(req, SessionConfigSchema)
   if (!result.ok) {
     const { error } = result
     const status = typeof (error as any)?.status === "number" ? (error as any).status : 400
