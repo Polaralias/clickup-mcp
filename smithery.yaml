@@ -30,6 +30,7 @@ startCommand:
         description: Largest file attachment (MB) allowed for uploads
         minimum: 1
         default: 8
+    required: [teamId, apiKey]
     additionalProperties: false
   exampleConfig:
     teamId: "team_123"
