@@ -84,7 +84,19 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
     if (!config) {
       return undefined
     }
-    return createSession(config)
+    try {
+      return createSession(config)
+    } catch (error) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: error instanceof Error ? error.message : "Error initializing server"
+        },
+        id: null
+      })
+      return undefined
+    }
   }
 
   app.all("/mcp", async (req: Request, res: Response) => {
