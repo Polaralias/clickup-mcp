@@ -4,8 +4,8 @@ import { z } from "zod"
 import type { SessionConfigInput } from "../application/config/applicationConfig.js"
 
 export const SessionConfigSchema = z.object({
-  teamId: z.string().trim().min(1),
-  apiKey: z.string().trim().min(1),
+  teamId: z.string().trim().min(1).optional(),
+  apiKey: z.string().trim().min(1).optional(),
   charLimit: z.number().positive().optional(),
   maxAttachmentMb: z.number().positive().optional()
 })
@@ -37,7 +37,7 @@ export const sessionConfigJsonSchema = {
       description: "Largest file attachment (MB) allowed for uploads"
     }
   },
-  required: ["teamId", "apiKey"],
+  required: [],
   additionalProperties: false
 }
 

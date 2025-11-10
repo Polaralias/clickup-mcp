@@ -19,7 +19,7 @@ startCommand:
       maxAttachmentMb:
         type: number
         description: Largest file attachment (MB) allowed for uploads
-    required: [teamId, apiKey]
+    required: []
   exampleConfig:
     teamId: "team_123"
     apiKey: "pk_123"
