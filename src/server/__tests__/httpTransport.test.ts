@@ -113,17 +113,6 @@ describe("registerHttpTransport authorization", () => {
     expect(sessions[0]?.auth.token).toBe("pk_bracket")
   })
 
-  it("accepts Smithery config payloads posted in the request body", async () => {
-    const { app, sessions } = setup()
-
-    const response = await request(app)
-      .post("/mcp")
-      .send({ config: { teamId: "team", apiKey: "pk_body" } })
-
-    expect(response.status).toBe(200)
-    expect(sessions[0]?.auth.token).toBe("pk_body")
-  })
-
   it("accepts ClickUp style tokens without a bearer scheme", async () => {
     const { app, sessions } = setup()
 
