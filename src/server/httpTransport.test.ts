@@ -15,9 +15,7 @@ vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
       this.options = options
     }
 
-    handleRequest = vi.fn(async (_req: express.Request, res: express.Response) => {
-      res.status(200).json({ ok: true })
-    })
+    handleRequest = vi.fn(async () => {})
 
     close = vi.fn(async () => {})
   }
@@ -54,7 +52,7 @@ describe("registerHttpTransport", () => {
     expect(createServer).not.toHaveBeenCalled()
   })
 
-  it("creates a session when no authorization token is available", async () => {
+  it("responds with 401 when no authorization token is available", async () => {
     const createServer = vi.fn<CreateServer>(() => createStubServer())
     registerHttpTransport(app, createServer)
 
@@ -64,10 +62,9 @@ describe("registerHttpTransport", () => {
 
     const response = await request(app).post("/mcp")
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(401)
+    expect(response.body.error?.message).toBe("Provide a valid apiKey in the session configuration")
     expect(configSpy).toHaveBeenCalled()
-    expect(createServer).toHaveBeenCalledTimes(1)
-    const [, auth] = createServer.mock.calls[0]!
-    expect(auth.token).toBeUndefined()
+    expect(createServer).not.toHaveBeenCalled()
   })
 })

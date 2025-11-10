@@ -122,18 +122,4 @@ describe("registerTools", () => {
     expect(listMembersCalls.filter((call) => call.apiKey === "token-a")).toHaveLength(1)
     expect(secondA.matches[0]?.memberId).toBe("1")
   })
-
-  it("supports unauthenticated discovery but guards ClickUp tools", async () => {
-    const config = createApplicationConfig({})
-    const stub = createStubServer()
-    registerTools(stub.server as any, config, {})
-
-    const catalogue = await stub.invoke("tool_catalogue")
-    const text = (catalogue as any)?.content?.[0]?.text
-    expect(typeof text).toBe("string")
-
-    await expect(stub.invoke("clickup_list_workspaces")).rejects.toThrow(
-      /Missing ClickUp auth token/
-    )
-  })
 })
