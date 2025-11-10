@@ -34,6 +34,7 @@ export class ClickUpClient {
       headers: {
         Authorization: this.token,
         "Content-Type": "application/json",
+        Accept: "application/json",
         ...options.headers
       },
       body: options.body ? JSON.stringify(options.body) : undefined
@@ -60,194 +61,190 @@ export class ClickUpClient {
   }
 
   listWorkspaces() {
-    return this.request("/team")
+    return this.request("team")
   }
 
   listSpaces(workspaceId: string) {
-    return this.request(`/team/${workspaceId}/space`)
+    return this.request(`team/${workspaceId}/space`)
   }
 
   listFolders(spaceId: string) {
-    return this.request(`/space/${spaceId}/folder`)
+    return this.request(`space/${spaceId}/folder`)
   }
 
   listLists(spaceId: string, folderId?: string) {
     if (folderId) {
-      return this.request(`/folder/${folderId}/list`)
+      return this.request(`folder/${folderId}/list`)
     }
-    return this.request(`/space/${spaceId}/list`)
+    return this.request(`space/${spaceId}/list`)
   }
 
   createFolder(spaceId: string, body: Record<string, unknown>) {
-    return this.request(`/space/${spaceId}/folder`, {
+    return this.request(`space/${spaceId}/folder`, {
       method: "POST",
       body
     })
   }
 
   updateFolder(folderId: string, body: Record<string, unknown>) {
-    return this.request(`/folder/${folderId}`, {
+    return this.request(`folder/${folderId}`, {
       method: "PUT",
       body
     })
   }
 
   deleteFolder(folderId: string) {
-    return this.request(`/folder/${folderId}`, {
+    return this.request(`folder/${folderId}`, {
       method: "DELETE"
     })
   }
 
   createListInSpace(spaceId: string, body: Record<string, unknown>) {
-    return this.request(`/space/${spaceId}/list`, {
+    return this.request(`space/${spaceId}/list`, {
       method: "POST",
       body
     })
   }
 
   createListInFolder(folderId: string, body: Record<string, unknown>) {
-    return this.request(`/folder/${folderId}/list`, {
+    return this.request(`folder/${folderId}/list`, {
       method: "POST",
       body
     })
   }
 
   updateList(listId: string, body: Record<string, unknown>) {
-    return this.request(`/list/${listId}`, {
+    return this.request(`list/${listId}`, {
       method: "PUT",
       body
     })
   }
 
   deleteList(listId: string) {
-    return this.request(`/list/${listId}`, {
+    return this.request(`list/${listId}`, {
       method: "DELETE"
     })
   }
 
   createListView(listId: string, body: Record<string, unknown>) {
-    return this.request(`/list/${listId}/view`, {
+    return this.request(`list/${listId}/view`, {
       method: "POST",
       body
     })
   }
 
   createSpaceView(spaceId: string, body: Record<string, unknown>) {
-    return this.request(`/space/${spaceId}/view`, {
+    return this.request(`space/${spaceId}/view`, {
       method: "POST",
       body
     })
   }
 
   updateView(viewId: string, body: Record<string, unknown>) {
-    return this.request(`/view/${viewId}`, {
+    return this.request(`view/${viewId}`, {
       method: "PUT",
       body
     })
   }
 
   deleteView(viewId: string) {
-    return this.request(`/view/${viewId}`, {
+    return this.request(`view/${viewId}`, {
       method: "DELETE"
     })
   }
 
   listTagsForSpace(spaceId: string) {
-    return this.request(`/space/${spaceId}/tag`)
+    return this.request(`space/${spaceId}/tag`)
   }
 
   createSpaceTag(spaceId: string, body: Record<string, unknown>) {
-    return this.request(`/space/${spaceId}/tag`, {
+    return this.request(`space/${spaceId}/tag`, {
       method: "POST",
       body
     })
   }
 
   updateSpaceTag(spaceId: string, tagName: string, body: Record<string, unknown>) {
-    return this.request(`/space/${spaceId}/tag/${encodeURIComponent(tagName)}`, {
+    return this.request(`space/${spaceId}/tag/${encodeURIComponent(tagName)}`, {
       method: "PUT",
       body
     })
   }
 
   deleteSpaceTag(spaceId: string, tagName: string) {
-    return this.request(`/space/${spaceId}/tag/${encodeURIComponent(tagName)}`, {
+    return this.request(`space/${spaceId}/tag/${encodeURIComponent(tagName)}`, {
       method: "DELETE"
     })
   }
 
-  getWorkspaceOverview(workspaceId: string) {
-    return this.request(`/team/${workspaceId}`)
-  }
-
   listMembers(teamId?: string) {
     if (teamId) {
-      return this.request(`/team/${teamId}/member`)
+      return this.request(`team/${teamId}/user`)
     }
-    return this.request(`/team`)
+    return this.request("team")
   }
 
   resolveMembers(teamId: string) {
-    return this.request(`/team/${teamId}/member`)
+    return this.request(`team/${teamId}/user`)
   }
 
   searchTasks(teamId: string, query: Record<string, unknown>) {
-    return this.request(`/team/${teamId}/task`, {
+    return this.request(`team/${teamId}/task`, {
       method: "GET",
       searchParams: query as Record<string, string>
     })
   }
 
   getTask(taskId: string) {
-    return this.request(`/task/${taskId}`)
+    return this.request(`task/${taskId}`)
   }
 
   listTasksInList(listId: string, query: Record<string, unknown> = {}) {
-    return this.request(`/list/${listId}/task`, {
+    return this.request(`list/${listId}/task`, {
       method: "GET",
       searchParams: query as Record<string, string | number | boolean | undefined>
     })
   }
 
   listTaskComments(taskId: string) {
-    return this.request(`/task/${taskId}/comment`)
+    return this.request(`task/${taskId}/comment`)
   }
 
   createTask(listId: string, body: Record<string, unknown>) {
-    return this.request(`/list/${listId}/task`, {
+    return this.request(`list/${listId}/task`, {
       method: "POST",
       body
     })
   }
 
   updateTask(taskId: string, body: Record<string, unknown>) {
-    return this.request(`/task/${taskId}`, {
+    return this.request(`task/${taskId}`, {
       method: "PUT",
       body
     })
   }
 
   deleteTask(taskId: string) {
-    return this.request(`/task/${taskId}`, {
+    return this.request(`task/${taskId}`, {
       method: "DELETE"
     })
   }
 
   moveTask(taskId: string, listId: string) {
-    return this.request(`/task/${taskId}/list/${listId}`, {
+    return this.request(`task/${taskId}/list/${listId}`, {
       method: "POST"
     })
   }
 
   duplicateTask(taskId: string, body: Record<string, unknown>) {
-    return this.request(`/task/${taskId}/duplicate`, {
+    return this.request(`task/${taskId}/duplicate`, {
       method: "POST",
       body
     })
   }
 
   commentTask(taskId: string, body: Record<string, unknown>) {
-    return this.request(`/task/${taskId}/comment`, {
+    return this.request(`task/${taskId}/comment`, {
       method: "POST",
       body
     })
@@ -269,21 +266,21 @@ export class ClickUpClient {
   }
 
   addTags(taskId: string, tags: string[]) {
-    return this.request(`/task/${taskId}/tag`, {
+    return this.request(`task/${taskId}/tag`, {
       method: "POST",
       body: { tags }
     })
   }
 
   removeTags(taskId: string, tags: string[]) {
-    return this.request(`/task/${taskId}/tag`, {
+    return this.request(`task/${taskId}/tag`, {
       method: "DELETE",
       body: { tags }
     })
   }
 
   createTasksBulk(teamId: string, tasks: Array<Record<string, unknown>>) {
-    return this.request(`/task/bulk`, {
+    return this.request(`task/bulk`, {
       method: "POST",
       searchParams: { team_id: teamId },
       body: { tasks }
@@ -291,7 +288,7 @@ export class ClickUpClient {
   }
 
   updateTasksBulk(teamId: string, tasks: Array<Record<string, unknown>>) {
-    return this.request(`/task/bulk`, {
+    return this.request(`task/bulk`, {
       method: "PUT",
       searchParams: { team_id: teamId },
       body: { tasks }
@@ -299,7 +296,7 @@ export class ClickUpClient {
   }
 
   moveTasksBulk(teamId: string, moves: Array<Record<string, unknown>>) {
-    return this.request(`/task/move/bulk`, {
+    return this.request(`task/move/bulk`, {
       method: "POST",
       searchParams: { team_id: teamId },
       body: { tasks: moves }
@@ -307,7 +304,7 @@ export class ClickUpClient {
   }
 
   deleteTasksBulk(teamId: string, taskIds: string[]) {
-    return this.request(`/task/bulk`, {
+    return this.request(`task/bulk`, {
       method: "DELETE",
       searchParams: { team_id: teamId },
       body: { task_ids: taskIds }
@@ -315,7 +312,7 @@ export class ClickUpClient {
   }
 
   addTagsBulk(teamId: string, operations: Array<Record<string, unknown>>) {
-    return this.request(`/task/tag/bulk`, {
+    return this.request(`task/tag/bulk`, {
       method: "POST",
       searchParams: { team_id: teamId },
       body: { operations }
@@ -323,106 +320,106 @@ export class ClickUpClient {
   }
 
   createDoc(folderId: string, body: Record<string, unknown>) {
-    return this.request(`/folder/${folderId}/doc`, {
+    return this.request(`folder/${folderId}/doc`, {
       method: "POST",
       body
     })
   }
 
   listDocuments(workspaceId: string, filters: Record<string, string | number | boolean | undefined> = {}) {
-    return this.request(`/team/${workspaceId}/doc`, {
+    return this.request(`team/${workspaceId}/doc`, {
       method: "GET",
       searchParams: filters
     })
   }
 
   getDocument(workspaceId: string, docId: string) {
-    return this.request(`/team/${workspaceId}/doc/${docId}`)
+    return this.request(`team/${workspaceId}/doc/${docId}`)
   }
 
   listDocPages(docId: string) {
-    return this.request(`/doc/${docId}/page`)
+    return this.request(`doc/${docId}/page`)
   }
 
   bulkGetDocumentPages(docId: string, pageIds: string[]) {
-    return this.request(`/doc/${docId}/page/bulk`, {
+    return this.request(`doc/${docId}/page/bulk`, {
       method: "POST",
       body: { page_ids: pageIds }
     })
   }
 
   createDocumentPage(docId: string, body: Record<string, unknown>) {
-    return this.request(`/doc/${docId}/page`, {
+    return this.request(`doc/${docId}/page`, {
       method: "POST",
       body
     })
   }
 
   getDocPage(docId: string, pageId: string) {
-    return this.request(`/doc/${docId}/page/${pageId}`)
+    return this.request(`doc/${docId}/page/${pageId}`)
   }
 
   updateDocPage(docId: string, pageId: string, body: Record<string, unknown>) {
-    return this.request(`/doc/${docId}/page/${pageId}`, {
+    return this.request(`doc/${docId}/page/${pageId}`, {
       method: "PUT",
       body
     })
   }
 
   searchDocs(teamId: string, query: Record<string, unknown>) {
-    return this.request(`/team/${teamId}/doc`, {
+    return this.request(`team/${teamId}/doc`, {
       method: "GET",
       searchParams: query as Record<string, string>
     })
   }
 
   startTimer(taskId: string) {
-    return this.request(`/task/${taskId}/time`, {
+    return this.request(`task/${taskId}/time`, {
       method: "POST",
       body: { start: Date.now() }
     })
   }
 
   stopTimer(taskId: string) {
-    return this.request(`/task/${taskId}/time`, {
+    return this.request(`task/${taskId}/time`, {
       method: "POST",
       body: { end: Date.now() }
     })
   }
 
   createTimeEntry(taskId: string, body: Record<string, unknown>) {
-    return this.request(`/task/${taskId}/time`, {
+    return this.request(`task/${taskId}/time`, {
       method: "POST",
       body
     })
   }
 
   getTaskTimeEntries(taskId: string) {
-    return this.request(`/task/${taskId}/time`)
+    return this.request(`task/${taskId}/time`)
   }
 
   updateTimeEntry(entryId: string, body: Record<string, unknown>) {
-    return this.request(`/time_entry/${entryId}`, {
+    return this.request(`time_entry/${entryId}`, {
       method: "PUT",
       body
     })
   }
 
   deleteTimeEntry(entryId: string) {
-    return this.request(`/time_entry/${entryId}`, {
+    return this.request(`time_entry/${entryId}`, {
       method: "DELETE"
     })
   }
 
   listTimeEntries(teamId: string, query: Record<string, unknown>) {
-    return this.request(`/team/${teamId}/time_entries`, {
+    return this.request(`team/${teamId}/time_entries`, {
       method: "GET",
       searchParams: query as Record<string, string>
     })
   }
 
   getCurrentTimeEntry(teamId: string) {
-    return this.request(`/team/${teamId}/time_entries/current`)
+    return this.request(`team/${teamId}/time_entries/current`)
   }
 
   reportTime(path: string, query: Record<string, unknown>) {
