@@ -161,7 +161,7 @@ describe("registerHttpTransport authorization", () => {
   })
 
   it("rejects session creation when provided config values are invalid", async () => {
-    const { app, sessions } = setup()
+    const { app } = setup()
 
     const response = await request(app)
       .post("/mcp")
