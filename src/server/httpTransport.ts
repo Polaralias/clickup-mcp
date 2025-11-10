@@ -5,7 +5,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { ApplicationConfig, SessionConfigInput } from "../application/config/applicationConfig.js"
 import { createApplicationConfig } from "../application/config/applicationConfig.js"
 import { extractSessionConfig } from "./sessionConfig.js"
-import type { SessionAuthContext } from "./sessionAuth.js"
 
 type Session = {
   server: McpServer
@@ -14,53 +13,9 @@ type Session = {
   sessionId?: string
   closed: boolean
   config: ApplicationConfig
-  auth: SessionAuthContext
 }
 
-type CreateServer = (config: ApplicationConfig, auth: SessionAuthContext) => McpServer
-
-const unauthorizedError = {
-  jsonrpc: "2.0",
-  error: {
-    code: -32002,
-    message: "Authorization is required"
-  },
-  id: null
-} as const
-
-function respondWithAuthError(res: Response, status: number, message: string) {
-  res.status(status).json({
-    ...unauthorizedError,
-    error: {
-      ...unauthorizedError.error,
-      message
-    }
-  })
-}
-
-function parseAuthorizationHeader(header: string | undefined) {
-  if (!header) {
-    return undefined
-  }
-  const trimmed = header.trim()
-  if (!trimmed) {
-    return undefined
-  }
-  const [scheme, ...rest] = trimmed.split(/\s+/)
-  if (rest.length === 0) {
-    return undefined
-  }
-  if (scheme.toLowerCase() !== "bearer") {
-    return undefined
-  }
-  const token = rest.join(" ").trim()
-  if (!token) {
-    return undefined
-  }
-  return token
-}
-
-export function registerHttpTransport(app: Express, createServer: CreateServer) {
+export function registerHttpTransport(app: Express, createServer: (config: ApplicationConfig) => McpServer) {
   const sessions = new Map<string, Session>()
 
   function removeSession(session: Session) {
@@ -73,9 +28,9 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
     }
   }
 
-  function createSession(configInput: SessionConfigInput, auth: SessionAuthContext) {
+  function createSession(configInput: SessionConfigInput) {
     const config = createApplicationConfig(configInput)
-    const server = createServer(config, auth)
+    const server = createServer(config)
     let session: Session
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
@@ -95,8 +50,7 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
       transport,
       connectPromise,
       closed: false,
-      config,
-      auth
+      config
     }
     transport.onclose = () => {
       if (!session.closed) {
@@ -109,11 +63,6 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
   }
 
   async function ensureSession(req: Request, res: Response) {
-    const token = parseAuthorizationHeader(req.header("authorization"))
-    if (!token) {
-      respondWithAuthError(res, 401, "Provide a valid Bearer token in the Authorization header")
-      return undefined
-    }
     const header = req.headers["mcp-session-id"]
     const sessionId = Array.isArray(header) ? header[header.length - 1] : header
     if (sessionId) {
@@ -129,17 +78,13 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
         })
         return undefined
       }
-      if (existing.auth.token !== token) {
-        respondWithAuthError(res, 403, "Session is owned by a different authorization token")
-        return undefined
-      }
       return existing
     }
     const config = await extractSessionConfig(req, res)
     if (!config) {
       return undefined
     }
-    return createSession(config, { token })
+    return createSession(config)
   }
 
   app.all("/mcp", async (req: Request, res: Response) => {

@@ -132,7 +132,6 @@ import { getWorkspaceOverview } from "../application/usecases/hierarchy/GetWorks
 import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWorkspaceHierarchy.js"
 import { findMemberByName } from "../application/usecases/members/FindMemberByName.js"
 import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
-import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
@@ -149,17 +148,8 @@ import { deleteView } from "../application/usecases/hierarchy/DeleteView.js"
 import { ping } from "../application/usecases/system/Ping.js"
 import { health } from "../application/usecases/system/Health.js"
 import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/system/ToolCatalogue.js"
-import type { SessionAuthContext } from "../server/sessionAuth.js"
 
 const { ZodFirstPartyTypeKind } = z
-
-function requireSessionToken(auth: SessionAuthContext) {
-  const token = auth.token.trim()
-  if (!token) {
-    throw new Error("Missing ClickUp auth token for session")
-  }
-  return token
-}
 
 type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
 
@@ -189,12 +179,18 @@ function formatContent(payload: unknown) {
   }
 }
 
-export function registerTools(server: McpServer, config: ApplicationConfig, auth: SessionAuthContext) {
-  const entries: ToolCatalogueEntry[] = []
-  requireSessionToken(auth)
+function resolveToken() {
+  const token = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken ?? ""
+  if (!token) {
+    throw new Error("CLICKUP_API_TOKEN is required")
+  }
+  return token
+}
 
-  const createClient = () => new ClickUpClient(config.apiKey)
-  const sessionMemberDirectory = new MemberDirectory()
+export function registerTools(server: McpServer, config: ApplicationConfig) {
+  const entries: ToolCatalogueEntry[] = []
+
+  const createClient = () => new ClickUpClient(resolveToken())
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
   const sessionSpaceTagCache = new SpaceTagCache()
@@ -328,19 +324,19 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
     "clickup_resolve_members",
     "Resolve identifiers to ClickUp members with fuzzy matching and cache visibility.",
     ResolveMembersInput,
-    (input, client, config) => resolveMembers(input, client, config, sessionMemberDirectory)
+    resolveMembers
   )
   registerReadOnly(
     "clickup_find_member_by_name",
     "Search members with fuzzy matching; use refresh=true to bypass the cached directory when data changes.",
     FindMemberByNameInput,
-    (input, client, config) => findMemberByName(input, client, config, sessionMemberDirectory)
+    findMemberByName
   )
   registerReadOnly(
     "clickup_resolve_assignees",
     "Resolve potential task assignees from human-friendly identifiers. Results include scores and cache metadata.",
     ResolveAssigneesInput,
-    (input, client, config) => resolveAssignees(input, client, config, sessionMemberDirectory)
+    resolveAssignees
   )
   registerReadOnly(
     "clickup_list_tags_for_space",

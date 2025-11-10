@@ -378,3 +378,5 @@ export class MemberDirectory {
   }
 }
 
+export const memberDirectory = new MemberDirectory()
+
