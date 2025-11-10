@@ -4,8 +4,8 @@ import { z } from "zod"
 import type { SessionConfigInput } from "../application/config/applicationConfig.js"
 
 export const SessionConfigSchema = z.object({
-  teamId: z.string().trim().min(1).optional(),
-  apiKey: z.string().trim().min(1).optional(),
+  teamId: z.string().trim().min(1),
+  apiKey: z.string().trim().min(1),
   charLimit: z.number().positive().optional(),
   maxAttachmentMb: z.number().positive().optional()
 })
@@ -13,8 +13,8 @@ export const SessionConfigSchema = z.object({
 type ParsedConfig = z.infer<typeof SessionConfigSchema>
 
 export const sessionConfigJsonSchema = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "/.well-known/mcp-config",
+  $schema: "https://json-schema.org/draft-07/schema",
+  $id: "https://clickup-mcp-server/.well-known/mcp-config",
   title: "MCP Session Configuration",
   description: "Schema for the /mcp endpoint configuration",
   type: "object",
@@ -37,8 +37,14 @@ export const sessionConfigJsonSchema = {
       description: "Largest file attachment (MB) allowed for uploads"
     }
   },
-  required: [],
-  additionalProperties: false
+  required: ["teamId", "apiKey"],
+  additionalProperties: false,
+  exampleConfig: {
+    teamId: "team_123",
+    apiKey: "pk_123",
+    charLimit: 16000,
+    maxAttachmentMb: 8
+  }
 }
 
 export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
