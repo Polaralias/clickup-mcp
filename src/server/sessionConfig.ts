@@ -1,16 +1,10 @@
 import type { Request, Response } from "express"
-import { parseAndValidateConfig } from "@smithery/sdk"
-import { z } from "zod"
 import type { SessionConfigInput } from "../application/config/applicationConfig.js"
 
-export const SessionConfigSchema = z.object({
-  teamId: z.string().trim().min(1),
-  apiKey: z.string().trim().min(1),
-  charLimit: z.number().positive().optional(),
-  maxAttachmentMb: z.number().positive().optional()
-})
-
-type ParsedConfig = z.infer<typeof SessionConfigSchema>
+function lastString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[v.length - 1]
+  return v
+}
 
 export const sessionConfigJsonSchema = {
   $schema: "https://json-schema.org/draft-07/schema",
@@ -48,12 +42,36 @@ export const sessionConfigJsonSchema = {
 }
 
 export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
-  const result = parseAndValidateConfig(req, SessionConfigSchema)
-  if (!result.ok) {
-    const { error } = result
-    const status = typeof (error as any)?.status === "number" ? (error as any).status : 400
-    res.status(status).json(error)
+  const q = req.query as Record<string, string | string[] | undefined>
+
+  const teamId = lastString(q.teamId) || lastString(q.teamID) || lastString(q.workspaceId) || lastString(q.workspaceID)
+  const apiKey = lastString(q.apiKey) || lastString(q.api_key) || lastString(q.token)
+
+  const missing: string[] = []
+  if (!teamId) missing.push("teamId")
+  if (!apiKey) missing.push("apiKey")
+
+  if (missing.length) {
+    res.status(200).json({
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32602, message: `Invalid configuration: missing ${missing.join(", ")}` }
+    })
     return undefined
   }
-  return result.value as ParsedConfig
+
+  const charLimitRaw = lastString(q.charLimit)
+  const maxAttachmentMbRaw = lastString(q.maxAttachmentMb)
+
+  const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
+  const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined
+
+  const config: SessionConfigInput = {
+    teamId,
+    apiKey,
+    ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
+    ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {})
+  } as SessionConfigInput
+
+  return config
 }
