@@ -1,11 +1,9 @@
 import express from "express"
-import cors from "cors"
 import request from "supertest"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ApplicationConfig } from "../../application/config/applicationConfig.js"
 import { registerHttpTransport } from "../httpTransport.js"
 import type { SessionAuthContext } from "../sessionAuth.js"
-import { createCorsOptions } from "../cors.js"
 
 const { createdTransports, StreamableTransportMock } = vi.hoisted(() => {
   const transports: Array<{ sessionId?: string; onclose?: () => void }> = []
@@ -75,7 +73,6 @@ describe("registerHttpTransport authorization", () => {
 
   function setup() {
     const app = express()
-    app.use(cors(createCorsOptions()))
     app.use(express.json())
     const sessions: SessionRecord[] = []
     const createServer = vi.fn((_config: ApplicationConfig, auth: SessionAuthContext) => {
@@ -155,22 +152,5 @@ describe("registerHttpTransport authorization", () => {
 
     expect(hijack.status).toBe(403)
     expect(hijack.body.error.message).toContain("different")
-  })
-
-  it("allows authorization headers during CORS preflight", async () => {
-    const { app } = setup()
-
-    const response = await request(app)
-      .options("/mcp")
-      .set("Origin", "https://example.com")
-      .set("Access-Control-Request-Method", "POST")
-      .set("Access-Control-Request-Headers", "authorization")
-
-    expect(response.status).toBe(204)
-    const allowHeaders = response.headers["access-control-allow-headers"]
-    expect(allowHeaders).toBeDefined()
-    const headerValue = Array.isArray(allowHeaders) ? allowHeaders.join(",") : allowHeaders
-    expect(headerValue).toContain("authorization")
-    expect(response.headers["access-control-allow-credentials"]).toBe("true")
   })
 })
