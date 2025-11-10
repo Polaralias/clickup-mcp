@@ -13,31 +13,28 @@ export const SessionConfigSchema = z.object({
 type ParsedConfig = z.infer<typeof SessionConfigSchema>
 
 export const sessionConfigJsonSchema = {
-  $schema: "http://json-schema.org/draft-07/schema#",
-  title: "ClickUp MCP Session Configuration",
-  description: "Configuration values accepted by the ClickUp MCP server.",
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "/.well-known/mcp-config",
+  title: "MCP Session Configuration",
+  description: "Schema for the /mcp endpoint configuration",
   type: "object",
   "x-query-style": "dot+bracket",
   properties: {
     teamId: {
       type: "string",
-      description: "ClickUp workspace ID applied to requests when a tool input omits it."
+      description: "ClickUp workspace ID applied when tool inputs omit one"
     },
     apiKey: {
       type: "string",
-      description: "ClickUp personal API token used to authenticate requests made by the server."
+      description: "ClickUp personal API token used for all API requests"
     },
     charLimit: {
       type: "number",
-      description:
-        "Maximum number of characters returned in tool responses before truncation indicators are added.",
-      minimum: 1
+      description: "Maximum characters returned before responses are truncated"
     },
     maxAttachmentMb: {
       type: "number",
-      description:
-        "Largest file attachment (in megabytes) the server will upload; larger files are rejected before calling ClickUp.",
-      minimum: 1
+      description: "Largest file attachment (MB) allowed for uploads"
     }
   },
   required: ["teamId", "apiKey"],
