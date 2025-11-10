@@ -153,15 +153,12 @@ import type { SessionAuthContext } from "../server/sessionAuth.js"
 
 const { ZodFirstPartyTypeKind } = z
 
-function requireSessionToken(auth: SessionAuthContext, config: ApplicationConfig) {
-  const candidates = [auth.token, config.apiKey]
-  for (const candidate of candidates) {
-    const trimmed = candidate?.trim()
-    if (trimmed) {
-      return trimmed
-    }
+function requireSessionToken(auth: SessionAuthContext) {
+  const token = auth.token.trim()
+  if (!token) {
+    throw new Error("Missing ClickUp auth token for session")
   }
-  throw new Error("Missing ClickUp auth token for session")
+  return token
 }
 
 type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
@@ -194,8 +191,9 @@ function formatContent(payload: unknown) {
 
 export function registerTools(server: McpServer, config: ApplicationConfig, auth: SessionAuthContext) {
   const entries: ToolCatalogueEntry[] = []
+  requireSessionToken(auth)
 
-  const createClient = () => new ClickUpClient(requireSessionToken(auth, config))
+  const createClient = () => new ClickUpClient(config.apiKey)
   const sessionMemberDirectory = new MemberDirectory()
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()

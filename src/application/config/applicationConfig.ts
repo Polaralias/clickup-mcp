@@ -13,8 +13,8 @@ export type SessionConfigInput = {
 }
 
 export type ApplicationConfig = {
-  teamId?: string
-  apiKey?: string
+  teamId: string
+  apiKey: string
   charLimit: number
   maxAttachmentMb: number
 }
@@ -83,7 +83,13 @@ function resolveApiKey(candidate?: string) {
 
 export function createApplicationConfig(input: SessionConfigInput): ApplicationConfig {
   const teamId = resolveTeamId(input.teamId)
+  if (!teamId) {
+    throw new Error("teamId is required")
+  }
   const apiKey = resolveApiKey(input.apiKey)
+  if (!apiKey) {
+    throw new Error("apiKey is required")
+  }
   const charLimit = coalesceNumber(
     input.charLimit,
     () => resolveEnvNumber(["CHAR_LIMIT", "charLimit"]),

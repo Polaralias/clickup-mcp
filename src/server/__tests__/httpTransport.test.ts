@@ -168,9 +168,9 @@ describe("registerHttpTransport authorization", () => {
       .query({ teamId: "   ", apiKey: "" })
       .send({ jsonrpc: "2.0", id: 1 })
 
-    expect(response.status).toBe(200)
-    expect(sessions[0]?.auth.token).toBeUndefined()
-    expect(sessions[0]?.config.apiKey).toBeUndefined()
+    expect(response.status).toBeGreaterThanOrEqual(400)
+    expect(response.status).toBeLessThan(500)
+    expect(response.body).toBeTruthy()
   })
 
   it("prevents sessions from being hijacked by a different token", async () => {
