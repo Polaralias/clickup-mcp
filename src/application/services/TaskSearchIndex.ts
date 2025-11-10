@@ -1,19 +1,10 @@
 import Fuse from "fuse.js"
 import type { IFuseOptions } from "fuse.js"
+import type { TaskResolutionRecord } from "../usecases/tasks/resolveTaskReference.js"
 
-type TaskRecord = {
-  id: string
-  name: string
-  description?: string
-  status?: string
-  updatedAt?: number
-  listId?: string
-  listName?: string
-  listUrl?: string
-  url?: string
-}
+type SearchResult = TaskResolutionRecord & { score: number }
 
-const fuseOptions: IFuseOptions<TaskRecord> = {
+const fuseOptions: IFuseOptions<TaskResolutionRecord> = {
   includeScore: true,
   threshold: 0.35,
   keys: [
@@ -24,10 +15,10 @@ const fuseOptions: IFuseOptions<TaskRecord> = {
 }
 
 export class TaskSearchIndex {
-  private fuse = new Fuse<TaskRecord>([], fuseOptions)
-  private tasks = new Map<string, TaskRecord>()
+  private fuse = new Fuse<TaskResolutionRecord>([], fuseOptions)
+  private tasks = new Map<string, TaskResolutionRecord>()
 
-  index(tasks: TaskRecord[]) {
+  index(tasks: TaskResolutionRecord[]) {
     tasks.forEach((task) => {
       if (task.id) {
         this.tasks.set(task.id, task)
@@ -36,7 +27,7 @@ export class TaskSearchIndex {
     this.fuse.setCollection(Array.from(this.tasks.values()))
   }
 
-  search(query: string, limit: number) {
+  search(query: string, limit: number): SearchResult[] {
     const results = this.fuse.search(query, { limit })
     return results.map((result) => ({
       ...result.item,
