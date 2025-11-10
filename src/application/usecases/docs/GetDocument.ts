@@ -52,7 +52,10 @@ export async function getDocument(
   const pagesResponse = await client.listDocPages(docId)
   const metadataAll = Array.isArray(pagesResponse?.pages) ? pagesResponse.pages : []
   const orderedMetadata = orderMetadata(metadataAll as PageRecord[], input.pageIds)
-  const limitedMetadata = orderedMetadata.slice(0, input.pageLimit)
+  const limitedMetadata =
+    Array.isArray(input.pageIds) && input.pageIds.length > 0
+      ? orderedMetadata
+      : orderedMetadata.slice(0, input.pageLimit)
 
   const previewLimit = resolvePreviewLimit(config, input.previewCharLimit)
   const includePages = input.includePages ?? true
