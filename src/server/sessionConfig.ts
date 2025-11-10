@@ -91,31 +91,6 @@ function normaliseQuery(query: Request["query"]): Record<string, unknown> {
   return normalised
 }
 
-function extractBodyConfig(body: unknown): Record<string, unknown> {
-  if (!isPlainObject(body)) {
-    return {}
-  }
-
-  if (typeof body.jsonrpc === "string") {
-    return {}
-  }
-
-  if (isPlainObject(body.config)) {
-    return body.config
-  }
-
-  const allowedKeys = ["teamId", "apiKey", "charLimit", "maxAttachmentMb"]
-  const config: Record<string, unknown> = {}
-
-  for (const key of allowedKeys) {
-    if (key in body) {
-      config[key] = (body as Record<string, unknown>)[key]
-    }
-  }
-
-  return config
-}
-
 export const sessionConfigJsonSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
   title: "ClickUp MCP Session Configuration",
@@ -149,16 +124,7 @@ export const sessionConfigJsonSchema = {
 }
 
 export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
-  const normalisedQuery = normaliseQuery(req.query)
-  const bodyConfig = extractBodyConfig(req.body)
-
-  for (const [key, value] of Object.entries(bodyConfig)) {
-    if (!(key in normalisedQuery)) {
-      normalisedQuery[key] = value
-    }
-  }
-
-  const requestForValidation = { ...req, query: normalisedQuery } as Request
+  const requestForValidation = { ...req, query: normaliseQuery(req.query) } as Request
   const result = parseAndValidateConfig(requestForValidation, SessionConfigSchema)
   if (!result.ok) {
     const { error } = result
