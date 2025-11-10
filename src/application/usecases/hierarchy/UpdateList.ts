@@ -2,14 +2,7 @@ import { z } from "zod"
 import { UpdateListInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
-import {
-  compactRecord,
-  extractListParents,
-  normaliseStatuses,
-  readString,
-  resolveIdsFromPath,
-  resolveListParents
-} from "./structureShared.js"
+import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
 
 type Input = z.infer<typeof UpdateListInput>
 
@@ -59,17 +52,10 @@ export async function updateList(
   })
 
   const list = await client.updateList(listId, payload)
-  const parentContext =
-    resolution?.folderId || resolution?.spaceId
-      ? { folderId: resolution?.folderId, spaceId: resolution?.spaceId }
-      : extractListParents(list) ?? (await resolveListParents(listId, client))
-
-  if (parentContext?.folderId) {
-    directory.invalidateListsForFolder(parentContext.folderId)
-  } else if (parentContext?.spaceId) {
-    directory.invalidateListsForSpace(parentContext.spaceId)
-  } else {
-    directory.invalidateAllLists()
+  if (resolution?.folderId) {
+    directory.invalidateListsForFolder(resolution.folderId)
+  } else if (resolution?.spaceId) {
+    directory.invalidateListsForSpace(resolution.spaceId)
   }
   const listUrl = readString(list, ["url", "list_url", "view_url"])
 
