@@ -63,7 +63,9 @@ describe("registerHttpTransport", () => {
     const response = await request(app).post("/mcp")
 
     expect(response.status).toBe(401)
-    expect(response.body.error?.message).toBe("Provide a valid apiKey in the session configuration")
+    expect(response.body.error?.message).toBe(
+      "Provide a valid Bearer token in the Authorization header or include an apiKey in the session configuration"
+    )
     expect(configSpy).toHaveBeenCalled()
     expect(createServer).not.toHaveBeenCalled()
   })
