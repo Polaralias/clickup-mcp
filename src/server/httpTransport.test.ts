@@ -1,9 +1,7 @@
 import express from "express"
 import request from "supertest"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { registerHttpTransport } from "./httpTransport.js"
-import type { CreateServer } from "./httpTransport.js"
 import * as sessionConfigModule from "./sessionConfig.js"
 
 vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
@@ -23,11 +21,16 @@ vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
   return { StreamableHTTPServerTransport: FakeStreamableHTTPServerTransport }
 })
 
-function createStubServer(): McpServer {
+type McpServerLike = {
+  connect: (transport: unknown) => Promise<void>
+  close: () => Promise<void>
+}
+
+function createStubServer(): McpServerLike {
   return {
     connect: vi.fn(async () => {}),
     close: vi.fn(async () => {})
-  } as unknown as McpServer
+  }
 }
 
 describe("registerHttpTransport", () => {
@@ -40,7 +43,7 @@ describe("registerHttpTransport", () => {
   })
 
   it("responds with 422 when session config validation fails", async () => {
-    const createServer = vi.fn<CreateServer>(() => createStubServer())
+    const createServer = vi.fn(() => createStubServer())
     registerHttpTransport(app, createServer)
 
     const response = await request(app)
@@ -53,7 +56,7 @@ describe("registerHttpTransport", () => {
   })
 
   it("responds with 401 when no authorization token is available", async () => {
-    const createServer = vi.fn<CreateServer>(() => createStubServer())
+    const createServer = vi.fn(() => createStubServer())
     registerHttpTransport(app, createServer)
 
     const configSpy = vi
