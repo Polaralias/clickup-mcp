@@ -1,7 +1,7 @@
 import express from "express"
 import cors from "cors"
 import request from "supertest"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ApplicationConfig } from "../../application/config/applicationConfig.js"
 import { registerHttpTransport } from "../httpTransport.js"
 import type { SessionAuthContext } from "../sessionAuth.js"
@@ -63,6 +63,8 @@ vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => ({
   StreamableHTTPServerTransport: StreamableTransportMock
 }))
 
+const ORIGINAL_ENV = process.env
+
 type SessionRecord = {
   auth: SessionAuthContext
   config: ApplicationConfig
@@ -71,6 +73,11 @@ type SessionRecord = {
 describe("registerHttpTransport authorization", () => {
   beforeEach(() => {
     createdTransports.length = 0
+    process.env = { ...ORIGINAL_ENV } as NodeJS.ProcessEnv
+  })
+
+  afterEach(() => {
+    process.env = ORIGINAL_ENV
   })
 
   function setup() {
@@ -137,13 +144,28 @@ describe("registerHttpTransport authorization", () => {
     expect(sessions[0]?.auth.token).toBe("pk_test_clickup_token")
   })
 
-  it("rejects session creation when apiKey is omitted", async () => {
+  it("allows session creation when config omits credentials but environment supplies them", async () => {
+    const { app, sessions } = setup()
+    process.env.TEAM_ID = "team_from_env"
+    process.env.CLICKUP_API_TOKEN = "pk_from_env"
+
+    const response = await request(app)
+      .post("/mcp")
+      .set("Authorization", "Bearer pk_from_env")
+      .send({ jsonrpc: "2.0", id: 1 })
+
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.config.teamId).toBe("team_from_env")
+    expect(sessions[0]?.config.apiKey).toBe("pk_from_env")
+    expect(sessions[0]?.auth.token).toBe("pk_from_env")
+  })
+
+  it("rejects session creation when provided config values are invalid", async () => {
     const { app } = setup()
 
     const response = await request(app)
       .post("/mcp")
-      .set("Authorization", "Bearer runtime_token")
-      .query({ teamId: "team" })
+      .query({ teamId: "   ", apiKey: "" })
       .send({ jsonrpc: "2.0", id: 1 })
 
     expect(response.status).toBeGreaterThanOrEqual(400)
