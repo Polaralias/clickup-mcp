@@ -88,6 +88,17 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
   }
 
   app.all("/mcp", async (req: Request, res: Response) => {
+    // Normalize Accept header to meet StreamableHTTP transport requirements
+    // The transport requires both application/json and text/event-stream to be literally present
+    // Even though */* should cover everything, the SDK checks for explicit strings
+    const accept = req.headers.accept || ""
+    const hasJson = accept.includes("application/json")
+    const hasStream = accept.includes("text/event-stream")
+    if (!hasJson || !hasStream) {
+      // If either is missing, set both explicitly
+      req.headers.accept = "application/json, text/event-stream"
+    }
+
     const session = await ensureSession(req, res)
     if (!session) {
       return
