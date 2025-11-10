@@ -87,14 +87,30 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
     try {
       return createSession(config)
     } catch (error) {
-      res.status(500).json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32603,
-          message: error instanceof Error ? error.message : "Error initializing server"
-        },
-        id: null
-      })
+      // Map configuration errors to JSON-RPC invalid params error
+      const errorMessage = error instanceof Error ? error.message : "Error initializing server"
+      
+      // Check if this is a configuration validation error (missing required fields)
+      if (errorMessage.includes("teamId is required") || errorMessage.includes("apiKey is required")) {
+        res.status(400).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32602,
+            message: errorMessage
+          },
+          id: null
+        })
+      } else {
+        // Internal server error for other issues
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32603,
+            message: errorMessage
+          },
+          id: null
+        })
+      }
       return undefined
     }
   }
