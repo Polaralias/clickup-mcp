@@ -132,7 +132,6 @@ import { getWorkspaceOverview } from "../application/usecases/hierarchy/GetWorks
 import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWorkspaceHierarchy.js"
 import { findMemberByName } from "../application/usecases/members/FindMemberByName.js"
 import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
-import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
@@ -194,7 +193,6 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
   requireSessionToken(auth)
 
   const createClient = () => new ClickUpClient(config.apiKey)
-  const sessionMemberDirectory = new MemberDirectory()
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
   const sessionSpaceTagCache = new SpaceTagCache()
@@ -328,19 +326,19 @@ export function registerTools(server: McpServer, config: ApplicationConfig, auth
     "clickup_resolve_members",
     "Resolve identifiers to ClickUp members with fuzzy matching and cache visibility.",
     ResolveMembersInput,
-    (input, client, config) => resolveMembers(input, client, config, sessionMemberDirectory)
+    resolveMembers
   )
   registerReadOnly(
     "clickup_find_member_by_name",
     "Search members with fuzzy matching; use refresh=true to bypass the cached directory when data changes.",
     FindMemberByNameInput,
-    (input, client, config) => findMemberByName(input, client, config, sessionMemberDirectory)
+    findMemberByName
   )
   registerReadOnly(
     "clickup_resolve_assignees",
     "Resolve potential task assignees from human-friendly identifiers. Results include scores and cache metadata.",
     ResolveAssigneesInput,
-    (input, client, config) => resolveAssignees(input, client, config, sessionMemberDirectory)
+    resolveAssignees
   )
   registerReadOnly(
     "clickup_list_tags_for_space",
