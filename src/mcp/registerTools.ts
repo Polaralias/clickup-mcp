@@ -179,18 +179,10 @@ function formatContent(payload: unknown) {
   }
 }
 
-function resolveToken() {
-  const token = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken ?? ""
-  if (!token) {
-    throw new Error("CLICKUP_API_TOKEN is required")
-  }
-  return token
-}
-
 export function registerTools(server: McpServer, config: ApplicationConfig) {
   const entries: ToolCatalogueEntry[] = []
 
-  const createClient = () => new ClickUpClient(resolveToken())
+  const createClient = () => new ClickUpClient(config.apiKey)
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
   const sessionSpaceTagCache = new SpaceTagCache()
