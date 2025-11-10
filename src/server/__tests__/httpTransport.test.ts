@@ -102,7 +102,6 @@ describe("registerHttpTransport authorization", () => {
     const first = await request(app)
       .post("/mcp")
       .set("Authorization", "Bearer token-a")
-      .query({ teamId: "team", apiKey: "pk_test" })
       .send({ jsonrpc: "2.0", id: 1 })
 
     expect(first.status).toBe(200)

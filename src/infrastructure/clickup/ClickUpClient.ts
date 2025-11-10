@@ -1,20 +1,6 @@
 const BASE_URL = "https://api.clickup.com/api/v2"
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504])
 
-function resolveAuthorizationHeader(token: string) {
-  const trimmed = token.trim()
-  if (!trimmed) {
-    throw new Error("CLICKUP_API_TOKEN is required")
-  }
-  if (/^bearer\s/i.test(trimmed)) {
-    return trimmed
-  }
-  if (/^[a-z]{2}_/i.test(trimmed)) {
-    return trimmed
-  }
-  return `Bearer ${trimmed}`
-}
-
 async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -27,10 +13,10 @@ type RequestOptions = {
 }
 
 export class ClickUpClient {
-  private readonly authorizationHeader: string
-
-  constructor(token: string) {
-    this.authorizationHeader = resolveAuthorizationHeader(token)
+  constructor(private readonly token: string) {
+    if (!this.token) {
+      throw new Error("CLICKUP_API_TOKEN is required")
+    }
   }
 
   private async request(path: string, options: RequestOptions = {}, attempt = 0): Promise<any> {
@@ -46,7 +32,7 @@ export class ClickUpClient {
     const response = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
-        Authorization: this.authorizationHeader,
+        Authorization: this.token,
         "Content-Type": "application/json",
         ...options.headers
       },
@@ -271,7 +257,7 @@ export class ClickUpClient {
     return fetch(`${BASE_URL}/task/${taskId}/attachment`, {
       method: "POST",
       headers: {
-        Authorization: this.authorizationHeader
+        Authorization: this.token
       },
       body: formData
     }).then((response) => {
