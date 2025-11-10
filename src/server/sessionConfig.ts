@@ -22,8 +22,8 @@ const optionalPositiveNumber = z.preprocess(
 )
 
 export const SessionConfigSchema = z.object({
-  teamId: z.string().trim().min(1),
-  apiKey: z.string().trim().min(1),
+  teamId: z.string().trim().min(1).optional(),
+  apiKey: z.string().trim().min(1).optional(),
   charLimit: optionalPositiveNumber,
   maxAttachmentMb: optionalPositiveNumber
 })
@@ -144,7 +144,6 @@ export const sessionConfigJsonSchema = {
       minimum: 1
     }
   },
-  required: ["teamId", "apiKey"],
   additionalProperties: false
 }
 

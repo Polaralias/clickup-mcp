@@ -127,9 +127,15 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
         })
         return undefined
       }
-      if (headerToken && existing.auth.token !== headerToken) {
-        respondWithAuthError(res, 403, "Session is owned by a different authorization token")
-        return undefined
+      if (headerToken) {
+        const existingToken = existing.auth.token?.trim()
+        if (existingToken && existingToken !== headerToken) {
+          respondWithAuthError(res, 403, "Session is owned by a different authorization token")
+          return undefined
+        }
+        if (!existingToken) {
+          existing.auth.token = headerToken
+        }
       }
       return existing
     }
@@ -137,12 +143,8 @@ export function registerHttpTransport(app: Express, createServer: CreateServer) 
     if (!config) {
       return undefined
     }
-    const configToken = config.apiKey?.trim()
+    const configToken = config.apiKey?.trim() || undefined
     const token = headerToken ?? configToken
-    if (!token) {
-      respondWithAuthError(res, 401, "Provide a valid apiKey in the session configuration")
-      return undefined
-    }
     return createSession(config, { token })
   }
 

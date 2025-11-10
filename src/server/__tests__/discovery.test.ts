@@ -167,14 +167,15 @@ describe("MCP discovery without credentials", () => {
   })
 
   it("does not inject placeholders for non-discovery methods", async () => {
-    const { app } = setup()
+    const { app, sessions } = setup()
 
     const response = await request(app)
       .post("/mcp")
       .send({ jsonrpc: "2.0", method: "tools/call", id: 1 })
 
-    expect(response.status).toBeGreaterThanOrEqual(400)
-    expect(response.status).toBeLessThan(500)
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBeUndefined()
+    expect(sessions[0]?.config.teamId).toBeUndefined()
   })
 
   it("injects only missing credentials for initialize", async () => {

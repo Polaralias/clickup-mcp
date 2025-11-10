@@ -137,18 +137,16 @@ describe("registerHttpTransport authorization", () => {
     expect(sessions[0]?.auth.token).toBe("pk_test_clickup_token")
   })
 
-  it("rejects session creation when apiKey is omitted", async () => {
-    const { app } = setup()
+  it("creates a session without explicit credentials", async () => {
+    const { app, sessions } = setup()
 
     const response = await request(app)
       .post("/mcp")
-      .set("Authorization", "Bearer runtime_token")
-      .query({ teamId: "team" })
       .send({ jsonrpc: "2.0", id: 1 })
 
-    expect(response.status).toBeGreaterThanOrEqual(400)
-    expect(response.status).toBeLessThan(500)
-    expect(response.body).toBeTruthy()
+    expect(response.status).toBe(200)
+    expect(sessions[0]?.auth.token).toBeUndefined()
+    expect(sessions[0]?.config.apiKey).toBeUndefined()
   })
 
   it("prevents sessions from being hijacked by a different token", async () => {

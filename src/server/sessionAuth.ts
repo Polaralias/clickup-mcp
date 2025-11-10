@@ -1,3 +1,3 @@
 export type SessionAuthContext = {
-  token: string
+  token?: string
 }
