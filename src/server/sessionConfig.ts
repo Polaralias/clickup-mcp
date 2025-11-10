@@ -52,10 +52,8 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   if (!apiKey) missing.push("apiKey")
 
   if (missing.length) {
-    res.status(200).json({
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32602, message: `Invalid configuration: missing ${missing.join(", ")}` }
+    res.status(400).json({
+      error: `Invalid configuration: missing ${missing.join(", ")}`
     })
     return undefined
   }

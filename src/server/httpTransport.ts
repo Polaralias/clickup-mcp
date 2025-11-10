@@ -69,12 +69,7 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
       const existing = sessions.get(sessionId)
       if (!existing) {
         res.status(404).json({
-          jsonrpc: "2.0",
-          error: {
-            code: -32001,
-            message: "Session not found"
-          },
-          id: null
+          error: "Session not found"
         })
         return undefined
       }
@@ -90,10 +85,9 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
       const errorMessage = error instanceof Error ? error.message : "Error initializing server"
       const lower = errorMessage.toLowerCase()
       const isConfigError = ["teamid", "apikey", "invalid configuration", "missing"].some(k => lower.includes(k))
-      res.status(200).json({
-        jsonrpc: "2.0",
-        error: { code: isConfigError ? -32602 : -32603, message: errorMessage },
-        id: null
+      const statusCode = isConfigError ? 400 : 500
+      res.status(statusCode).json({
+        error: errorMessage
       })
       return undefined
     }
