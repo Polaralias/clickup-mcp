@@ -1,4 +1,4 @@
-const BASE_URL = "https://api.clickup.com/api/v2"
+const BASE_URL = "https://api.clickup.com/api/v2/"
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504])
 
 async function delay(ms: number) {
