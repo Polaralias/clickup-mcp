@@ -19,13 +19,6 @@ export class ClickUpClient {
     }
   }
 
-  private getAuthorizationHeader(): string {
-    if (this.token.startsWith("pk_")) {
-      return this.token
-    }
-    return `Bearer ${this.token}`
-  }
-
   private async request(path: string, options: RequestOptions = {}, attempt = 0): Promise<any> {
     const url = new URL(path, BASE_URL)
     if (options.searchParams) {
@@ -39,7 +32,7 @@ export class ClickUpClient {
     const response = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
-        Authorization: this.getAuthorizationHeader(),
+        Authorization: this.token,
         "Content-Type": "application/json",
         Accept: "application/json",
         ...options.headers
@@ -261,7 +254,7 @@ export class ClickUpClient {
     return fetch(`${BASE_URL}/task/${taskId}/attachment`, {
       method: "POST",
       headers: {
-        Authorization: this.getAuthorizationHeader()
+        Authorization: this.token
       },
       body: formData
     }).then((response) => {
