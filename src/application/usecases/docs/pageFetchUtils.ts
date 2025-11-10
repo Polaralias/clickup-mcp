@@ -69,22 +69,16 @@ export function orderMetadata(metadata: PageRecord[], pageIds?: string[]) {
   const map = new Map<string, PageRecord>()
   for (const entry of metadata) {
     const pageId = extractPageId(entry)
-    if (pageId && !map.has(pageId)) {
+    if (pageId) {
       map.set(pageId, entry)
     }
   }
   const ordered: PageRecord[] = []
-  for (const rawId of pageIds) {
-    const pageId = typeof rawId === "string" ? rawId.trim() : undefined
-    if (!pageId || ordered.some((item) => extractPageId(item) === pageId)) {
-      continue
-    }
+  for (const pageId of pageIds) {
     const entry = map.get(pageId)
     if (entry) {
       ordered.push(entry)
-      continue
     }
-    ordered.push({ id: pageId, page_id: pageId })
   }
   return ordered
 }

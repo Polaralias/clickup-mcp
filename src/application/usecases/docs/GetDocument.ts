@@ -60,16 +60,10 @@ export async function getDocument(
   const previewLimit = resolvePreviewLimit(config, input.previewCharLimit)
   const includePages = input.includePages ?? true
 
-  const explicitIds = Array.isArray(input.pageIds)
-    ? input.pageIds.filter((value): value is string => typeof value === "string" && value.trim() !== "")
-    : []
-  const metadataIds = limitedMetadata
-    .map((page) => extractPageId(page as PageRecord))
-    .filter((value): value is string => Boolean(value))
   const fetchIds = includePages
-    ? explicitIds.length > 0
-      ? Array.from(new Set(explicitIds))
-      : metadataIds
+    ? limitedMetadata
+        .map((page) => extractPageId(page as PageRecord))
+        .filter((value): value is string => Boolean(value))
     : []
   const detailed = includePages ? await fetchPages(client, docId, fetchIds) : []
   const pageEntries = includePages
