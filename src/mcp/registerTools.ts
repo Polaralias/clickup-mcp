@@ -148,17 +148,8 @@ import { deleteView } from "../application/usecases/hierarchy/DeleteView.js"
 import { ping } from "../application/usecases/system/Ping.js"
 import { health } from "../application/usecases/system/Health.js"
 import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/system/ToolCatalogue.js"
-import type { SessionAuthContext } from "../server/sessionAuth.js"
 
 const { ZodFirstPartyTypeKind } = z
-
-function requireSessionToken(auth: SessionAuthContext) {
-  const token = auth.token.trim()
-  if (!token) {
-    throw new Error("Missing ClickUp auth token for session")
-  }
-  return token
-}
 
 type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
 
@@ -188,11 +179,18 @@ function formatContent(payload: unknown) {
   }
 }
 
-export function registerTools(server: McpServer, config: ApplicationConfig, auth: SessionAuthContext) {
-  const entries: ToolCatalogueEntry[] = []
-  requireSessionToken(auth)
+function resolveToken() {
+  const token = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken ?? ""
+  if (!token) {
+    throw new Error("CLICKUP_API_TOKEN is required")
+  }
+  return token
+}
 
-  const createClient = () => new ClickUpClient(config.apiKey)
+export function registerTools(server: McpServer, config: ApplicationConfig) {
+  const entries: ToolCatalogueEntry[] = []
+
+  const createClient = () => new ClickUpClient(resolveToken())
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
   const sessionSpaceTagCache = new SpaceTagCache()
