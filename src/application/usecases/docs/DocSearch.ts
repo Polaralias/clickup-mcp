@@ -15,6 +15,25 @@ type Result = {
   guidance?: string
 }
 
+function normaliseLimit(rawLimit: number) {
+  return Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10
+}
+
+function extractDocId(doc: Record<string, unknown>) {
+  const id = doc.id ?? doc.doc_id
+  return typeof id === "string" && id.length > 0 ? id : undefined
+}
+
+function buildPageSignature(docs: Array<Record<string, unknown>>) {
+  const ids = docs
+    .map((doc) => extractDocId(doc))
+    .filter((id): id is string => typeof id === "string" && id.length > 0)
+  if (ids.length === 0) {
+    return undefined
+  }
+  return ids.join("|")
+}
+
 function resolveTeamId(config: ApplicationConfig) {
   return requireTeamId(config, "teamId is required for doc search")
 }
@@ -26,15 +45,56 @@ function resolveConcurrency() {
 
 export async function docSearch(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
   const teamId = resolveTeamId(config)
-  const response = await client.searchDocs(teamId, { search: input.query, page: 0 })
-  const docs = Array.isArray(response?.docs) ? response.docs : []
-  const limited = docs.slice(0, input.limit)
+  const limit = normaliseLimit(input.limit)
+  const collected: Array<Record<string, unknown>> = []
+  const seenIds = new Set<string>()
+  const seenSignatures = new Set<string>()
+  let exhausted = false
+
+  for (let page = 0; collected.length < limit; page += 1) {
+    const response = await client.searchDocs(teamId, { search: input.query, page })
+    const docs = Array.isArray(response?.docs) ? response.docs : []
+    if (docs.length === 0) {
+      exhausted = true
+      break
+    }
+
+    const signature = buildPageSignature(docs)
+    if (signature && seenSignatures.has(signature)) {
+      exhausted = true
+      break
+    }
+    if (signature) {
+      seenSignatures.add(signature)
+    }
+
+    const newDocs = docs.filter((doc) => {
+      const docId = extractDocId(doc)
+      if (!docId) {
+        return true
+      }
+      if (seenIds.has(docId)) {
+        return false
+      }
+      seenIds.add(docId)
+      return true
+    })
+
+    if (newDocs.length === 0) {
+      exhausted = true
+      break
+    }
+
+    collected.push(...newDocs)
+  }
+
+  const limited = collected.slice(0, limit)
 
   let expandedPages: Record<string, unknown[]> | undefined
-  if (input.expandPages) {
+  if (input.expandPages && limited.length > 0) {
     const processor = new BulkProcessor<any, { docId: string; pages: unknown[] }>(resolveConcurrency())
     const results = await processor.run(limited, async (doc) => {
-      const docId = doc.id ?? doc.doc_id
+      const docId = extractDocId(doc) ?? ""
       const pagesResponse = await client.listDocPages(docId)
       const pages = Array.isArray(pagesResponse?.pages) ? pagesResponse.pages : []
       return { docId, pages }
@@ -42,9 +102,12 @@ export async function docSearch(input: Input, client: ClickUpClient, config: App
     expandedPages = Object.fromEntries(results.map((entry) => [entry.docId, entry.pages]))
   }
 
-  return {
-    docs: limited,
-    expandedPages,
-    guidance: limited.length === 0 ? "No docs found. Adjust the query or search scope." : undefined
+  let guidance: string | undefined
+  if (limited.length === 0) {
+    guidance = "No docs found. Adjust the query or search scope."
+  } else if (!exhausted && collected.length >= limit) {
+    guidance = "More docs available. Increase limit or refine the query to narrow results."
   }
+
+  return { docs: limited, expandedPages, guidance }
 }

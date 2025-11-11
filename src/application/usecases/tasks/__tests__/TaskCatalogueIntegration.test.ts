@@ -65,7 +65,40 @@ describe("TaskCatalogue integration", () => {
     await fuzzySearch({ query: "Example", limit: 5 }, client, config, catalogue)
     await fuzzySearch({ query: "Example", limit: 5 }, client, config, catalogue)
 
-    expect(searchTasksMock).toHaveBeenCalledTimes(1)
+    expect(searchTasksMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("fetches additional search pages when limit exceeds first page", async () => {
+    const searchTasksMock = vi
+      .fn()
+      .mockImplementationOnce((_teamId: string, params: Record<string, unknown>) => {
+        expect(params).toMatchObject({ search: "Example", page: 0 })
+        return {
+          tasks: [
+            { id: "task-1", name: "Example", status: { status: "open" }, list: { id: "list-1" } },
+            { id: "task-2", name: "Example two", status: { status: "open" }, list: { id: "list-1" } }
+          ]
+        }
+      })
+      .mockImplementationOnce((_teamId: string, params: Record<string, unknown>) => {
+        expect(params).toMatchObject({ search: "Example", page: 1 })
+        return {
+          tasks: [
+            { id: "task-3", name: "Example three", status: { status: "open" }, list: { id: "list-1" } }
+          ]
+        }
+      })
+
+    const client = createClient({ searchTasks: searchTasksMock })
+    const config = { teamId: "team-1" } as ApplicationConfig
+
+    const result = await fuzzySearch({ query: "Example", limit: 3 }, client, config, catalogue)
+
+    expect(searchTasksMock).toHaveBeenCalledTimes(2)
+    expect(result.results.length).toBe(3)
+    expect(result.guidance).toBe(
+      "More matches available. Increase limit or paginate through search results."
+    )
   })
 
   it("invalidates cached search entries after task updates", async () => {
@@ -85,10 +118,10 @@ describe("TaskCatalogue integration", () => {
     const config = { teamId: "team-1" } as ApplicationConfig
 
     await fuzzySearch({ query: "Cached", limit: 5 }, client, config, catalogue)
-    expect(searchTasksMock).toHaveBeenCalledTimes(1)
+    expect(searchTasksMock).toHaveBeenCalledTimes(2)
 
     await fuzzySearch({ query: "Cached", limit: 5 }, client, config, catalogue)
-    expect(searchTasksMock).toHaveBeenCalledTimes(1)
+    expect(searchTasksMock).toHaveBeenCalledTimes(2)
 
     await updateTask(
       { taskId: "task-1", name: "Updated", confirm: "yes", dryRun: false },
@@ -97,7 +130,7 @@ describe("TaskCatalogue integration", () => {
     )
 
     await fuzzySearch({ query: "Cached", limit: 5 }, client, config, catalogue)
-    expect(searchTasksMock).toHaveBeenCalledTimes(2)
+    expect(searchTasksMock).toHaveBeenCalledTimes(4)
     expect(updateTaskMock).toHaveBeenCalledTimes(1)
   })
 })

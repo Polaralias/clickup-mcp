@@ -142,9 +142,8 @@ export const DocSearchInput = z.object({
     .number()
     .int()
     .min(1)
-    .max(25)
     .default(10)
-    .describe("Max docs to return; default 10."),
+    .describe("Max docs to return; default 10. No hard cap applied."),
   expandPages: z
     .boolean()
     .default(false)
@@ -160,9 +159,8 @@ export const BulkDocSearchInput = z.object({
     .number()
     .int()
     .min(1)
-    .max(10)
     .default(5)
-    .describe("Max docs to return per query."),
+    .describe("Max docs to return per query. No hard cap applied."),
   expandPages: z
     .boolean()
     .default(false)
