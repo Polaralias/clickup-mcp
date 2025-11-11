@@ -4,6 +4,7 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { requireTeamId } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
+import { extractDocId as resolveDocId } from "./docUtils.js"
 
 const DEFAULT_CONCURRENCY = 5
 
@@ -20,8 +21,11 @@ function normaliseLimit(rawLimit: number) {
 }
 
 function extractDocId(doc: Record<string, unknown>) {
-  const id = doc.id ?? doc.doc_id
-  return typeof id === "string" && id.length > 0 ? id : undefined
+  try {
+    return resolveDocId(doc)
+  } catch {
+    return undefined
+  }
 }
 
 function buildPageSignature(docs: Array<Record<string, unknown>>) {
