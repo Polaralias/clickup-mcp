@@ -403,9 +403,8 @@ export const FuzzySearchInput = z.object({
     .number()
     .int()
     .min(1)
-    .max(50)
     .default(10)
-    .describe("Maximum matches to return; defaults to 10.")
+    .describe("Maximum matches to return; defaults to 10. No hard cap applied.")
 })
 
 export const BulkFuzzySearchInput = z.object({
@@ -417,9 +416,8 @@ export const BulkFuzzySearchInput = z.object({
     .number()
     .int()
     .min(1)
-    .max(20)
     .default(5)
-    .describe("Maximum results per query; defaults to 5.")
+    .describe("Maximum results per query; defaults to 5. No hard cap applied.")
 })
 
 function ensureTaskResolvable(
