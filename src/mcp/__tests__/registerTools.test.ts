@@ -54,4 +54,34 @@ describe("registerTools", () => {
       }
     }
   })
+
+  it("exposes forceRefresh on the list workspaces tool and accepts empty input", () => {
+    const config: ApplicationConfig = {
+      teamId: "test-team",
+      apiKey: "test-api-key",
+      charLimit: 16000,
+      maxAttachmentMb: 8
+    }
+
+    const server = new McpServer({
+      name: "Test Server",
+      version: "1.0.0"
+    })
+
+    registerTools(server, config)
+
+    const tool = (server as any)._registeredTools["clickup_list_workspaces"]
+
+    expect(tool).toBeDefined()
+    expect(tool.inputSchema).toBeDefined()
+    expect(Object.keys(tool.inputSchema.shape)).toContain("forceRefresh")
+
+    const emptyParse = tool.inputSchema.safeParse({})
+    expect(emptyParse.success).toBe(true)
+    expect(emptyParse.data).toEqual({})
+
+    const populatedParse = tool.inputSchema.safeParse({ forceRefresh: true })
+    expect(populatedParse.success).toBe(true)
+    expect(populatedParse.data).toEqual({ forceRefresh: true })
+  })
 })

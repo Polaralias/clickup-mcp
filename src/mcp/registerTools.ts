@@ -271,7 +271,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   registerReadOnly(
     "clickup_list_workspaces",
     "List workspaces accessible to the token.",
-    ListWorkspacesInput.optional(),
+    ListWorkspacesInput,
     async (input = {}, client) =>
       listWorkspaces(client, sessionHierarchyDirectory, { forceRefresh: input?.forceRefresh })
   )
