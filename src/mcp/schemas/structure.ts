@@ -4,6 +4,8 @@ import { HierarchyPathSegment } from "./hierarchy.js"
 
 const HierarchyPath = z.array(HierarchyPathSegment).min(1)
 
+const RequiredId = z.coerce.string().min(1)
+
 const StatusDefinition = z
   .object({
     status: z.string().min(1).optional(),
@@ -55,7 +57,7 @@ function requireMutationFields<T extends { name?: string; description?: string; 
 }
 
 export const CreateFolderInput = SafetyInput.extend({
-  spaceId: z.string().min(1).optional(),
+  spaceId: RequiredId.optional(),
   path: HierarchyPath.optional(),
   name: z.string().min(1),
   description: z.string().optional(),
@@ -65,7 +67,7 @@ export const CreateFolderInput = SafetyInput.extend({
 })
 
 export const UpdateFolderInput = SafetyInput.extend({
-  folderId: z.string().min(1).optional(),
+  folderId: RequiredId.optional(),
   path: HierarchyPath.optional(),
   name: z.string().min(1).optional(),
   description: z.string().optional(),
@@ -76,15 +78,15 @@ export const UpdateFolderInput = SafetyInput.extend({
 })
 
 export const DeleteFolderInput = SafetyInput.extend({
-  folderId: z.string().min(1).optional(),
+  folderId: RequiredId.optional(),
   path: HierarchyPath.optional()
 }).superRefine((value, ctx) => {
   requireContainer(value, ctx, ["folderId"])
 })
 
 export const CreateListInput = SafetyInput.extend({
-  spaceId: z.string().min(1).optional(),
-  folderId: z.string().min(1).optional(),
+  spaceId: RequiredId.optional(),
+  folderId: RequiredId.optional(),
   path: HierarchyPath.optional(),
   name: z.string().min(1),
   description: z.string().optional(),
@@ -94,7 +96,7 @@ export const CreateListInput = SafetyInput.extend({
 })
 
 export const UpdateListInput = SafetyInput.extend({
-  listId: z.string().min(1).optional(),
+  listId: RequiredId.optional(),
   path: HierarchyPath.optional(),
   name: z.string().min(1).optional(),
   description: z.string().optional(),
@@ -105,14 +107,14 @@ export const UpdateListInput = SafetyInput.extend({
 })
 
 export const DeleteListInput = SafetyInput.extend({
-  listId: z.string().min(1).optional(),
+  listId: RequiredId.optional(),
   path: HierarchyPath.optional()
 }).superRefine((value, ctx) => {
   requireContainer(value, ctx, ["listId"])
 })
 
 export const CreateListViewInput = SafetyInput.extend({
-  listId: z.string().min(1).optional(),
+  listId: RequiredId.optional(),
   path: HierarchyPath.optional(),
   name: z.string().min(1),
   description: z.string().optional(),
@@ -123,7 +125,7 @@ export const CreateListViewInput = SafetyInput.extend({
 })
 
 export const CreateSpaceViewInput = SafetyInput.extend({
-  spaceId: z.string().min(1).optional(),
+  spaceId: RequiredId.optional(),
   path: HierarchyPath.optional(),
   name: z.string().min(1),
   description: z.string().optional(),
@@ -134,7 +136,7 @@ export const CreateSpaceViewInput = SafetyInput.extend({
 })
 
 export const UpdateViewInput = SafetyInput.extend({
-  viewId: z.string().min(1),
+  viewId: RequiredId,
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   viewType: z.string().min(1).optional(),
@@ -146,7 +148,7 @@ export const UpdateViewInput = SafetyInput.extend({
 })
 
 export const DeleteViewInput = SafetyInput.extend({
-  viewId: z.string().min(1)
+  viewId: RequiredId
 })
 
 export type StatusInput = z.infer<typeof StatusDefinition>

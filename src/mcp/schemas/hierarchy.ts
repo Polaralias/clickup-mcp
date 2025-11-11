@@ -1,40 +1,43 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
 
+const Id = z.coerce.string()
+const RequiredId = z.coerce.string().min(1)
+
 export const ListWorkspacesInput = z.object({
   forceRefresh: z.boolean().optional()
 })
 
 export const ListSpacesInput = z.object({
-  workspaceId: z.string(),
+  workspaceId: Id,
   forceRefresh: z.boolean().optional()
 })
 
 export const ListFoldersInput = z.object({
-  spaceId: z.string(),
+  spaceId: Id,
   forceRefresh: z.boolean().optional()
 })
 
 export const ListListsInput = z.object({
-  folderId: z.string().optional(),
-  spaceId: z.string().optional(),
+  folderId: Id.optional(),
+  spaceId: Id.optional(),
   forceRefresh: z.boolean().optional()
 })
 
 export const ListTagsForSpaceInput = z.object({
-  spaceId: z.string(),
+  spaceId: Id,
   forceRefresh: z.boolean().optional()
 })
 
 export const CreateSpaceTagInput = SafetyInput.extend({
-  spaceId: z.string().min(1),
+  spaceId: RequiredId,
   name: z.string().min(1),
   foregroundColor: z.string().min(1).optional(),
   backgroundColor: z.string().min(1).optional()
 })
 
 export const UpdateSpaceTagInput = SafetyInput.extend({
-  spaceId: z.string().min(1),
+  spaceId: RequiredId,
   currentName: z.string().min(1),
   name: z.string().min(1).optional(),
   foregroundColor: z.string().min(1).optional(),
@@ -50,17 +53,17 @@ export const UpdateSpaceTagInput = SafetyInput.extend({
 })
 
 export const DeleteSpaceTagInput = SafetyInput.extend({
-  spaceId: z.string().min(1),
+  spaceId: RequiredId,
   name: z.string().min(1)
 })
 
 export const ListMembersInput = z.object({
-  teamId: z.string().optional()
+  teamId: Id.optional()
 })
 
 export const ResolveMembersInput = z.object({
   identifiers: z.array(z.string().min(1)),
-  teamId: z.string().min(1).optional(),
+  teamId: RequiredId.optional(),
   limit: z.number().int().min(1).max(10).optional(),
   refresh: z.boolean().optional()
 })
@@ -76,13 +79,13 @@ export const ResolvePathToIdsInput = z.object({
 })
 
 export const GetWorkspaceOverviewInput = z.object({
-  workspaceId: z.string(),
+  workspaceId: Id,
   forceRefresh: z.boolean().optional()
 })
 
 const WorkspaceSelector = z
   .object({
-    id: z.string().min(1).optional(),
+    id: RequiredId.optional(),
     name: z.string().min(1).optional()
   })
   .refine((value) => Boolean(value.id || value.name), {
@@ -90,7 +93,7 @@ const WorkspaceSelector = z
   })
 
 export const GetWorkspaceHierarchyInput = z.object({
-  workspaceIds: z.array(z.string().min(1)).optional(),
+  workspaceIds: z.array(RequiredId).optional(),
   workspaceNames: z.array(z.string().min(1)).optional(),
   workspaces: z.array(WorkspaceSelector).optional(),
   maxDepth: z.number().int().min(0).max(3).optional(),

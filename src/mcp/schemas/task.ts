@@ -1,12 +1,15 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
 
+const Id = z.coerce.string()
+const IdArray = z.array(Id)
+
 const TagArray = z.array(z.string()).default([])
 const numericIdPattern = /^[0-9]+$/
 
 const TaskContextTask = z
   .object({
-    id: z.string(),
+    id: Id,
     name: z.string().optional(),
     description: z.string().optional(),
     text_content: z.string().optional(),
@@ -20,12 +23,12 @@ const TaskContextTask = z
       .optional(),
     updatedAt: z.number().optional(),
     date_updated: z.union([z.string(), z.number()]).optional(),
-    listId: z.string().optional(),
+    listId: Id.optional(),
     listName: z.string().optional(),
     listUrl: z.string().optional(),
     list: z
       .object({
-        id: z.string().optional(),
+        id: Id.optional(),
         name: z.string().optional(),
         url: z.string().optional()
       })
@@ -36,7 +39,7 @@ const TaskContextTask = z
   .passthrough()
 
 const TaskLookupReference = z.object({
-  taskId: z.string().optional(),
+  taskId: Id.optional(),
   taskName: z.string().optional(),
   context: z
     .object({
@@ -50,68 +53,68 @@ export const TaskLookupContextInput = z.object({
 })
 
 export const CreateTaskInput = SafetyInput.extend({
-  listId: z.string(),
+  listId: Id,
   name: z.string().min(1),
   description: z.string().optional(),
-  assigneeIds: z.array(z.string()).optional(),
+  assigneeIds: IdArray.optional(),
   priority: z.number().int().min(0).max(4).optional(),
   dueDate: z.string().optional(),
   tags: TagArray.optional()
 })
 
 export const UpdateTaskInput = SafetyInput.extend({
-  taskId: z.string(),
+  taskId: Id,
   name: z.string().optional(),
   description: z.string().optional(),
   status: z.string().optional(),
   priority: z.number().int().min(0).max(4).optional(),
   dueDate: z.string().optional(),
-  assigneeIds: z.array(z.string()).optional(),
+  assigneeIds: IdArray.optional(),
   tags: TagArray.optional()
 })
 
 export const DeleteTaskInput = SafetyInput.extend({
-  taskId: z.string()
+  taskId: Id
 })
 
 export const MoveTaskInput = SafetyInput.extend({
-  taskId: z.string(),
-  listId: z.string()
+  taskId: Id,
+  listId: Id
 })
 
 export const DuplicateTaskInput = SafetyInput.extend({
-  taskId: z.string(),
-  listId: z.string().optional(),
+  taskId: Id,
+  listId: Id.optional(),
   includeChecklists: z.boolean().optional(),
   includeAssignees: z.boolean().optional()
 })
 
 export const CommentTaskInput = SafetyInput.pick({ dryRun: true, confirm: true }).extend({
-  taskId: z.string(),
+  taskId: Id,
   comment: z.string().min(1)
 })
 
 export const AttachFileInput = SafetyInput.extend({
-  taskId: z.string(),
+  taskId: Id,
   filename: z.string(),
   dataUri: z.string()
 })
 
 export const AddTagsInput = SafetyInput.extend({
-  taskId: z.string(),
+  taskId: Id,
   tags: TagArray
 })
 
 export const RemoveTagsInput = SafetyInput.extend({
-  taskId: z.string(),
+  taskId: Id,
   tags: TagArray
 })
 
 const BulkCreateDefaults = z
   .object({
-    listId: z.string().optional(),
+    listId: Id.optional(),
     description: z.string().optional(),
-    assigneeIds: z.array(z.string()).optional(),
+    assigneeIds: IdArray.optional(),
     priority: z.number().int().min(0).max(4).optional(),
     dueDate: z.string().optional(),
     tags: TagArray.optional()
@@ -119,10 +122,10 @@ const BulkCreateDefaults = z
   .partial()
 
 const BulkCreateTask = z.object({
-  listId: z.string().optional(),
+  listId: Id.optional(),
   name: z.string().min(1),
   description: z.string().optional(),
-  assigneeIds: z.array(z.string()).optional(),
+  assigneeIds: IdArray.optional(),
   priority: z.number().int().min(0).max(4).optional(),
   dueDate: z.string().optional(),
   tags: TagArray.optional()
@@ -134,23 +137,23 @@ const UpdateFields = z.object({
   status: z.string().optional(),
   priority: z.number().int().min(0).max(4).optional(),
   dueDate: z.string().optional(),
-  assigneeIds: z.array(z.string()).optional(),
+  assigneeIds: IdArray.optional(),
   tags: TagArray.optional()
 })
 
 const BulkUpdateTask = UpdateFields.extend({
-  taskId: z.string()
+  taskId: Id
 })
 
 const BulkMoveDefaults = z
   .object({
-    listId: z.string().optional()
+    listId: Id.optional()
   })
   .partial()
 
 const BulkMoveTask = z.object({
-  taskId: z.string(),
-  listId: z.string().optional()
+  taskId: Id,
+  listId: Id.optional()
 })
 
 const BulkTagDefaults = z
@@ -160,12 +163,12 @@ const BulkTagDefaults = z
   .partial()
 
 const BulkTagTask = z.object({
-  taskId: z.string(),
+  taskId: Id,
   tags: TagArray.optional()
 })
 
 export const CreateTasksBulkInput = SafetyInput.extend({
-  teamId: z.string().optional(),
+  teamId: Id.optional(),
   defaults: BulkCreateDefaults.optional(),
   tasks: z.array(BulkCreateTask).min(1)
 }).superRefine((value, ctx) => {
@@ -197,7 +200,7 @@ function hasUpdateFields(candidate?: z.infer<typeof UpdateFields>) {
 }
 
 export const UpdateTasksBulkInput = SafetyInput.extend({
-  teamId: z.string().optional(),
+  teamId: Id.optional(),
   defaults: UpdateFields.optional(),
   tasks: z.array(BulkUpdateTask).min(1)
 }).superRefine((value, ctx) => {
@@ -215,7 +218,7 @@ export const UpdateTasksBulkInput = SafetyInput.extend({
 })
 
 export const MoveTasksBulkInput = SafetyInput.extend({
-  teamId: z.string().optional(),
+  teamId: Id.optional(),
   defaults: BulkMoveDefaults.optional(),
   tasks: z.array(BulkMoveTask).min(1)
 }).superRefine((value, ctx) => {
@@ -232,12 +235,12 @@ export const MoveTasksBulkInput = SafetyInput.extend({
 })
 
 export const DeleteTasksBulkInput = SafetyInput.extend({
-  teamId: z.string().optional(),
-  tasks: z.array(z.object({ taskId: z.string() })).min(1)
+  teamId: Id.optional(),
+  tasks: z.array(z.object({ taskId: Id })).min(1)
 })
 
 export const AddTagsBulkInput = SafetyInput.extend({
-  teamId: z.string().optional(),
+  teamId: Id.optional(),
   defaults: BulkTagDefaults.optional(),
   tasks: z.array(BulkTagTask).min(1)
 }).superRefine((value, ctx) => {
@@ -258,8 +261,8 @@ export const SearchTasksInput = z.object({
   page: z.number().int().min(0).default(0),
   pageSize: z.number().int().min(1).max(100).default(20),
   query: z.string().optional(),
-  listIds: z.array(z.string()).optional(),
-  tagIds: z.array(z.string()).optional(),
+  listIds: IdArray.optional(),
+  tagIds: IdArray.optional(),
   status: z.string().optional()
 })
 
@@ -302,7 +305,7 @@ export const GetTaskInput = TaskLookupReference.extend({
 }).superRefine((value, ctx) => ensureTaskResolvable(value, ctx))
 
 export const ListTasksInListInput = TaskLookupReference.extend({
-  listId: z.string().optional(),
+  listId: Id.optional(),
   limit: z.number().int().min(1).max(50).default(20),
   page: z.number().int().min(0).default(0),
   includeClosed: z.boolean().default(false),
