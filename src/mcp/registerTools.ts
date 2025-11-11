@@ -159,43 +159,6 @@ type RegistrationOptions = {
   handler: ToolHandler
 }
 
-function unwrapToObject(schema: z.ZodTypeAny | null): z.ZodObject<any> | null {
-  if (!schema) return null
-
-  let current: z.ZodTypeAny | null = schema
-
-  while (current) {
-    const typeName = current._def.typeName
-    if (typeName === z.ZodFirstPartyTypeKind.ZodObject) {
-      return current as z.ZodObject<any>
-    }
-    if (typeName === z.ZodFirstPartyTypeKind.ZodEffects) {
-      current = (current as z.ZodEffects<any>)._def.schema
-      continue
-    }
-    if (typeName === z.ZodFirstPartyTypeKind.ZodDefault || typeName === z.ZodFirstPartyTypeKind.ZodOptional) {
-      current = (current as z.ZodDefault<any> | z.ZodOptional<any>)._def.innerType
-      continue
-    }
-    if (typeName === z.ZodFirstPartyTypeKind.ZodBranded) {
-      current = (current as z.ZodBranded<any, any>)._def.type
-      continue
-    }
-    if (typeName === z.ZodFirstPartyTypeKind.ZodPipeline) {
-      current = (current as z.ZodPipeline<any, any>)._def.out
-      continue
-    }
-    return null
-  }
-
-  return null
-}
-
-function getInputShape(schema: z.ZodTypeAny | null) {
-  const object = unwrapToObject(schema)
-  return object ? object.shape : undefined
-}
-
 function formatContent(payload: unknown) {
   return {
     content: [
@@ -216,7 +179,6 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   const sessionSpaceTagCache = new SpaceTagCache()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
-    const rawShape = getInputShape(options.schema)
     const inputSchema = zodToJsonSchemaCompact(options.schema)
     entries.push({
       name,
@@ -228,7 +190,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       name,
       {
         description: options.description,
-        inputSchema: rawShape,
+        ...(inputSchema ? { inputSchema } : {}),
         annotations: options.annotations
       },
       async (rawInput: unknown) => {
@@ -243,16 +205,18 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   // System tools (no client)
   const pingSchema = z.object({ message: z.string().optional() })
   const pingAnnotation = readOnlyAnnotation("system", "echo", { scope: "connectivity", idempotent: true })
+  const pingJsonSchema = zodToJsonSchemaCompact(pingSchema)
   entries.push({
     name: "ping",
     description: "Echo request for connectivity checks; include message to confirm round-trip.",
-    annotations: pingAnnotation.annotations
+    annotations: pingAnnotation.annotations,
+    inputSchema: pingJsonSchema
   })
   server.registerTool(
     "ping",
     {
       description: "Echo request for connectivity checks; include message to confirm round-trip.",
-      inputSchema: pingSchema.shape,
+      ...(pingJsonSchema ? { inputSchema: pingJsonSchema } : {}),
       ...pingAnnotation
     },
     async (rawInput: unknown) => {
@@ -298,12 +262,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     handler: ToolHandler,
     annotation: ReturnType<typeof destructiveAnnotation>
   ) => {
-    entries.push({ name, description, annotations: annotation.annotations })
+    const inputSchema = zodToJsonSchemaCompact(schema)
+    entries.push({ name, description, annotations: annotation.annotations, inputSchema })
     server.registerTool(
       name,
       {
         description,
-        inputSchema: getInputShape(schema),
+        ...(inputSchema ? { inputSchema } : {}),
         ...annotation
       },
       withSafetyConfirmation(async (rawInput: unknown) => {
