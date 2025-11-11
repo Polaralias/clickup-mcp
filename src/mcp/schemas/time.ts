@@ -1,16 +1,19 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
 
+const Id = z.coerce.string()
+const RequiredId = z.coerce.string().min(1)
+
 export const StartTimerInput = SafetyInput.extend({
-  taskId: z.string()
+  taskId: Id
 })
 
 export const StopTimerInput = SafetyInput.extend({
-  taskId: z.string()
+  taskId: Id
 })
 
 export const CreateTimeEntryInput = SafetyInput.extend({
-  taskId: z.string(),
+  taskId: Id,
   start: z.string(),
   end: z.string().optional(),
   durationMs: z.number().int().optional(),
@@ -18,7 +21,7 @@ export const CreateTimeEntryInput = SafetyInput.extend({
 })
 
 export const UpdateTimeEntryInput = SafetyInput.extend({
-  entryId: z.string(),
+  entryId: RequiredId,
   start: z.string().optional(),
   end: z.string().optional(),
   durationMs: z.number().int().optional(),
@@ -26,11 +29,11 @@ export const UpdateTimeEntryInput = SafetyInput.extend({
 })
 
 export const DeleteTimeEntryInput = SafetyInput.extend({
-  entryId: z.string()
+  entryId: RequiredId
 })
 
 export const ListTimeEntriesInput = z.object({
-  taskId: z.string().optional(),
+  taskId: Id.optional(),
   from: z.string().optional(),
   to: z.string().optional(),
   page: z.number().int().min(0).default(0),
@@ -44,23 +47,23 @@ export const ReportTimeForTagInput = z.object({
 })
 
 export const ReportTimeForContainerInput = z.object({
-  containerId: z.string(),
+  containerId: RequiredId,
   from: z.string().optional(),
   to: z.string().optional()
 })
 
 export const ReportTimeForSpaceTagInput = z.object({
-  spaceId: z.string(),
+  spaceId: RequiredId,
   tag: z.string(),
   from: z.string().optional(),
   to: z.string().optional()
 })
 
 export const GetTaskTimeEntriesInput = z.object({
-  taskId: z.string(),
+  taskId: Id,
   pageSize: z.number().int().min(1).max(100).default(20)
 })
 
 export const GetCurrentTimeEntryInput = z.object({
-  teamId: z.string().optional()
+  teamId: Id.optional()
 })

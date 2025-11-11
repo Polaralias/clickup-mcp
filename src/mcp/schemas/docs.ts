@@ -1,11 +1,14 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
 
+const Id = z.coerce.string()
+const RequiredId = z.coerce.string().min(1)
+
 export const ListDocumentsInput = z.object({
-  workspaceId: z.string().optional(),
+  workspaceId: Id.optional(),
   search: z.string().min(1).optional(),
-  spaceId: z.string().optional(),
-  folderId: z.string().optional(),
+  spaceId: Id.optional(),
+  folderId: Id.optional(),
   page: z.number().int().min(0).optional(),
   limit: z.number().int().min(1).max(50).default(20),
   includePreviews: z.boolean().default(true),
@@ -14,47 +17,47 @@ export const ListDocumentsInput = z.object({
 })
 
 export const GetDocumentInput = z.object({
-  workspaceId: z.string().optional(),
-  docId: z.string(),
+  workspaceId: Id.optional(),
+  docId: RequiredId,
   includePages: z.boolean().default(true),
-  pageIds: z.array(z.string()).optional(),
+  pageIds: z.array(RequiredId).optional(),
   pageLimit: z.number().int().min(1).max(50).default(20),
   previewCharLimit: z.number().int().min(64).max(16000).optional()
 })
 
 export const GetDocumentPagesInput = z.object({
-  workspaceId: z.string().optional(),
-  docId: z.string(),
-  pageIds: z.array(z.string()).nonempty(),
+  workspaceId: Id.optional(),
+  docId: RequiredId,
+  pageIds: z.array(RequiredId).nonempty(),
   previewCharLimit: z.number().int().min(64).max(16000).optional()
 })
 
 export const CreateDocumentPageInput = SafetyInput.extend({
-  docId: z.string(),
+  docId: RequiredId,
   title: z.string().min(1),
   content: z.string().optional(),
-  parentId: z.string().optional(),
+  parentId: Id.optional(),
   position: z.number().int().min(0).optional()
 })
 
 export const CreateDocInput = SafetyInput.extend({
-  folderId: z.string(),
+  folderId: RequiredId,
   name: z.string().min(1),
   content: z.string().optional()
 })
 
 export const ListDocPagesInput = z.object({
-  docId: z.string()
+  docId: RequiredId
 })
 
 export const GetDocPageInput = z.object({
-  docId: z.string(),
-  pageId: z.string()
+  docId: RequiredId,
+  pageId: RequiredId
 })
 
 export const UpdateDocPageInput = SafetyInput.extend({
-  docId: z.string(),
-  pageId: z.string(),
+  docId: RequiredId,
+  pageId: RequiredId,
   title: z.string().optional(),
   content: z.string().optional()
 })
