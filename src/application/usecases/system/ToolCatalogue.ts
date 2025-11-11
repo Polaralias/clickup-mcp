@@ -2,6 +2,7 @@ export type ToolCatalogueEntry = {
   name: string
   description: string
   annotations?: Record<string, unknown>
+  inputSchema?: Record<string, unknown>
 }
 
 export async function toolCatalogue(tools: ToolCatalogueEntry[]) {
@@ -9,7 +10,8 @@ export async function toolCatalogue(tools: ToolCatalogueEntry[]) {
     tools: tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
-      annotations: tool.annotations ?? {}
+      annotations: tool.annotations ?? {},
+      inputSchema: tool.inputSchema ?? null
     }))
   }
 }
