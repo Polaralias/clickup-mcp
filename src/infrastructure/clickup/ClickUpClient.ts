@@ -179,13 +179,13 @@ export class ClickUpClient {
 
   listMembers(teamId?: string) {
     if (teamId) {
-      return this.request(`team/${teamId}/user`)
+      return this.request(`team/${teamId}/member`)
     }
     return this.request("team")
   }
 
   resolveMembers(teamId: string) {
-    return this.request(`team/${teamId}/user`)
+    return this.request(`team/${teamId}/member`)
   }
 
   searchTasks(teamId: string, query: Record<string, unknown>) {
@@ -266,17 +266,29 @@ export class ClickUpClient {
   }
 
   addTags(taskId: string, tags: string[]) {
-    return this.request(`task/${taskId}/tag`, {
-      method: "POST",
-      body: { tags }
-    })
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return Promise.resolve([] as unknown[])
+    }
+    return Promise.all(
+      tags.map((tag) =>
+        this.request(`task/${taskId}/tag/${encodeURIComponent(tag)}`, {
+          method: "POST"
+        })
+      )
+    )
   }
 
   removeTags(taskId: string, tags: string[]) {
-    return this.request(`task/${taskId}/tag`, {
-      method: "DELETE",
-      body: { tags }
-    })
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return Promise.resolve([] as unknown[])
+    }
+    return Promise.all(
+      tags.map((tag) =>
+        this.request(`task/${taskId}/tag/${encodeURIComponent(tag)}`, {
+          method: "DELETE"
+        })
+      )
+    )
   }
 
   createTasksBulk(teamId: string, tasks: Array<Record<string, unknown>>) {
@@ -398,15 +410,15 @@ export class ClickUpClient {
     return this.request(`task/${taskId}/time`)
   }
 
-  updateTimeEntry(entryId: string, body: Record<string, unknown>) {
-    return this.request(`time_entry/${entryId}`, {
+  updateTimeEntry(teamId: string, entryId: string, body: Record<string, unknown>) {
+    return this.request(`team/${teamId}/time_entries/${entryId}`, {
       method: "PUT",
       body
     })
   }
 
-  deleteTimeEntry(entryId: string) {
-    return this.request(`time_entry/${entryId}`, {
+  deleteTimeEntry(teamId: string, entryId: string) {
+    return this.request(`team/${teamId}/time_entries/${entryId}`, {
       method: "DELETE"
     })
   }

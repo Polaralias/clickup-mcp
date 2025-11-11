@@ -45,11 +45,13 @@ export const UpdateTimeEntryInput = SafetyInput.extend({
   description: z
     .string()
     .describe("Replacement notes for the entry.")
-    .optional()
+    .optional(),
+  teamId: Id.describe("Workspace/team owning the time entry.").optional()
 })
 
 export const DeleteTimeEntryInput = SafetyInput.extend({
-  entryId: RequiredId.describe("Time entry ID to delete.")
+  entryId: RequiredId.describe("Time entry ID to delete."),
+  teamId: Id.describe("Workspace/team owning the time entry.").optional()
 })
 
 export const ListTimeEntriesInput = z.object({
