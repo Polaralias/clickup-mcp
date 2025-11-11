@@ -759,14 +759,14 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "clickup_update_time_entry",
     "Update time entry fields by entryId (start/end/duration/description); dryRun first, confirm=\"yes\" to apply.",
     UpdateTimeEntryInput,
-    updateTimeEntry,
+    (input, client, config) => updateTimeEntry(input, client, config),
     destructiveAnnotation("time", "update entry", { scope: "time", input: "entryId", dry: true })
   )
   registerDestructive(
     "clickup_delete_time_entry",
     "Delete a time entry by entryId; review dryRun confirmation then send confirm=\"yes\".",
     DeleteTimeEntryInput,
-    deleteTimeEntry,
+    (input, client, config) => deleteTimeEntry(input, client, config),
     destructiveAnnotation("time", "delete entry", { scope: "time", input: "entryId", dry: true })
   )
 
