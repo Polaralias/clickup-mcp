@@ -207,11 +207,11 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   }
 
   // System tools (no client)
-  entries.push({ name: "ping", description: "Responds with the provided message." })
+  entries.push({ name: "ping", description: "Echo request for connectivity checks; include message to confirm round-trip." })
   server.registerTool(
     "ping",
     {
-      description: "Responds with the provided message.",
+      description: "Echo request for connectivity checks; include message to confirm round-trip.",
       inputSchema: z.object({ message: z.string().optional() }).shape
     },
     async (rawInput: unknown) => {
@@ -220,21 +220,29 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     }
   )
 
-  entries.push({ name: "health", description: "Returns server status and limits.", annotations: readOnlyAnnotation.annotations })
+  entries.push({
+    name: "health",
+    description: "Report server readiness, auth validity, and enforced safety limits to plan follow-up calls.",
+    annotations: readOnlyAnnotation.annotations
+  })
   server.registerTool(
     "health",
     {
-      description: "Returns server status and limits.",
+      description: "Report server readiness, auth validity, and enforced safety limits to plan follow-up calls.",
       ...readOnlyAnnotation
     },
     async () => formatContent(await health(config))
   )
 
-  entries.push({ name: "tool_catalogue", description: "Lists available tools.", annotations: readOnlyAnnotation.annotations })
+  entries.push({
+    name: "tool_catalogue",
+    description: "Enumerate every tool with its annotations for dynamic planning; call before chaining unfamiliar tools.",
+    annotations: readOnlyAnnotation.annotations
+  })
   server.registerTool(
     "tool_catalogue",
     {
-      description: "Lists available tools.",
+      description: "Enumerate every tool with its annotations for dynamic planning; call before chaining unfamiliar tools.",
       ...readOnlyAnnotation
     },
     async () => formatContent(await toolCatalogue(entries))
@@ -270,24 +278,24 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   // Hierarchy tools
   registerReadOnly(
     "clickup_list_workspaces",
-    "List workspaces accessible to the token.",
+    "List workspaces accessible with the API key; set forceRefresh=true when hierarchy updates are needed immediately.",
     ListWorkspacesInput,
     async (input = {}, client) =>
       listWorkspaces(client, sessionHierarchyDirectory, { forceRefresh: input?.forceRefresh })
   )
   registerReadOnly(
     "clickup_list_spaces",
-    "List spaces within a workspace.",
+    "List spaces for workspaceId; call after clickup_list_workspaces and use forceRefresh to bypass cached results.",
     ListSpacesInput,
     (input, client) => listSpaces(input, client, sessionHierarchyDirectory)
   )
   registerReadOnly(
     "clickup_list_folders",
-    "List folders within a space.",
+    "List folders in spaceId; chain after clickup_list_spaces and apply forceRefresh when structure has changed.",
     ListFoldersInput,
     (input, client) => listFolders(input, client, sessionHierarchyDirectory)
   )
-  registerReadOnly("clickup_list_lists", "List lists for a space or folder.", ListListsInput, async (input, client) => {
+  registerReadOnly("clickup_list_lists", "List lists under spaceId or folderId (provide exactly one); supports forceRefresh when layout changed.", ListListsInput, async (input, client) => {
     if (!input.spaceId && !input.folderId) {
       throw new Error("Provide spaceId or folderId")
     }
@@ -295,63 +303,63 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   })
   registerReadOnly(
     "clickup_get_workspace_overview",
-    "Fetch workspace overview.",
+    "Return workspace-level metrics plus recent structures for workspaceId; use before deeper hierarchy traversal.",
     GetWorkspaceOverviewInput,
     (input, client) => getWorkspaceOverview(input, client, sessionHierarchyDirectory)
   )
   registerReadOnly(
     "clickup_get_workspace_hierarchy",
-    "Fetch nested spaces, folders and lists with depth and limit controls.",
+    "Fetch nested spaces/folders/lists for selected workspaces using maxDepth and max* controls; accepts IDs or names.",
     GetWorkspaceHierarchyInput,
     (input, client, config) => getWorkspaceHierarchy(input, client, config, sessionHierarchyDirectory)
   )
   registerReadOnly(
     "clickup_resolve_path_to_ids",
-    "Resolve workspace path elements to IDs.",
+    "Resolve ordered workspace/space/folder/list names into IDs; pass forceRefresh when cache might be stale.",
     ResolvePathToIdsInput,
     (input, client) => resolvePathToIds(input, client, sessionHierarchyDirectory)
   )
-  registerReadOnly("clickup_list_members", "List members in a workspace.", ListMembersInput, listMembers)
+  registerReadOnly("clickup_list_members", "List members for the current workspace; provide teamId when token spans multiples.", ListMembersInput, listMembers)
   registerReadOnly(
     "clickup_resolve_members",
-    "Resolve identifiers to ClickUp members with fuzzy matching and cache visibility.",
+    "Resolve identifiers to member records with similarity scores; identifiers array required, optional teamId/limit/refresh.",
     ResolveMembersInput,
     resolveMembers
   )
   registerReadOnly(
     "clickup_find_member_by_name",
-    "Search members with fuzzy matching; use refresh=true to bypass the cached directory when data changes.",
+    "Fuzzy search member names; include teamId when scoped and refresh=true right after roster updates.",
     FindMemberByNameInput,
     findMemberByName
   )
   registerReadOnly(
     "clickup_resolve_assignees",
-    "Resolve potential task assignees from human-friendly identifiers. Results include scores and cache metadata.",
+    "Translate human-friendly assignee references into member suggestions with confidence scores and cache hints.",
     ResolveAssigneesInput,
     resolveAssignees
   )
   registerReadOnly(
     "clickup_list_tags_for_space",
-    "List tags configured for a space.",
+    "List tags configured on spaceId; set forceRefresh=true after creating or deleting tags.",
     ListTagsForSpaceInput,
     (input, client) => listTagsForSpace(input, client, sessionSpaceTagCache)
   )
 
   registerDestructive(
     "clickup_create_space_tag",
-    "Create a space-level tag with optional custom colours.",
+    "Create a space-level tag on spaceId with optional colour fields; dryRun to inspect payload, confirm=\"yes\" to commit.",
     CreateSpaceTagInput,
     async (input, client) => createSpaceTag(input, client, sessionSpaceTagCache)
   )
   registerDestructive(
     "clickup_update_space_tag",
-    "Update a space-level tag's name or colours.",
+    "Update a space-level tag via spaceId and currentName; supply new name/colours, dryRun for preview, confirm=\"yes\" to apply.",
     UpdateSpaceTagInput,
     async (input, client) => updateSpaceTag(input, client, sessionSpaceTagCache)
   )
   registerDestructive(
     "clickup_delete_space_tag",
-    "Delete a space-level tag.",
+    "Delete a space-level tag from spaceId by name; prefer dryRun to review and send confirm=\"yes\" when certain.",
     DeleteSpaceTagInput,
     async (input, client) => deleteSpaceTag(input, client, sessionSpaceTagCache)
   )
@@ -359,61 +367,61 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   // Hierarchy management
   registerDestructive(
     "clickup_create_folder",
-    "Create a folder within a space, supporting optional custom statuses and dry-run previews.",
+    "Create a folder under spaceId or path with optional description/statuses; use dryRun before sending confirm=\"yes\".",
     CreateFolderInput,
     async (input, client) => createFolder(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_update_folder",
-    "Update a folder's name, description, or statuses.",
+    "Update a folder identified by folderId or path; include fields to change, dryRun for validation, confirm=\"yes\" to save.",
     UpdateFolderInput,
     async (input, client) => updateFolder(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_delete_folder",
-    "Delete a folder.",
+    "Delete a folder resolved by folderId or path; dryRun to confirm target then send confirm=\"yes\".",
     DeleteFolderInput,
     async (input, client) => deleteFolder(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_create_list",
-    "Create a list within a space or folder with optional status overrides.",
+    "Create a list within spaceId/folderId or path with optional status overrides; dryRun first, confirm=\"yes\" to persist.",
     CreateListInput,
     async (input, client) => createList(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_update_list",
-    "Update a list's name, description, or statuses.",
+    "Update a list via listId or path; include at least one field to change. Use dryRun prior to confirm=\"yes\".",
     UpdateListInput,
     async (input, client) => updateList(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_delete_list",
-    "Delete a list.",
+    "Delete a list resolved by listId or path; dryRun helps verify scope before confirm=\"yes\".",
     DeleteListInput,
     async (input, client) => deleteList(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_create_list_view",
-    "Create a view scoped to a list with optional status filters.",
+    "Create a view scoped to listId/path with optional viewType and status filters; dryRun supports preview, confirm=\"yes\" to create.",
     CreateListViewInput,
     async (input, client) => createListView(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_create_space_view",
-    "Create a view scoped to a space with optional status filters.",
+    "Create a space-level view for spaceId/path with optional filters; dryRun first, confirm=\"yes\" when final.",
     CreateSpaceViewInput,
     async (input, client) => createSpaceView(input, client, sessionHierarchyDirectory)
   )
   registerDestructive(
     "clickup_update_view",
-    "Update a view's name, type, description, or filters.",
+    "Update a view by viewId; provide fields such as name/viewType/statuses. dryRun before confirm=\"yes\".",
     UpdateViewInput,
     async (input, client) => updateView(input, client)
   )
   registerDestructive(
     "clickup_delete_view",
-    "Delete a view.",
+    "Delete a view by viewId; consider dryRun metadata then send confirm=\"yes\" to remove.",
     DeleteViewInput,
     async (input, client) => deleteView(input, client)
   )
@@ -421,13 +429,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   // Reference
   registerReadOnly(
     "clickup_list_reference_links",
-    "List ClickUp API reference sidebar links (public reference material, no workspace data).",
+    "List public ClickUp API reference sidebar links; adjust limit to control token use. No workspace data involved.",
     ListReferenceLinksInput,
     async (input) => listReferenceLinks(input)
   )
   registerReadOnly(
     "clickup_fetch_reference_page",
-    "Fetch a ClickUp API reference page for summarisation (public reference material, no workspace data).",
+    "Fetch a public ClickUp API reference page by URL with optional maxCharacters trimming; safe for workspace-agnostic guidance.",
     FetchReferencePageInput,
     async (input, _client, config) => fetchReferencePage(input, config)
   )
@@ -435,85 +443,110 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   // Task tools
   registerDestructive(
     "clickup_create_task",
-    "Create a task in ClickUp.",
+    "Create a task in listId with optional description/assignees/priority/dueDate/tags; dryRun first, confirm=\"yes\" to submit.",
     CreateTaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_create_tasks_bulk",
-    "Create multiple tasks with shared defaults and dry-run previews.",
+    "Bulk create tasks with shared defaults and optional teamId; inspect dryRun output before sending confirm=\"yes\".",
     CreateTasksBulkInput,
     async (input, client, config) => createTasksBulk(input, client, config, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_update_task",
-    "Update an existing task.",
+    "Update taskId fields (name/description/status/priority/dueDate/assigneeIds/tags); use dryRun before confirm=\"yes\".",
     UpdateTaskInput,
     async (input, client) => updateTask(input, client, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_update_tasks_bulk",
-    "Update multiple tasks in parallel with concurrency safeguards.",
+    "Bulk update tasks with defaults or per-task fields; ensure each task changes something. dryRun then confirm=\"yes\".",
     UpdateTasksBulkInput,
     async (input, client, config) => updateTasksBulk(input, client, config, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_delete_task",
-    "Delete a task.",
+    "Delete a task by taskId; review dryRun confirmation before sending confirm=\"yes\".",
     DeleteTaskInput,
     async (input, client) => deleteTask(input, client, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_delete_tasks_bulk",
-    "Delete multiple tasks with confirmation and optional dry run.",
+    "Bulk delete tasks via IDs (optional teamId); call with dryRun to audit, then confirm=\"yes\" to execute.",
     DeleteTasksBulkInput,
     async (input, client, config) => deleteTasksBulk(input, client, config, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_move_task",
-    "Move a task to a different list.",
+    "Move a taskId to target listId; dryRun validates mapping before confirm=\"yes\".",
     MoveTaskInput,
     async (input, client) => moveTask(input, client, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_move_tasks_bulk",
-    "Move multiple tasks to new lists.",
+    "Bulk move tasks supplying listId per task or via defaults; run dryRun before confirm=\"yes\".",
     MoveTasksBulkInput,
     async (input, client, config) => moveTasksBulk(input, client, config, sessionTaskCatalogue)
   )
-  registerDestructive("clickup_duplicate_task", "Duplicate a task.", DuplicateTaskInput, duplicateTask)
-  registerDestructive("clickup_comment_task", "Add a comment to a task.", CommentTaskInput, commentTask)
-  registerDestructive("clickup_attach_file_to_task", "Attach a file to a task.", AttachFileInput, attachFileToTask)
+  registerDestructive(
+    "clickup_duplicate_task",
+    "Duplicate a taskId, optionally targeting listId and including checklists/assignees; dryRun then confirm=\"yes\".",
+    DuplicateTaskInput,
+    duplicateTask
+  )
+  registerDestructive(
+    "clickup_comment_task",
+    "Post a comment on taskId; supply comment text, optionally dryRun for preview, confirm=\"yes\" to send.",
+    CommentTaskInput,
+    commentTask
+  )
+  registerDestructive(
+    "clickup_attach_file_to_task",
+    "Attach base64 dataUri as filename to taskId; respect size caps, dryRun if you only need metadata, confirm=\"yes\" to upload.",
+    AttachFileInput,
+    attachFileToTask
+  )
   registerDestructive(
     "clickup_add_tags_to_task",
-    "Add tags to a task.",
+    "Add tags array to taskId; run dryRun to inspect before confirm=\"yes\".",
     AddTagsInput,
     async (input, client) => addTagsToTask(input, client, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_add_tags_bulk",
-    "Add tags across multiple tasks with shared defaults.",
+    "Bulk add tags with defaults or per-task overrides; ensure tags present. dryRun then confirm=\"yes\".",
     AddTagsBulkInput,
     async (input, client, config) => addTagsBulk(input, client, config, sessionTaskCatalogue)
   )
   registerDestructive(
     "clickup_remove_tags_from_task",
-    "Remove tags from a task.",
+    "Remove tags array from taskId; dryRun highlights changes before confirm=\"yes\".",
     RemoveTagsInput,
     async (input, client) => removeTagsFromTask(input, client, sessionTaskCatalogue)
   )
 
-  registerReadOnly("clickup_search_tasks", "Structured task search.", SearchTasksInput, async (input, client, config) => {
-    const result = await searchTasks(input, client, config, sessionTaskCatalogue)
-    return { tasks: result.results, truncated: result.truncated }
-  })
-  registerReadOnly("clickup_fuzzy_search", "Fuzzy search tasks.", FuzzySearchInput, async (input, client, config) => {
-    const result = await fuzzySearch(input, client, config, sessionTaskCatalogue)
-    return { tasks: result.results, guidance: result.guidance }
-  })
+  registerReadOnly(
+    "clickup_search_tasks",
+    "Structured task search with query/listIds/tagIds/status filters plus pagination; watch truncated flag for large result sets.",
+    SearchTasksInput,
+    async (input, client, config) => {
+      const result = await searchTasks(input, client, config, sessionTaskCatalogue)
+      return { tasks: result.results, truncated: result.truncated }
+    }
+  )
+  registerReadOnly(
+    "clickup_fuzzy_search",
+    "Fuzzy task search from natural-language query; limit controls matches and response includes guidance for follow-up calls.",
+    FuzzySearchInput,
+    async (input, client, config) => {
+      const result = await fuzzySearch(input, client, config, sessionTaskCatalogue)
+      return { tasks: result.results, guidance: result.guidance }
+    }
+  )
   registerReadOnly(
     "clickup_bulk_fuzzy_search",
-    "Bulk fuzzy search for tasks.",
+    "Run multiple fuzzy task queries in one call; provide queries[] and optional limit to balance recall vs tokens.",
     BulkFuzzySearchInput,
     async (input, client, config) => {
       const result = await bulkFuzzySearch(input, client, config, sessionTaskCatalogue)
@@ -523,71 +556,126 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   registerReadOnly(
     "clickup_get_task",
-    "Fetch task details with context-aware truncation.",
+    "Fetch task by id/name/context with detailLimit controlling expanded sections; grounding step before mutations.",
     GetTaskInput,
     (input, client, config) => getTask(input, client, config, sessionTaskCatalogue)
   )
   registerReadOnly(
     "clickup_list_tasks_in_list",
-    "List tasks inside a ClickUp list with optional pagination and filters.",
+    "List tasks via listId or contextual lookup with pagination plus includeClosed/includeSubtasks toggles.",
     ListTasksInListInput,
     (input, client, config) => listTasksInList(input, client, config, sessionTaskCatalogue)
   )
   registerReadOnly(
     "clickup_get_task_comments",
-    "Retrieve recent comments for a task, keeping responses token-friendly.",
+    "Retrieve recent comments for a task; limit parameter constrains comment count for token safety.",
     GetTaskCommentsInput,
     (input, client, config) => getTaskComments(input, client, config, sessionTaskCatalogue)
   )
 
   // Docs
-  registerDestructive("clickup_create_doc", "Create a doc in ClickUp.", CreateDocInput, createDoc)
+  registerDestructive(
+    "clickup_create_doc",
+    "Create a doc inside folderId with optional initial content; dryRun for preview, confirm=\"yes\" to persist.",
+    CreateDocInput,
+    createDoc
+  )
   registerReadOnly(
     "clickup_list_documents",
-    "List docs with hierarchy summaries and preview snippets. Chain with clickup_get_document for deeper context.",
+    "List docs filtered by workspace/space/folder/search; tweak preview limits to control tokens before fetching full docs.",
     ListDocumentsInput,
     (input, client, config) => listDocuments(input, client, config)
   )
   registerReadOnly(
     "clickup_get_document",
-    "Fetch a doc with hierarchy summary and page previews ready for follow-up workflows.",
+    "Fetch doc metadata plus optional pages via pageIds/pageLimit; previewCharLimit gates body length for planning edits.",
     GetDocumentInput,
     (input, client, config) => getDocument(input, client, config)
   )
   registerReadOnly(
     "clickup_get_document_pages",
-    "Fetch specific doc pages with truncated bodies to review before updates.",
+    "Fetch selected doc pages with optional previewCharLimit trimming before editing or summarising.",
     GetDocumentPagesInput,
     (input, client, config) => getDocumentPages(input, client, config)
   )
-  registerReadOnly("clickup_list_doc_pages", "List doc pages.", ListDocPagesInput, listDocPages)
-  registerReadOnly("clickup_get_doc_page", "Get a doc page.", GetDocPageInput, getDocPage)
+  registerReadOnly(
+    "clickup_list_doc_pages",
+    "List page hierarchy for a docId to plan targeted retrievals.",
+    ListDocPagesInput,
+    listDocPages
+  )
+  registerReadOnly(
+    "clickup_get_doc_page",
+    "Fetch a single doc page by docId/pageId for precise reading or updates.",
+    GetDocPageInput,
+    getDocPage
+  )
   registerDestructive(
     "clickup_create_document_page",
-    "Create a doc page with dry-run previews. Chain with clickup_get_document_pages to verify content.",
+    "Create a doc page under docId with optional parent/position/content; dryRun first, confirm=\"yes\" when satisfied.",
     CreateDocumentPageInput,
     (input, client, config) => createDocumentPage(input, client, config)
   )
-  registerDestructive("clickup_update_doc_page", "Update a doc page.", UpdateDocPageInput, updateDocPage)
-  registerReadOnly("clickup_doc_search", "Search docs by keyword.", DocSearchInput, async (input, client, config) => {
-    const result = await docSearch(input, client, config)
-    return { docs: result.docs, expandedPages: result.expandedPages, guidance: result.guidance }
-  })
-  registerReadOnly("clickup_bulk_doc_search", "Bulk doc search.", BulkDocSearchInput, async (input, client, config) => {
-    const result = await bulkDocSearch(input, client, config)
-    return { queries: result }
-  })
+  registerDestructive(
+    "clickup_update_doc_page",
+    "Update doc page title/content; dryRun to review diff then confirm=\"yes\" to apply.",
+    UpdateDocPageInput,
+    updateDocPage
+  )
+  registerReadOnly(
+    "clickup_doc_search",
+    "Search doc content by query with optional expandPages flag to include snippets; adjust limit for token control.",
+    DocSearchInput,
+    async (input, client, config) => {
+      const result = await docSearch(input, client, config)
+      return { docs: result.docs, expandedPages: result.expandedPages, guidance: result.guidance }
+    }
+  )
+  registerReadOnly(
+    "clickup_bulk_doc_search",
+    "Batch doc keyword searches; provide queries[] and limit/expandPages to balance recall with response size.",
+    BulkDocSearchInput,
+    async (input, client, config) => {
+      const result = await bulkDocSearch(input, client, config)
+      return { queries: result }
+    }
+  )
 
   // Time tracking
-  registerDestructive("clickup_start_timer", "Start a task timer.", StartTimerInput, startTimer)
-  registerDestructive("clickup_stop_timer", "Stop a task timer.", StopTimerInput, stopTimer)
-  registerDestructive("clickup_create_time_entry", "Create a manual time entry.", CreateTimeEntryInput, createTimeEntry)
-  registerDestructive("clickup_update_time_entry", "Update a time entry.", UpdateTimeEntryInput, updateTimeEntry)
-  registerDestructive("clickup_delete_time_entry", "Delete a time entry.", DeleteTimeEntryInput, deleteTimeEntry)
+  registerDestructive(
+    "clickup_start_timer",
+    "Start a timer on taskId; use dryRun to inspect the would-be entry, confirm=\"yes\" to activate.",
+    StartTimerInput,
+    startTimer
+  )
+  registerDestructive(
+    "clickup_stop_timer",
+    "Stop the running timer for taskId; dryRun confirms context before confirm=\"yes\" halts it.",
+    StopTimerInput,
+    stopTimer
+  )
+  registerDestructive(
+    "clickup_create_time_entry",
+    "Create manual time entry for taskId with start/end/duration/description; dryRun preview then confirm=\"yes\".",
+    CreateTimeEntryInput,
+    createTimeEntry
+  )
+  registerDestructive(
+    "clickup_update_time_entry",
+    "Update time entry fields by entryId (start/end/duration/description); dryRun first, confirm=\"yes\" to apply.",
+    UpdateTimeEntryInput,
+    updateTimeEntry
+  )
+  registerDestructive(
+    "clickup_delete_time_entry",
+    "Delete a time entry by entryId; review dryRun confirmation then send confirm=\"yes\".",
+    DeleteTimeEntryInput,
+    deleteTimeEntry
+  )
 
   registerReadOnly(
     "clickup_get_task_time_entries",
-    "Fetch recent time entries for a task with token-aware truncation.",
+    "Fetch recent time entries for taskId; response includes totals, truncated flag, and guidance for next steps.",
     GetTaskTimeEntriesInput,
     async (input, client) => {
       const result = await getTaskTimeEntries(input, client)
@@ -604,7 +692,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   registerReadOnly(
     "clickup_get_current_time_entry",
-    "Retrieve the currently running time entry for a workspace.",
+    "Retrieve currently running timer for optional teamId; includes guidance when nothing active.",
     GetCurrentTimeEntryInput,
     async (input, client, config) => {
       const result = await getCurrentTimeEntry(input, client, config)
@@ -617,11 +705,31 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     }
   )
 
-  registerReadOnly("clickup_list_time_entries", "List time entries.", ListTimeEntriesInput, async (input, client, config) => {
-    const result = await listTimeEntries(input, client, config)
-    return { entries: result.entries, truncated: result.truncated }
-  })
-  registerReadOnly("clickup_report_time_for_tag", "Report time by tag.", ReportTimeForTagInput, reportTimeForTag)
-  registerReadOnly("clickup_report_time_for_container", "Report time by container.", ReportTimeForContainerInput, reportTimeForContainer)
-  registerReadOnly("clickup_report_time_for_space_tag", "Report time for a tag within a space.", ReportTimeForSpaceTagInput, reportTimeForSpaceTag)
+  registerReadOnly(
+    "clickup_list_time_entries",
+    "List time entries filtered by taskId/date range with pagination; truncated flag signals when to narrow the window.",
+    ListTimeEntriesInput,
+    async (input, client, config) => {
+      const result = await listTimeEntries(input, client, config)
+      return { entries: result.entries, truncated: result.truncated }
+    }
+  )
+  registerReadOnly(
+    "clickup_report_time_for_tag",
+    "Aggregate logged time for a tag across optional from/to window.",
+    ReportTimeForTagInput,
+    reportTimeForTag
+  )
+  registerReadOnly(
+    "clickup_report_time_for_container",
+    "Aggregate time for containerId (list/folder/space) within optional date bounds.",
+    ReportTimeForContainerInput,
+    reportTimeForContainer
+  )
+  registerReadOnly(
+    "clickup_report_time_for_space_tag",
+    "Aggregate time for a tag scoped to spaceId, honouring optional from/to filters.",
+    ReportTimeForSpaceTagInput,
+    reportTimeForSpaceTag
+  )
 }
