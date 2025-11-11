@@ -1,12 +1,20 @@
-export const readOnlyAnnotation = {
-  annotations: {
-    readOnlyHint: true,
-    destructive: false
+type AnnotationExtras = Record<string, string | boolean>
+
+function baseAnnotation(mode: "ro" | "mut", cat: string, intent: string, extras: AnnotationExtras = {}) {
+  return {
+    annotations: {
+      mode,
+      cat,
+      intent,
+      ...extras
+    }
   }
 }
 
-export const destructiveAnnotation = {
-  annotations: {
-    destructive: true
-  }
+export function readOnlyAnnotation(cat: string, intent: string, extras: AnnotationExtras = {}) {
+  return baseAnnotation("ro", cat, intent, extras)
+}
+
+export function destructiveAnnotation(cat: string, intent: string, extras: AnnotationExtras = {}) {
+  return baseAnnotation("mut", cat, intent, { confirm: "dryRun+confirm=yes", ...extras })
 }
