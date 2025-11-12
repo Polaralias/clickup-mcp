@@ -547,14 +547,14 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   )
   registerDestructive(
     "clickup_move_task",
-    "Move a task to another list. POST /task/{task_id}/list/{list_id}",
+    "Move a task to another list. PUT /task/{task_id} (fallback POST /task/{task_id}/list/{list_id})",
     MoveTaskInput,
     async (input, client) => moveTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "move task", { scope: "task", input: "taskId+listId", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_move_tasks_bulk",
-    "Bulk move tasks. POST /task/move/bulk",
+    "Bulk move tasks via per-task PUT /task/{task_id} requests (fallback POST /task/{task_id}/list/{list_id})",
     MoveTasksBulkInput,
     async (input, client, config) => moveTasksBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk move", { scope: "task", input: "tasks[]", dry: true })

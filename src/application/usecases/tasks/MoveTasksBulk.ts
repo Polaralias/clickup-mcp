@@ -1,8 +1,7 @@
 import { z } from "zod"
 import { MoveTasksBulkInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
-import { moveTask } from "./MoveTask.js"
-import { formatError, runBulk, summariseBulk } from "./bulkShared.js"
+import { summariseBulk } from "./bulkShared.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
@@ -30,50 +29,47 @@ export async function moveTasksBulk(
   catalogue?: TaskCatalogue
 ) {
   const moves = normaliseMoves(input)
-  const outcomes = await runBulk(moves, async (move) => {
-    const payloadBase = {
-      taskId: move.taskId,
-      listId: move.listId,
-      preview: undefined as Record<string, unknown> | undefined,
-      status: undefined as string | undefined
-    }
-    const resultInput = {
-      taskId: move.taskId,
-      listId: move.listId,
-      dryRun: input.dryRun ?? false,
-      confirm: "yes" as const
-    }
+  if (input.dryRun) {
+    const previewOutcomes = moves.map((move, index) => ({
+      index,
+      status: "success" as const,
+      payload: {
+        taskId: move.taskId,
+        listId: move.listId,
+        preview: { taskId: move.taskId, targetListId: move.listId }
+      }
+    }))
+    return summariseBulk(previewOutcomes, {
+      dryRun: true,
+      concurrency: CONCURRENCY_LIMIT,
+      teamId: input.teamId
+    })
+  }
 
-    try {
-      const result = await moveTask(resultInput, client, catalogue)
-      if (input.dryRun) {
-        return {
-          success: true as const,
-          payload: {
-            ...payloadBase,
-            preview: result.preview
-          }
-        }
-      }
+  const results = await client.moveTasksBulk(moves, { concurrency: CONCURRENCY_LIMIT })
 
-      return {
-        success: true as const,
-        payload: {
-          ...payloadBase,
-          status: result.status,
-          preview: undefined
-        }
-      }
-    } catch (error) {
-      return {
-        success: false as const,
-        payload: {
-          ...payloadBase
-        },
-        error: formatError(error)
-      }
+  let invalidatedSearch = false
+  results.forEach((result) => {
+    if (result.success) {
+      catalogue?.invalidateTask(result.taskId)
+      catalogue?.invalidateList(result.listId)
+      invalidatedSearch = true
     }
-  }, CONCURRENCY_LIMIT)
+  })
+  if (invalidatedSearch) {
+    catalogue?.invalidateSearch()
+  }
+
+  const outcomes = results.map((result, index) => ({
+    index,
+    status: result.success ? ("success" as const) : ("failed" as const),
+    payload: {
+      taskId: result.taskId,
+      listId: result.listId,
+      status: result.success ? "moved" : undefined
+    },
+    error: result.success ? undefined : result.error
+  }))
 
   return summariseBulk(outcomes, {
     dryRun: input.dryRun ?? false,
