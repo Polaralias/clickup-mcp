@@ -1,6 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest"
 
-import { ClickUpClient, ClickUpMembersFallbackError } from "../ClickUpClient.js"
+import {
+  ClickUpClient,
+  ClickUpMembersFallbackError,
+  ClickUpRequestError
+} from "../ClickUpClient.js"
 
 describe("ClickUpClient", () => {
   const originalFetch = globalThis.fetch
@@ -115,15 +119,20 @@ describe("ClickUpClient", () => {
     expect(calledUrls.filter((url) => url.endsWith("/task/task-2")).length).toBeGreaterThanOrEqual(1)
     const methods = fetchMock.mock.calls.map(([, init]) => init?.method)
     expect(methods.every((method) => method === "PUT")).toBe(true)
-    expect(results).toEqual([
-      { success: true, taskId: "task-1", listId: "list-1" },
-      {
-        success: false,
-        taskId: "task-2",
-        listId: "list-2",
-        error: "ClickUp 500: boom"
+    expect(results[0]).toEqual({ success: true, taskId: "task-1", listId: "list-1" })
+    expect(results[1]).toMatchObject({
+      success: false,
+      taskId: "task-2",
+      listId: "list-2",
+      error: {
+        message: "ClickUp 500: boom",
+        statusCode: 500
       }
-    ])
+    })
+    expect(results[1].error.upstream).toMatchObject({
+      statusCode: 500,
+      request: { method: "PUT" }
+    })
   })
 
   it("hits the member listing endpoint", async () => {
@@ -261,5 +270,84 @@ describe("ClickUpClient", () => {
     const [url, init] = fetchMock.mock.calls[0]
     expect(String(url)).toContain("/team/321/time_entries/timer-1")
     expect(init?.method).toBe("DELETE")
+  })
+
+  it("annotates status validation errors with a statuses[] hint", async () => {
+    const client = new ClickUpClient("token")
+
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: vi.fn().mockResolvedValue(
+        JSON.stringify({ err: { message: "Statuses must be an array" } })
+      ),
+      json: vi.fn()
+    })
+
+    let captured: unknown
+    await expect(
+      client.searchTasks("team-1", { statuses: "open" }).catch((error) => {
+        captured = error
+        throw error
+      })
+    ).rejects.toBeInstanceOf(ClickUpRequestError)
+
+    const clickUpError = captured as ClickUpRequestError
+    expect(clickUpError.statusCode).toBe(400)
+    expect(clickUpError.hint).toContain("statuses[]")
+    expect(clickUpError.upstream.request.path).toContain("task")
+  })
+
+  it("adds a timestamp hint when time entry dates are rejected", async () => {
+    const client = new ClickUpClient("token")
+
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: vi.fn().mockResolvedValue(
+        JSON.stringify({ err: { message: "start date is invalid" } })
+      ),
+      json: vi.fn()
+    })
+
+    let captured: unknown
+    await expect(
+      client.createTimeEntry("task-1", { start: "yesterday" }).catch((error) => {
+        captured = error
+        throw error
+      })
+    ).rejects.toBeInstanceOf(ClickUpRequestError)
+
+    const clickUpError = captured as ClickUpRequestError
+    expect(clickUpError.statusCode).toBe(400)
+    expect(clickUpError.hint).toContain("timestamps")
+    expect(clickUpError.upstream.request.path).toContain("time")
+  })
+
+  it("suggests capability tooling when doc routes are unsupported", async () => {
+    const client = new ClickUpClient("token")
+
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ message: "not found" })),
+      json: vi.fn()
+    })
+
+    let captured: unknown
+    await expect(
+      client.listDocuments("team-1").catch((error) => {
+        captured = error
+        throw error
+      })
+    ).rejects.toBeInstanceOf(ClickUpRequestError)
+
+    const clickUpError = captured as ClickUpRequestError
+    expect(clickUpError.statusCode).toBe(404)
+    expect(clickUpError.hint).toMatch(/capability/i)
+    expect(clickUpError.upstream.request.path).toContain("doc")
   })
 })

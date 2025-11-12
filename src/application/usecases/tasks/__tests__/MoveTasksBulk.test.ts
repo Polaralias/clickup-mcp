@@ -82,7 +82,10 @@ describe("moveTasksBulk", () => {
       index: 1,
       taskId: "task-456",
       listId: "list-123",
-      error: "ClickUp 500: boom"
+      error: {
+        message: "ClickUp 500: boom",
+        statusCode: 500
+      }
     })
   })
 })
