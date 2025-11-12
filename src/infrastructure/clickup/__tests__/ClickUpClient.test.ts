@@ -22,14 +22,93 @@ describe("ClickUpClient", () => {
     vi.restoreAllMocks()
   })
 
-  it("uses POST when moving a task", async () => {
+  it("uses PUT when moving a task", async () => {
     const client = new ClickUpClient("token")
 
     await client.moveTask("task-123", "list-456")
 
     expect(fetchMock).toHaveBeenCalled()
     const [, init] = fetchMock.mock.calls[0]
-    expect(init?.method).toBe("POST")
+    expect(init?.method).toBe("PUT")
+    expect(init?.body).toBe(JSON.stringify({ list: "list-456" }))
+  })
+
+  it("falls back to POST when PUT is not available", async () => {
+    const client = new ClickUpClient("token")
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        headers: new Headers({ "content-type": "application/json" }),
+        text: vi.fn().mockResolvedValue(JSON.stringify({ message: "not found" })),
+        json: vi.fn()
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        headers: new Headers(),
+        text: vi.fn(),
+        json: vi.fn()
+      })
+
+    await client.moveTask("task-123", "list-456")
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const [firstUrl, firstInit] = fetchMock.mock.calls[0]
+    expect(String(firstUrl)).toContain("/task/task-123")
+    expect(firstInit?.method).toBe("PUT")
+    const [secondUrl, secondInit] = fetchMock.mock.calls[1]
+    expect(String(secondUrl)).toContain("/task/task-123/list/list-456")
+    expect(secondInit?.method).toBe("POST")
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Falling back to deprecated POST")
+    )
+  })
+
+  it("moves multiple tasks via per-task PUT requests", async () => {
+    const client = new ClickUpClient("token")
+
+    const makeFailureResponse = () => ({
+      ok: false,
+      status: 500,
+      headers: new Headers(),
+      text: vi.fn().mockResolvedValue("boom"),
+      json: vi.fn()
+    })
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        headers: new Headers(),
+        text: vi.fn(),
+        json: vi.fn()
+      })
+      .mockResolvedValueOnce(makeFailureResponse())
+      .mockResolvedValueOnce(makeFailureResponse())
+      .mockResolvedValueOnce(makeFailureResponse())
+      .mockResolvedValueOnce(makeFailureResponse())
+
+    const results = await client.moveTasksBulk([
+      { taskId: "task-1", listId: "list-1" },
+      { taskId: "task-2", listId: "list-2" }
+    ])
+
+    const calledUrls = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(calledUrls.filter((url) => url.endsWith("/task/task-1"))).toHaveLength(1)
+    expect(calledUrls.filter((url) => url.endsWith("/task/task-2")).length).toBeGreaterThanOrEqual(1)
+    const methods = fetchMock.mock.calls.map(([, init]) => init?.method)
+    expect(methods.every((method) => method === "PUT")).toBe(true)
+    expect(results).toEqual([
+      { success: true, taskId: "task-1", listId: "list-1" },
+      {
+        success: false,
+        taskId: "task-2",
+        listId: "list-2",
+        error: "ClickUp 500: boom"
+      }
+    ])
   })
 
   it("hits the member listing endpoint", async () => {
