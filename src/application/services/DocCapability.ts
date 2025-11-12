@@ -1,4 +1,7 @@
-import type { ClickUpClient } from "../../infrastructure/clickup/ClickUpClient.js"
+import {
+  ClickUpRequestError,
+  type ClickUpClient
+} from "../../infrastructure/clickup/ClickUpClient.js"
 import { CapabilityTracker, type DocsEndpointCapability } from "./CapabilityTracker.js"
 
 export type DocCapabilityError = {
@@ -20,6 +23,10 @@ export class DocsCapabilityUnavailableError extends Error {
 }
 
 function extractStatus(error: unknown): number | undefined {
+  if (error instanceof ClickUpRequestError) {
+    return error.statusCode
+  }
+
   if (!(error instanceof Error)) {
     return undefined
   }
@@ -32,6 +39,14 @@ function extractStatus(error: unknown): number | undefined {
 }
 
 function extractDiagnostics(error: unknown): string | undefined {
+  if (error instanceof ClickUpRequestError) {
+    const parts = [`status=${error.statusCode}`]
+    if (error.ecode) {
+      parts.push(`code=${error.ecode}`)
+    }
+    return parts.join(" ")
+  }
+
   const status = extractStatus(error)
   if (!status) {
     return undefined

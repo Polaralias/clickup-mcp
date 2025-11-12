@@ -21,7 +21,15 @@ export type ClickUpMemberListing = {
   diagnostics?: string
 }
 
-function parseClickUpError(error: Error): ParsedClickUpError | undefined {
+function parseClickUpError(error: unknown): ParsedClickUpError | undefined {
+  if (error instanceof ClickUpRequestError) {
+    return { status: error.statusCode, body: error.upstream.body }
+  }
+
+  if (!(error instanceof Error)) {
+    return undefined
+  }
+
   const match = error.message.match(/^ClickUp (\d+):\s*(.+)$/s)
   if (!match) {
     return undefined
@@ -40,20 +48,6 @@ function parseClickUpError(error: Error): ParsedClickUpError | undefined {
   return { status, body: parsedBody }
 }
 
-function formatUnknownError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === "string") {
-    return error
-  }
-  try {
-    return JSON.stringify(error)
-  } catch {
-    return "Unknown error"
-  }
-}
-
 function extractErrorCode(body: unknown): string | undefined {
   if (!body || typeof body !== "object") {
     return undefined
@@ -65,6 +59,80 @@ function extractErrorCode(body: unknown): string | undefined {
   }
 
   return withErr.code
+}
+
+function extractErrorMessage(body: unknown): string | undefined {
+  if (!body) {
+    return undefined
+  }
+
+  if (typeof body === "string") {
+    return body
+  }
+
+  if (typeof body === "object") {
+    const candidate = body as { err?: { message?: string }; message?: string; error?: string }
+    return candidate.err?.message ?? candidate.message ?? candidate.error
+  }
+
+  return undefined
+}
+
+function serialiseForHint(body: unknown): string | undefined {
+  if (body === undefined || body === null) {
+    return undefined
+  }
+
+  if (typeof body === "string") {
+    return body
+  }
+
+  if (typeof body === "object") {
+    try {
+      return JSON.stringify(body)
+    } catch {
+      return undefined
+    }
+  }
+
+  return String(body)
+}
+
+function deriveHint({
+  path,
+  statusCode,
+  body
+}: {
+  path: string
+  statusCode: number
+  body: unknown
+}): string | undefined {
+  const bodyText = serialiseForHint(body)?.toLowerCase() ?? ""
+  const messageText = extractErrorMessage(body)?.toLowerCase() ?? bodyText
+
+  if (
+    statusCode === 400 &&
+    (bodyText.includes("statuses") || messageText.includes("statuses"))
+  ) {
+    return "ClickUp expects the statuses[] query parameter to be an array of status names. Provide statuses[] entries instead of a single value."
+  }
+
+  if (
+    statusCode === 400 &&
+    /time/.test(path) &&
+    (bodyText.includes("date") || messageText.includes("date") || messageText.includes("time"))
+  ) {
+    return "Check the start and end timestamps sent to ClickUp. Provide ISO 8601 strings or epoch milliseconds in the workspace timezone."
+  }
+
+  if (
+    statusCode === 404 &&
+    (/\/doc\b/.test(path) || /\/view\b/.test(path) || path.includes("capability"))
+  ) {
+    return "This ClickUp workspace may not support that capability. Use the capability tools to confirm availability or upgrade the workspace plan."
+  }
+
+  return undefined
 }
 
 function normaliseId(value: unknown): string | undefined {
@@ -82,6 +150,98 @@ function truncate(value: string, maxLength = 400) {
     return value
   }
   return `${value.slice(0, maxLength)}…`
+}
+
+export type ClickUpErrorUpstream = {
+  statusCode: number
+  body: unknown
+  rawBody: string
+  headers: Record<string, string>
+  request: {
+    method: string
+    path: string
+  }
+}
+
+export type ClickUpRequestErrorShape = {
+  statusCode: number
+  ecode?: string
+  message: string
+  hint?: string
+  upstream: ClickUpErrorUpstream
+}
+
+export class ClickUpRequestError extends Error implements ClickUpRequestErrorShape {
+  readonly statusCode: number
+  readonly ecode?: string
+  readonly hint?: string
+  readonly upstream: ClickUpErrorUpstream
+
+  constructor({ statusCode, ecode, message, hint, upstream }: ClickUpRequestErrorShape) {
+    super(message)
+    this.name = "ClickUpRequestError"
+    this.statusCode = statusCode
+    this.ecode = ecode
+    this.hint = hint
+    this.upstream = upstream
+  }
+
+  toJSON(): ClickUpRequestErrorShape {
+    return {
+      statusCode: this.statusCode,
+      ecode: this.ecode,
+      message: this.message,
+      hint: this.hint,
+      upstream: this.upstream
+    }
+  }
+}
+
+export type NormalisedClickUpError = {
+  statusCode?: number
+  ecode?: string
+  message: string
+  hint?: string
+  upstream?: ClickUpErrorUpstream
+}
+
+export function normaliseClickUpError(error: unknown): NormalisedClickUpError {
+  if (error instanceof ClickUpRequestError) {
+    return error.toJSON()
+  }
+
+  if (error && typeof error === "object") {
+    const candidate = error as {
+      statusCode?: number
+      ecode?: string
+      message?: string
+      hint?: string
+      upstream?: ClickUpErrorUpstream
+    }
+    if (typeof candidate.message === "string") {
+      return {
+        statusCode: candidate.statusCode,
+        ecode: candidate.ecode,
+        message: candidate.message,
+        hint: candidate.hint,
+        upstream: candidate.upstream
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    return { message: error.message }
+  }
+
+  if (typeof error === "string") {
+    return { message: error }
+  }
+
+  try {
+    return { message: JSON.stringify(error) }
+  } catch {
+    return { message: "Unknown error" }
+  }
 }
 
 export class ClickUpMembersFallbackError extends Error {
@@ -105,7 +265,7 @@ type RequestOptions = {
 
 export type MoveTaskBulkOutcome =
   | { success: true; taskId: string; listId: string }
-  | { success: false; taskId: string; listId: string; error: string }
+  | { success: false; taskId: string; listId: string; error: NormalisedClickUpError }
 
 export class ClickUpClient {
   constructor(private readonly token: string) {
@@ -134,8 +294,10 @@ export class ClickUpClient {
       })
     }
 
+    const method = options.method ?? "GET"
+
     const response = await fetch(url, {
-      method: options.method ?? "GET",
+      method,
       headers: {
         Authorization: this.token,
         "Content-Type": "application/json",
@@ -150,8 +312,36 @@ export class ClickUpClient {
         await delay(2 ** attempt * 250)
         return this.request(path, options, attempt + 1)
       }
-      const errorBody = await response.text()
-      throw new Error(`ClickUp ${response.status}: ${errorBody}`)
+      const rawBody = await response.text()
+      let parsedBody: unknown = rawBody
+
+      if (rawBody) {
+        try {
+          parsedBody = JSON.parse(rawBody)
+        } catch {
+          parsedBody = rawBody
+        }
+      }
+
+      const headers = Object.fromEntries(response.headers.entries())
+      const statusCode = response.status
+      const message = `ClickUp ${statusCode}: ${rawBody}`
+      const ecode = extractErrorCode(parsedBody)
+      const hint = deriveHint({ path, statusCode, body: parsedBody })
+
+      throw new ClickUpRequestError({
+        statusCode,
+        ecode,
+        message,
+        hint,
+        upstream: {
+          statusCode,
+          body: parsedBody,
+          rawBody,
+          headers,
+          request: { method, path }
+        }
+      })
     }
 
     if (response.status === 204) {
@@ -590,7 +780,7 @@ export class ClickUpClient {
             success: false as const,
             taskId: move.taskId,
             listId: move.listId,
-            error: formatUnknownError(error)
+            error: normaliseClickUpError(error)
           }
         }
       }

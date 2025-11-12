@@ -1,33 +1,27 @@
 import { BulkProcessor } from "../../services/BulkProcessor.js"
+import {
+  normaliseClickUpError,
+  type NormalisedClickUpError
+} from "../../../infrastructure/clickup/ClickUpClient.js"
 
 export type BulkWorker<TInput, TPayload extends Record<string, unknown>> = (
   item: TInput
 ) => Promise<
   | { success: true; payload: TPayload }
-  | { success: false; payload: TPayload; error: string }
+  | { success: false; payload: TPayload; error: NormalisedClickUpError }
 >
 
 export type BulkOutcome<TPayload extends Record<string, unknown>> = {
   index: number
   status: "success" | "failed"
   payload: TPayload
-  error?: string
+  error?: NormalisedClickUpError
 }
 
 const RESULT_PREVIEW_LIMIT = 20
 
-export function formatError(error: unknown) {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === "string") {
-    return error
-  }
-  try {
-    return JSON.stringify(error)
-  } catch (err) {
-    return "Unknown error"
-  }
+export function formatError(error: unknown): NormalisedClickUpError {
+  return normaliseClickUpError(error)
 }
 
 export async function runBulk<TInput, TPayload extends Record<string, unknown>>(
