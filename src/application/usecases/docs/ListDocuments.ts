@@ -3,6 +3,8 @@ import { ListDocumentsInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
+import { CapabilityTracker } from "../../services/CapabilityTracker.js"
+import { runWithDocsCapability, type DocCapabilityError } from "../../services/DocCapability.js"
 import {
   buildDocumentSummary,
   buildPageEntries,
@@ -26,6 +28,8 @@ type Result = {
   truncated: boolean
   guidance?: string
 }
+
+type ListDocumentsOutcome = Result | DocCapabilityError
 
 type Filters = Record<string, string | number | boolean | undefined>
 
@@ -60,55 +64,58 @@ function buildDocEntry(
 export async function listDocuments(
   input: Input,
   client: ClickUpClient,
-  config: ApplicationConfig
-): Promise<Result> {
+  config: ApplicationConfig,
+  capabilityTracker: CapabilityTracker
+): Promise<ListDocumentsOutcome> {
   const workspaceId = resolveWorkspaceId(
     input.workspaceId,
     config,
     "teamId is required to list docs"
   )
-  const filters = buildFilters(input)
-  const response = await client.listDocuments(workspaceId, filters)
-  const docs = Array.isArray(response?.docs) ? response.docs : Array.isArray(response) ? response : []
-  const limitedDocs = docs.slice(0, input.limit)
+  return runWithDocsCapability(workspaceId, client, capabilityTracker, async () => {
+    const filters = buildFilters(input)
+    const response = await client.listDocuments(workspaceId, filters)
+    const docs = Array.isArray(response?.docs) ? response.docs : Array.isArray(response) ? response : []
+    const limitedDocs = docs.slice(0, input.limit)
 
-  const previewLimit = resolvePreviewLimit(config, input.previewCharLimit)
-  const includePreviews = input.includePreviews ?? true
+    const previewLimit = resolvePreviewLimit(config, input.previewCharLimit)
+    const includePreviews = input.includePreviews ?? true
 
-  const processor = new BulkProcessor<DocRecord, DocEntry>(resolveConcurrency())
-  const entries = await processor.run(limitedDocs as DocRecord[], async (doc) => {
-    const docId = extractDocId(doc)
-    const pagesResponse = await client.listDocPages(docId)
-    const metadata = Array.isArray(pagesResponse?.pages)
-      ? (pagesResponse.pages as Record<string, unknown>[])
-      : []
-    const limitedMetadata = includePreviews
-      ? metadata.slice(0, input.previewPageLimit)
-      : []
-    const previewIds = includePreviews
-      ? limitedMetadata
-          .map((pageRecord) => extractPageId(pageRecord))
-          .filter((value): value is string => Boolean(value))
-      : []
-    const detailed = includePreviews ? await fetchPages(client, docId, previewIds) : []
-    const entries = includePreviews
-      ? buildPageEntries(
-          limitedMetadata,
-          detailed,
-          previewLimit
-        )
-      : []
-    return buildDocEntry(doc, metadata, entries)
+    const processor = new BulkProcessor<DocRecord, DocEntry>(resolveConcurrency())
+    const entries = await processor.run(limitedDocs as DocRecord[], async (doc) => {
+      const docId = extractDocId(doc)
+      const pagesResponse = await client.listDocPages(docId)
+      const metadata = Array.isArray(pagesResponse?.pages)
+        ? (pagesResponse.pages as Record<string, unknown>[])
+        : []
+      const limitedMetadata = includePreviews
+        ? metadata.slice(0, input.previewPageLimit)
+        : []
+      const previewIds = includePreviews
+        ? limitedMetadata
+            .map((pageRecord) => extractPageId(pageRecord))
+            .filter((value): value is string => Boolean(value))
+        : []
+      const detailed = includePreviews ? await fetchPages(client, docId, previewIds) : []
+      const entries = includePreviews
+        ? buildPageEntries(
+            limitedMetadata,
+            detailed,
+            previewLimit
+          )
+        : []
+      return buildDocEntry(doc, metadata, entries)
+    })
+
+    const truncated = entries.some((entry) => entry.summary.truncated)
+    const guidance = entries.length === 0
+      ? "No docs matched. Adjust search terms or hierarchy filters."
+      : "Chain clickup_get_document for a specific doc or clickup_get_document_pages to expand individual pages before editing."
+
+    return {
+      documents: entries.map((entry) => ({ doc: entry.doc, summary: entry.summary })),
+      truncated,
+      guidance
+    }
   })
-
-  const truncated = entries.some((entry) => entry.summary.truncated)
-  const guidance = entries.length === 0
-    ? "No docs matched. Adjust search terms or hierarchy filters."
-    : "Chain clickup_get_document for a specific doc or clickup_get_document_pages to expand individual pages before editing."
-
-  return {
-    documents: entries.map((entry) => ({ doc: entry.doc, summary: entry.summary })),
-    truncated,
-    guidance
-  }
 }

@@ -138,6 +138,11 @@ import { HierarchyDirectory } from "../application/services/HierarchyDirectory.j
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
 import { CapabilityTracker } from "../application/services/CapabilityTracker.js"
+import {
+  ensureDocsCapability,
+  isDocCapabilityError,
+  isDocsCapabilityUnavailableError
+} from "../application/services/DocCapability.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -154,11 +159,17 @@ import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/
 
 type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
 
+type CatalogueEntryConfig = {
+  entry: ToolCatalogueEntry
+  requiresDocs?: boolean
+}
+
 type RegistrationOptions = {
   schema: z.ZodTypeAny | null
   description: string
   annotations?: Record<string, unknown>
   handler: ToolHandler
+  requiresDocs?: boolean
 }
 
 function unwrapToZodObject(schema: ZodTypeAny | null) {
@@ -186,7 +197,7 @@ function formatContent(payload: unknown) {
 }
 
 export function registerTools(server: McpServer, config: ApplicationConfig) {
-  const entries: ToolCatalogueEntry[] = []
+  const entries: CatalogueEntryConfig[] = []
 
   const createClient = () => new ClickUpClient(config.apiKey)
   const sessionHierarchyDirectory = new HierarchyDirectory()
@@ -197,12 +208,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   function registerClientTool(name: string, options: RegistrationOptions) {
     const jsonSchema = zodToJsonSchemaCompact(options.schema)
     const rawShape = toRawShape(options.schema)
-    entries.push({
+    const entry: ToolCatalogueEntry = {
       name,
       description: options.description,
       annotations: options.annotations,
       inputSchema: jsonSchema
-    })
+    }
+    entries.push({ entry, requiresDocs: options.requiresDocs })
     server.registerTool(
       name,
       {
@@ -219,16 +231,37 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     )
   }
 
+  async function resolveCatalogue(client: ClickUpClient) {
+    let docsAvailable = sessionCapabilityTracker.getDocsEndpoint(config.teamId)?.docsAvailable
+    if (docsAvailable === undefined) {
+      try {
+        await ensureDocsCapability(config.teamId, client, sessionCapabilityTracker)
+        docsAvailable = true
+      } catch (error) {
+        if (isDocsCapabilityUnavailableError(error)) {
+          docsAvailable = false
+        } else {
+          docsAvailable = undefined
+        }
+      }
+    }
+    return entries
+      .filter((entry) => !entry.requiresDocs || docsAvailable !== false)
+      .map((entry) => entry.entry)
+  }
+
   // System tools (no client)
   const pingSchema = z.object({ message: z.string().optional() })
   const pingAnnotation = readOnlyAnnotation("system", "echo", { scope: "connectivity", idempotent: true })
   const pingJsonSchema = zodToJsonSchemaCompact(pingSchema)
   const pingShape = toRawShape(pingSchema)
   entries.push({
-    name: "ping",
-    description: "Echo request for connectivity checks.",
-    annotations: pingAnnotation.annotations,
-    inputSchema: pingJsonSchema
+    entry: {
+      name: "ping",
+      description: "Echo request for connectivity checks.",
+      annotations: pingAnnotation.annotations,
+      inputSchema: pingJsonSchema
+    }
   })
   server.registerTool(
     "ping",
@@ -245,9 +278,11 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   const healthAnnotation = readOnlyAnnotation("system", "status", { scope: "server" })
   entries.push({
-    name: "health",
-    description: "Report server readiness and enforced safety limits.",
-    annotations: healthAnnotation.annotations
+    entry: {
+      name: "health",
+      description: "Report server readiness and enforced safety limits.",
+      annotations: healthAnnotation.annotations
+    }
   })
   server.registerTool(
     "health",
@@ -260,9 +295,11 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   const catalogueAnnotation = readOnlyAnnotation("system", "tool manifest", { scope: "server" })
   entries.push({
-    name: "tool_catalogue",
-    description: "Enumerate all available tools with their annotations.",
-    annotations: catalogueAnnotation.annotations
+    entry: {
+      name: "tool_catalogue",
+      description: "Enumerate all available tools with their annotations.",
+      annotations: catalogueAnnotation.annotations
+    }
   })
   server.registerTool(
     "tool_catalogue",
@@ -270,7 +307,28 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       description: "Enumerate all available tools with their annotations.",
       ...catalogueAnnotation
     },
-    async () => formatContent(await toolCatalogue(entries))
+    async () => {
+      const client = createClient()
+      const availableEntries = await resolveCatalogue(client)
+      return formatContent(await toolCatalogue(availableEntries))
+    }
+  )
+
+  const capabilityAnnotation = readOnlyAnnotation("system", "capability cache", { scope: "session" })
+  entries.push({
+    entry: {
+      name: "clickup_capabilities",
+      description: "Expose cached ClickUp capability probes for this session.",
+      annotations: capabilityAnnotation.annotations
+    }
+  })
+  server.registerTool(
+    "clickup_capabilities",
+    {
+      description: "Expose cached ClickUp capability probes for this session.",
+      ...capabilityAnnotation
+    },
+    async () => formatContent(sessionCapabilityTracker.snapshot())
   )
 
   const registerDestructive = (
@@ -278,11 +336,20 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     description: string,
     schema: z.ZodTypeAny,
     handler: ToolHandler,
-    annotation: ReturnType<typeof destructiveAnnotation>
+    annotation: ReturnType<typeof destructiveAnnotation>,
+    availability?: { requiresDocs?: boolean }
   ) => {
     const jsonSchema = zodToJsonSchemaCompact(schema)
     const rawShape = toRawShape(schema)
-    entries.push({ name, description, annotations: annotation.annotations, inputSchema: jsonSchema })
+    entries.push({
+      entry: {
+        name,
+        description,
+        annotations: annotation.annotations,
+        inputSchema: jsonSchema
+      },
+      requiresDocs: availability?.requiresDocs
+    })
     server.registerTool(
       name,
       {
@@ -304,13 +371,15 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     description: string,
     schema: z.ZodTypeAny | null,
     handler: ToolHandler,
-    annotation: ReturnType<typeof readOnlyAnnotation>
+    annotation: ReturnType<typeof readOnlyAnnotation>,
+    availability?: { requiresDocs?: boolean }
   ) => {
     registerClientTool(name, {
       description,
       schema,
       annotations: annotation.annotations,
-      handler
+      handler,
+      requiresDocs: availability?.requiresDocs
     })
   }
 
@@ -668,77 +737,93 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "clickup_create_doc",
     "Create a document in a folder. POST /folder/{folder_id}/doc",
     CreateDocInput,
-    createDoc,
-    destructiveAnnotation("doc", "create doc", { scope: "folder", input: "folderId", dry: true })
+    async (input, client, config) => createDoc(input, client, config, sessionCapabilityTracker),
+    destructiveAnnotation("doc", "create doc", { scope: "folder", input: "folderId", dry: true }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_list_documents",
     "List documents with filters. GET /team/{team_id}/doc",
     ListDocumentsInput,
-    (input, client, config) => listDocuments(input, client, config),
-    readOnlyAnnotation("doc", "doc list", { scope: "workspace", input: "filters" })
+    (input, client, config) => listDocuments(input, client, config, sessionCapabilityTracker),
+    readOnlyAnnotation("doc", "doc list", { scope: "workspace", input: "filters" }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_get_document",
     "Fetch document metadata and pages. GET /team/{team_id}/doc/{doc_id}",
     GetDocumentInput,
-    (input, client, config) => getDocument(input, client, config),
-    readOnlyAnnotation("doc", "doc fetch", { scope: "doc", input: "docId", limit: "previewCharLimit" })
+    (input, client, config) => getDocument(input, client, config, sessionCapabilityTracker),
+    readOnlyAnnotation("doc", "doc fetch", { scope: "doc", input: "docId", limit: "previewCharLimit" }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_get_document_pages",
     "Fetch selected document pages. POST /doc/{doc_id}/page/bulk",
     GetDocumentPagesInput,
-    (input, client, config) => getDocumentPages(input, client, config),
-    readOnlyAnnotation("doc", "doc pages fetch", { scope: "doc", input: "docId+pageIds", limit: "previewCharLimit" })
+    (input, client, config) => getDocumentPages(input, client, config, sessionCapabilityTracker),
+    readOnlyAnnotation("doc", "doc pages fetch", { scope: "doc", input: "docId+pageIds", limit: "previewCharLimit" }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_list_doc_pages",
     "List page hierarchy for a document. GET /doc/{doc_id}/page",
     ListDocPagesInput,
-    listDocPages,
-    readOnlyAnnotation("doc", "doc page list", { scope: "doc", input: "docId" })
+    (input, client, config) => listDocPages(input, client, config, sessionCapabilityTracker),
+    readOnlyAnnotation("doc", "doc page list", { scope: "doc", input: "docId" }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_get_doc_page",
     "Fetch a single document page. GET /doc/{doc_id}/page/{page_id}",
     GetDocPageInput,
-    getDocPage,
-    readOnlyAnnotation("doc", "doc page fetch", { scope: "doc", input: "docId+pageId" })
+    (input, client, config) => getDocPage(input, client, config, sessionCapabilityTracker),
+    readOnlyAnnotation("doc", "doc page fetch", { scope: "doc", input: "docId+pageId" }),
+    { requiresDocs: true }
   )
   registerDestructive(
     "clickup_create_document_page",
     "Create a document page. POST /doc/{doc_id}/page",
     CreateDocumentPageInput,
-    (input, client, config) => createDocumentPage(input, client, config),
-    destructiveAnnotation("doc", "create page", { scope: "doc", input: "docId", dry: true })
+    (input, client, config) => createDocumentPage(input, client, config, sessionCapabilityTracker),
+    destructiveAnnotation("doc", "create page", { scope: "doc", input: "docId", dry: true }),
+    { requiresDocs: true }
   )
   registerDestructive(
     "clickup_update_doc_page",
     "Update a document page. PUT /doc/{doc_id}/page/{page_id}",
     UpdateDocPageInput,
-    updateDocPage,
-    destructiveAnnotation("doc", "update page", { scope: "doc", input: "docId+pageId", dry: true, idempotent: true })
+    (input, client, config) => updateDocPage(input, client, config, sessionCapabilityTracker),
+    destructiveAnnotation("doc", "update page", { scope: "doc", input: "docId+pageId", dry: true, idempotent: true }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_doc_search",
     "Search document content. GET /team/{team_id}/doc",
     DocSearchInput,
     async (input, client, config) => {
-      const result = await docSearch(input, client, config)
+      const result = await docSearch(input, client, config, sessionCapabilityTracker)
+      if (isDocCapabilityError(result)) {
+        return result
+      }
       return { docs: result.docs, expandedPages: result.expandedPages, guidance: result.guidance }
     },
-    readOnlyAnnotation("doc", "doc search", { scope: "workspace", input: "query", option: "expandPages" })
+    readOnlyAnnotation("doc", "doc search", { scope: "workspace", input: "query", option: "expandPages" }),
+    { requiresDocs: true }
   )
   registerReadOnly(
     "clickup_bulk_doc_search",
     "Batch document searches. GET /team/{team_id}/doc",
     BulkDocSearchInput,
     async (input, client, config) => {
-      const result = await bulkDocSearch(input, client, config)
+      const result = await bulkDocSearch(input, client, config, sessionCapabilityTracker)
+      if (isDocCapabilityError(result)) {
+        return result
+      }
       return { queries: result }
     },
-    readOnlyAnnotation("doc", "doc search bulk", { scope: "workspace", input: "queries[]" })
+    readOnlyAnnotation("doc", "doc search bulk", { scope: "workspace", input: "queries[]" }),
+    { requiresDocs: true }
   )
 
   // Time tracking

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { ClickUpClient } from "../../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../../config/applicationConfig.js"
 import { docSearch } from "../DocSearch.js"
+import { CapabilityTracker } from "../../../services/CapabilityTracker.js"
 
 function createClient(overrides: Partial<ClickUpClient>): ClickUpClient {
   return overrides as unknown as ClickUpClient
@@ -27,10 +28,15 @@ describe("docSearch", () => {
         }
       })
 
-    const client = createClient({ searchDocs: searchDocsMock, listDocPages: vi.fn() })
+    const client = createClient({
+      searchDocs: searchDocsMock,
+      listDocPages: vi.fn(),
+      listDocuments: vi.fn().mockResolvedValue({ docs: [] })
+    })
     const config = { teamId: "team-1" } as ApplicationConfig
+    const tracker = new CapabilityTracker()
 
-    const result = await docSearch({ query: "guide", limit: 3, expandPages: false }, client, config)
+    const result = await docSearch({ query: "guide", limit: 3, expandPages: false }, client, config, tracker)
 
     expect(searchDocsMock).toHaveBeenCalledTimes(2)
     expect(result.docs.length).toBe(3)
@@ -56,10 +62,15 @@ describe("docSearch", () => {
       }))
       .mockImplementationOnce(() => ({ docs: [] }))
 
-    const client = createClient({ searchDocs: searchDocsMock, listDocPages: vi.fn() })
+    const client = createClient({
+      searchDocs: searchDocsMock,
+      listDocPages: vi.fn(),
+      listDocuments: vi.fn().mockResolvedValue({ docs: [] })
+    })
     const config = { teamId: "team-1" } as ApplicationConfig
+    const tracker = new CapabilityTracker()
 
-    const result = await docSearch({ query: "guide", limit: 3, expandPages: false }, client, config)
+    const result = await docSearch({ query: "guide", limit: 3, expandPages: false }, client, config, tracker)
 
     expect(searchDocsMock).toHaveBeenCalledTimes(2)
     expect(result.docs.map((doc) => doc.id)).toEqual(["doc-1", "doc-2", "doc-3"])
