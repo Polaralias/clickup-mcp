@@ -627,10 +627,10 @@ export class ClickUpClient {
     })
   }
 
-  listTimeEntries(teamId: string, query: Record<string, unknown>) {
+  listTimeEntries(teamId: string, query: SearchParams) {
     return this.request(`team/${teamId}/time_entries`, {
       method: "GET",
-      searchParams: query as Record<string, string>
+      searchParams: query
     })
   }
 
@@ -638,10 +638,10 @@ export class ClickUpClient {
     return this.request(`team/${teamId}/time_entries/current`)
   }
 
-  reportTime(path: string, query: Record<string, unknown>) {
+  reportTime(path: string, query: SearchParams) {
     return this.request(path, {
       method: "GET",
-      searchParams: query as Record<string, string>
+      searchParams: query
     })
   }
 }

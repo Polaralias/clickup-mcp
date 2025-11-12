@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
+import { toEpochMilliseconds } from "../../shared/time.js"
 
 const Id = z.coerce.string().describe("ClickUp identifier; numeric string accepted.")
 const RequiredId = z.coerce
@@ -54,16 +55,28 @@ export const DeleteTimeEntryInput = SafetyInput.extend({
   teamId: Id.describe("Workspace/team owning the time entry.").optional()
 })
 
+const TimeBoundary = z
+  .union([z.string(), z.number()])
+  .superRefine((value, ctx) => {
+    try {
+      const label = typeof ctx.path.at(-1) === "string" ? ctx.path.at(-1) : "timestamp"
+      toEpochMilliseconds(value, label)
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: error instanceof Error ? error.message : "Invalid timestamp boundary."
+      })
+    }
+  })
+
 export const ListTimeEntriesInput = z.object({
   taskId: Id.describe("Filter to entries for this task ID.").optional(),
-  from: z
-    .string()
-    .describe("Inclusive ISO start boundary.")
-    .optional(),
-  to: z
-    .string()
-    .describe("Exclusive ISO end boundary.")
-    .optional(),
+  from: TimeBoundary.describe(
+    "Inclusive start boundary as ISO 8601 string or epoch seconds/milliseconds."
+  ).optional(),
+  to: TimeBoundary.describe(
+    "Exclusive end boundary as ISO 8601 string or epoch seconds/milliseconds."
+  ).optional(),
   page: z
     .number()
     .int()
