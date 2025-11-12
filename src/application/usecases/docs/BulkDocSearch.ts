@@ -3,7 +3,9 @@ import { BulkDocSearchInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
+import { CapabilityTracker } from "../../services/CapabilityTracker.js"
 import { docSearch } from "./DocSearch.js"
+import { isDocCapabilityError, type DocCapabilityError } from "../../services/DocCapability.js"
 
 const DEFAULT_CONCURRENCY = 5
 
@@ -16,15 +18,30 @@ type Result = Array<{
   guidance?: string
 }>
 
+type BulkDocSearchOutcome = Result | DocCapabilityError
+
 function resolveConcurrency() {
   const limit = Number(process.env.MAX_BULK_CONCURRENCY ?? DEFAULT_CONCURRENCY)
   return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_CONCURRENCY
 }
 
-export async function bulkDocSearch(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
+export async function bulkDocSearch(
+  input: Input,
+  client: ClickUpClient,
+  config: ApplicationConfig,
+  capabilityTracker: CapabilityTracker
+): Promise<BulkDocSearchOutcome> {
   const processor = new BulkProcessor<string, Result[number]>(resolveConcurrency())
   const results = await processor.run(input.queries, async (query) => {
-    const result = await docSearch({ query, limit: input.limit, expandPages: input.expandPages }, client, config)
+    const result = await docSearch(
+      { query, limit: input.limit, expandPages: input.expandPages },
+      client,
+      config,
+      capabilityTracker
+    )
+    if (isDocCapabilityError(result)) {
+      return result
+    }
     return {
       query,
       docs: result.docs,
@@ -32,5 +49,9 @@ export async function bulkDocSearch(input: Input, client: ClickUpClient, config:
       guidance: result.guidance
     }
   })
-  return results
+  const capabilityError = results.find((entry) => isDocCapabilityError(entry))
+  if (capabilityError) {
+    return capabilityError
+  }
+  return results as Result
 }
