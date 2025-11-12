@@ -194,30 +194,37 @@ export async function listTasksInList(
     includeClosed: input.includeClosed,
     includeSubtasks: input.includeSubtasks
   }
-  const cached = catalogue?.getListPage(listResolution.listId, filters, input.page)
-
-  let baseTasks: TaskListItem[]
-  let total: number
   let listName = listResolution.listName
   let listUrl = listResolution.listUrl
 
-  if (cached) {
-    baseTasks = Array.isArray(cached.items)
-      ? (cached.items as TaskListItem[])
-      : cached.tasks.map((task) => ({
-          id: task.id,
-          name: task.name,
-          status: task.status,
-          url: task.url ?? `https://app.clickup.com/t/${task.id}`,
-          assignees: [],
-          assigneesTruncated: false
-        }))
-    total = cached.total
-    listName = listName ?? cached.listName
-    listUrl = listUrl ?? cached.listUrl
-  } else {
+  type LoadedPage = {
+    tasks: TaskListItem[]
+    listName?: string
+    listUrl?: string
+  }
+
+  async function loadListPage(page: number): Promise<LoadedPage> {
+    const cached = catalogue?.getListPage(listResolution.listId, filters, page)
+    if (cached) {
+      const tasks = Array.isArray(cached.items)
+        ? (cached.items as TaskListItem[])
+        : cached.tasks.map((task) => ({
+            id: task.id,
+            name: task.name,
+            status: task.status,
+            url: task.url ?? `https://app.clickup.com/t/${task.id}`,
+            assignees: [],
+            assigneesTruncated: false
+          }))
+      return {
+        tasks,
+        listName: cached.listName,
+        listUrl: cached.listUrl
+      }
+    }
+
     const query: Record<string, unknown> = {
-      page: input.page,
+      page,
       archived: input.includeClosed ? true : undefined,
       subtasks: input.includeSubtasks ? true : undefined
     }
@@ -243,14 +250,10 @@ export async function listTasksInList(
       return typeof listRecord.name === "string" || typeof listRecord.url === "string"
     }) as { list?: { name?: string; url?: string } } | undefined
 
-    listName =
-      listName ??
-      (listCarrier && typeof listCarrier.list?.name === "string" ? listCarrier.list.name : undefined)
-    listUrl =
-      listUrl ?? (listCarrier && typeof listCarrier.list?.url === "string" ? listCarrier.list.url : undefined)
-
-    baseTasks = mappedTasks
-    total = mappedTasks.length
+    const resolvedListName =
+      listCarrier && typeof listCarrier.list?.name === "string" ? listCarrier.list.name : undefined
+    const resolvedListUrl =
+      listCarrier && typeof listCarrier.list?.url === "string" ? listCarrier.list.url : undefined
 
     const records: TaskResolutionRecord[] = rawTasks
       .map((task) => normaliseTaskRecord(task))
@@ -259,16 +262,47 @@ export async function listTasksInList(
     catalogue?.storeListPage({
       listId: listResolution.listId,
       filters,
-      page: input.page,
+      page,
       tasks: records,
       items: mappedTasks,
-      total,
-      listName,
-      listUrl
+      total: mappedTasks.length,
+      listName: resolvedListName,
+      listUrl: resolvedListUrl
     })
+
+    return {
+      tasks: mappedTasks,
+      listName: resolvedListName,
+      listUrl: resolvedListUrl
+    }
   }
 
-  const { items, truncated } = truncateList<TaskListItem>(baseTasks, input.limit)
+  const aggregatedTasks: TaskListItem[] = []
+  let currentPage = input.page
+
+  while (true) {
+    const page = await loadListPage(currentPage)
+    if (page.listName && !listName) {
+      listName = page.listName
+    }
+    if (page.listUrl && !listUrl) {
+      listUrl = page.listUrl
+    }
+
+    if (page.tasks.length === 0) {
+      break
+    }
+
+    aggregatedTasks.push(...page.tasks)
+    currentPage += 1
+
+    if (aggregatedTasks.length > input.limit) {
+      break
+    }
+  }
+
+  const total = aggregatedTasks.length
+  const { items, truncated } = truncateList<TaskListItem>(aggregatedTasks, input.limit)
 
   const guidance = truncated
     ? "Task list truncated for token safety. Increase limit or paginate with page to see more results."

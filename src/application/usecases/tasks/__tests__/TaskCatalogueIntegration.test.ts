@@ -18,16 +18,19 @@ describe("TaskCatalogue integration", () => {
   })
 
   it("reuses cached list results across repeated calls", async () => {
-    const listTasksMock = vi.fn().mockResolvedValue({
-      tasks: [
-        {
-          id: "task-1",
-          name: "First",
-          status: { status: "open" },
-          assignees: []
-        }
-      ]
-    })
+    const listTasksMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        tasks: [
+          {
+            id: "task-1",
+            name: "First",
+            status: { status: "open" },
+            assignees: []
+          }
+        ]
+      })
+      .mockResolvedValueOnce({ tasks: [] })
 
     const client = createClient({ listTasksInList: listTasksMock })
     const input = {
@@ -42,7 +45,7 @@ describe("TaskCatalogue integration", () => {
     const first = await listTasksInList(input, client, {} as ApplicationConfig, catalogue)
     const second = await listTasksInList({ ...input, limit: 10 }, client, {} as ApplicationConfig, catalogue)
 
-    expect(listTasksMock).toHaveBeenCalledTimes(1)
+    expect(listTasksMock).toHaveBeenCalledTimes(2)
     expect(first.tasks.length).toBe(1)
     expect(second.tasks.length).toBe(1)
   })
