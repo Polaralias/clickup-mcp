@@ -5,6 +5,65 @@ async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+type ParsedClickUpError = {
+  status?: number
+  body?: unknown
+}
+
+function parseClickUpError(error: Error): ParsedClickUpError | undefined {
+  const match = error.message.match(/^ClickUp (\d+):\s*(.+)$/s)
+  if (!match) {
+    return undefined
+  }
+
+  const status = Number.parseInt(match[1], 10)
+  const rawBody = match[2]
+  let parsedBody: unknown = rawBody
+
+  try {
+    parsedBody = JSON.parse(rawBody)
+  } catch {
+    parsedBody = rawBody
+  }
+
+  return { status, body: parsedBody }
+}
+
+function extractErrorCode(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") {
+    return undefined
+  }
+
+  const withErr = body as { err?: { code?: string }; code?: string }
+  if (withErr.err?.code) {
+    return withErr.err.code
+  }
+
+  return withErr.code
+}
+
+function normaliseId(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    return value
+  }
+  if (typeof value === "number") {
+    return String(value)
+  }
+  return undefined
+}
+
+export class ClickUpMembersFallbackError extends Error {
+  readonly teamId: string
+  readonly cause?: unknown
+
+  constructor(teamId: string, message = `ClickUp fallback member lookup failed for workspace ${teamId}`, options?: { cause?: unknown }) {
+    super(message)
+    this.name = "ClickUpMembersFallbackError"
+    this.teamId = teamId
+    this.cause = options?.cause
+  }
+}
+
 type RequestOptions = {
   method?: string
   body?: unknown
@@ -177,11 +236,79 @@ export class ClickUpClient {
     })
   }
 
-  listMembers(teamId?: string) {
-    if (teamId) {
-      return this.request(`team/${teamId}/member`)
+  async listMembers(teamId?: string) {
+    if (!teamId) {
+      return this.request("team")
     }
-    return this.request("team")
+
+    try {
+      return await this.request(`team/${teamId}/member`)
+    } catch (error) {
+      if (!this.shouldFallbackToTeamListing(error)) {
+        throw error
+      }
+
+      try {
+        return await this.listMembersViaTeamListing(teamId)
+      } catch (fallbackError) {
+        throw new ClickUpMembersFallbackError(teamId, undefined, { cause: fallbackError })
+      }
+    }
+  }
+
+  private shouldFallbackToTeamListing(error: unknown) {
+    if (!(error instanceof Error)) {
+      return false
+    }
+
+    const parsed = parseClickUpError(error)
+    if (!parsed || parsed.status !== 404) {
+      return false
+    }
+
+    return extractErrorCode(parsed.body) === "APP_001"
+  }
+
+  private async listMembersViaTeamListing(teamId: string) {
+    const response = await this.request("team")
+    const teams = this.extractTeams(response)
+    const targetId = teamId.trim()
+    const team = teams.find((entry) => this.teamMatches(entry, targetId))
+
+    if (!team) {
+      throw new Error(`Workspace ${targetId} was not present in /team response`)
+    }
+
+    const members = Array.isArray((team as { members?: unknown[] }).members) ? (team as { members: unknown[] }).members : []
+    return { members }
+  }
+
+  private extractTeams(response: unknown) {
+    if (Array.isArray(response)) {
+      return response
+    }
+
+    if (response && typeof response === "object") {
+      const withTeams = response as { teams?: unknown; data?: unknown }
+      if (Array.isArray(withTeams.teams)) {
+        return withTeams.teams
+      }
+      if (Array.isArray(withTeams.data)) {
+        return withTeams.data
+      }
+    }
+
+    return []
+  }
+
+  private teamMatches(entry: unknown, teamId: string) {
+    if (!entry || typeof entry !== "object") {
+      return false
+    }
+
+    const candidate = entry as { id?: unknown; team_id?: unknown; teamId?: unknown }
+    const matchers = [candidate.id, candidate.team_id, candidate.teamId]
+    return matchers.some((value) => normaliseId(value) === teamId)
   }
 
   resolveMembers(teamId: string) {
