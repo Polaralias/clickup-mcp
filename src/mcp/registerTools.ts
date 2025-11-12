@@ -137,6 +137,7 @@ import { resolveAssignees } from "../application/usecases/members/ResolveAssigne
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
+import { CapabilityTracker } from "../application/services/CapabilityTracker.js"
 import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
@@ -191,6 +192,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   const sessionHierarchyDirectory = new HierarchyDirectory()
   const sessionTaskCatalogue = new TaskCatalogue()
   const sessionSpaceTagCache = new SpaceTagCache()
+  const sessionCapabilityTracker = new CapabilityTracker()
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const jsonSchema = zodToJsonSchemaCompact(options.schema)
@@ -362,7 +364,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     (input, client) => resolvePathToIds(input, client, sessionHierarchyDirectory),
     readOnlyAnnotation("hierarchy", "path resolve", { scope: "workspace", input: "names", cache: "session|forceRefresh" })
   )
-  registerReadOnly("clickup_list_members", "List workspace members. GET /team/{team_id}/member", ListMembersInput, listMembers, readOnlyAnnotation("member", "member list", { scope: "workspace", input: "teamId?" }))
+  registerReadOnly(
+    "clickup_list_members",
+    "List workspace members. GET /team/{team_id}/member",
+    ListMembersInput,
+    (input, client, config) => listMembers(input, client, config, sessionCapabilityTracker),
+    readOnlyAnnotation("member", "member list", { scope: "workspace", input: "teamId?" })
+  )
   registerReadOnly(
     "clickup_resolve_members",
     "Resolve member identifiers to records. GET /team/{team_id}/member",
