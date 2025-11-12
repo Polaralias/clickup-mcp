@@ -22,14 +22,14 @@ describe("ClickUpClient", () => {
     vi.restoreAllMocks()
   })
 
-  it("uses PUT when moving a task", async () => {
+  it("uses POST when moving a task", async () => {
     const client = new ClickUpClient("token")
 
     await client.moveTask("task-123", "list-456")
 
     expect(fetchMock).toHaveBeenCalled()
     const [, init] = fetchMock.mock.calls[0]
-    expect(init?.method).toBe("PUT")
+    expect(init?.method).toBe("POST")
   })
 
   it("hits the member listing endpoint", async () => {

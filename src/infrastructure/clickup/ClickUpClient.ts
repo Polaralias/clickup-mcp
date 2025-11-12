@@ -232,7 +232,7 @@ export class ClickUpClient {
 
   moveTask(taskId: string, listId: string) {
     return this.request(`task/${taskId}/list/${listId}`, {
-      method: "PUT"
+      method: "POST"
     })
   }
 

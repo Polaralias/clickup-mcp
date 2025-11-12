@@ -547,7 +547,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   )
   registerDestructive(
     "clickup_move_task",
-    "Move a task to another list. PUT /task/{task_id}/list/{list_id}",
+    "Move a task to another list. POST /task/{task_id}/list/{list_id}",
     MoveTaskInput,
     async (input, client) => moveTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "move task", { scope: "task", input: "taskId+listId", dry: true, idempotent: true })
