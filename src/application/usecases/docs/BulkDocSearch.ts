@@ -34,7 +34,12 @@ export async function bulkDocSearch(
   const processor = new BulkProcessor<string, Result[number]>(resolveConcurrency())
   const results = await processor.run(input.queries, async (query) => {
     const result = await docSearch(
-      { query, limit: input.limit, expandPages: input.expandPages },
+      {
+        query,
+        limit: input.limit,
+        expandPages: input.expandPages,
+        workspaceId: input.workspaceId
+      },
       client,
       config,
       capabilityTracker

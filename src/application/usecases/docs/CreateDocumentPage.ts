@@ -5,6 +5,7 @@ import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { CapabilityTracker } from "../../services/CapabilityTracker.js"
 import { runWithDocsCapability, type DocCapabilityError } from "../../services/DocCapability.js"
 import { buildContentPreview, resolvePreviewLimit } from "./docUtils.js"
+import { resolveWorkspaceId } from "./pageFetchUtils.js"
 
 type Input = z.infer<typeof CreateDocumentPageInput>
 
@@ -41,7 +42,12 @@ export async function createDocumentPage(
     truncated
   }
 
-  return runWithDocsCapability(config.teamId, client, capabilityTracker, async () => {
+  const workspaceId = resolveWorkspaceId(
+    input.workspaceId,
+    config,
+    "teamId is required to create doc pages"
+  )
+  return runWithDocsCapability(workspaceId, client, capabilityTracker, async () => {
     if (input.dryRun) {
       return {
         preview: basePreview,

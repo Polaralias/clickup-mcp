@@ -14,7 +14,12 @@ import {
   type DocRecord,
   type PageEntry
 } from "./docUtils.js"
-import { fetchPages, orderMetadata, resolveWorkspaceId } from "./pageFetchUtils.js"
+import {
+  extractPageListing,
+  fetchPages,
+  orderMetadata,
+  resolveWorkspaceId
+} from "./pageFetchUtils.js"
 
 type Input = z.infer<typeof GetDocumentPagesInput>
 
@@ -45,7 +50,7 @@ export async function getDocumentPages(
     const docId = extractDocId(doc)
 
     const metadataResponse = await client.listDocPages(docId)
-    const metadataAll = Array.isArray(metadataResponse?.pages) ? metadataResponse.pages : []
+    const metadataAll = extractPageListing(metadataResponse)
     const orderedMetadata = orderMetadata(metadataAll as Record<string, unknown>[], input.pageIds)
 
     const previewLimit = resolvePreviewLimit(config, input.previewCharLimit)

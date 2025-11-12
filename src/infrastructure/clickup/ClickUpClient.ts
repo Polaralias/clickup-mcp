@@ -1,4 +1,5 @@
 const BASE_URL = "https://api.clickup.com/api/v2/"
+const BASE_URL_V3 = "https://api.clickup.com/api/v3/"
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504])
 
 async function delay(ms: number) {
@@ -127,7 +128,7 @@ function deriveHint({
 
   if (
     statusCode === 404 &&
-    (/\/doc\b/.test(path) || /\/view\b/.test(path) || path.includes("capability"))
+    (/\/docs?\b/.test(path) || /\/view\b/.test(path) || path.includes("capability"))
   ) {
     return "This ClickUp workspace may not support that capability. Use the capability tools to confirm availability or upgrade the workspace plan."
   }
@@ -274,8 +275,13 @@ export class ClickUpClient {
     }
   }
 
-  private async request(path: string, options: RequestOptions = {}, attempt = 0): Promise<any> {
-    const url = new URL(path, BASE_URL)
+  private async requestWithBase(
+    path: string,
+    baseUrl: string,
+    options: RequestOptions = {},
+    attempt = 0
+  ): Promise<any> {
+    const url = new URL(path, baseUrl)
     if (options.searchParams) {
       Object.entries(options.searchParams).forEach(([key, value]) => {
         if (value === undefined || value === null) {
@@ -310,7 +316,7 @@ export class ClickUpClient {
     if (!response.ok) {
       if (RETRY_STATUS.has(response.status) && attempt < 3) {
         await delay(2 ** attempt * 250)
-        return this.request(path, options, attempt + 1)
+        return this.requestWithBase(path, baseUrl, options, attempt + 1)
       }
       const rawBody = await response.text()
       let parsedBody: unknown = rawBody
@@ -353,6 +359,14 @@ export class ClickUpClient {
       return response.json()
     }
     return response.text()
+  }
+
+  private request(path: string, options: RequestOptions = {}, attempt = 0) {
+    return this.requestWithBase(path, BASE_URL, options, attempt)
+  }
+
+  private requestV3(path: string, options: RequestOptions = {}, attempt = 0) {
+    return this.requestWithBase(path, BASE_URL_V3, options, attempt)
   }
 
   listWorkspaces() {
@@ -807,55 +821,55 @@ export class ClickUpClient {
     })
   }
 
-  createDoc(folderId: string, body: Record<string, unknown>) {
-    return this.request(`folder/${folderId}/doc`, {
+  createDoc(workspaceId: string, body: Record<string, unknown>) {
+    return this.requestV3(`workspaces/${workspaceId}/docs`, {
       method: "POST",
       body
     })
   }
 
   listDocuments(workspaceId: string, filters: Record<string, string | number | boolean | undefined> = {}) {
-    return this.request(`team/${workspaceId}/doc`, {
+    return this.requestV3(`workspaces/${workspaceId}/docs`, {
       method: "GET",
       searchParams: filters
     })
   }
 
   getDocument(workspaceId: string, docId: string) {
-    return this.request(`team/${workspaceId}/doc/${docId}`)
+    return this.requestV3(`workspaces/${workspaceId}/docs/${docId}`)
   }
 
   listDocPages(docId: string) {
-    return this.request(`doc/${docId}/page`)
+    return this.requestV3(`docs/${docId}/page_listing`)
   }
 
   bulkGetDocumentPages(docId: string, pageIds: string[]) {
-    return this.request(`doc/${docId}/page/bulk`, {
+    return this.requestV3(`docs/${docId}/pages/bulk`, {
       method: "POST",
       body: { page_ids: pageIds }
     })
   }
 
   createDocumentPage(docId: string, body: Record<string, unknown>) {
-    return this.request(`doc/${docId}/page`, {
+    return this.requestV3(`docs/${docId}/pages`, {
       method: "POST",
       body
     })
   }
 
   getDocPage(docId: string, pageId: string) {
-    return this.request(`doc/${docId}/page/${pageId}`)
+    return this.requestV3(`docs/${docId}/pages/${pageId}`)
   }
 
   updateDocPage(docId: string, pageId: string, body: Record<string, unknown>) {
-    return this.request(`doc/${docId}/page/${pageId}`, {
+    return this.requestV3(`docs/${docId}/pages/${pageId}`, {
       method: "PUT",
       body
     })
   }
 
   searchDocs(teamId: string, query: Record<string, unknown>) {
-    return this.request(`team/${teamId}/doc`, {
+    return this.requestV3(`workspaces/${teamId}/docs`, {
       method: "GET",
       searchParams: query as Record<string, string>
     })

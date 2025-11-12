@@ -88,7 +88,7 @@ describe("docs capability probing", () => {
   it("continues to return data when the docs endpoint is available", async () => {
     const docRecord = { id: "doc-1", doc_id: "doc-1", name: "Guide", page_count: 0 }
     const listDocumentsMock = vi.fn().mockResolvedValue({ docs: [docRecord] })
-    const listDocPagesMock = vi.fn().mockResolvedValue({ pages: [] })
+    const listDocPagesMock = vi.fn().mockResolvedValue({ page_listing: [] })
     const client = createClient({ listDocuments: listDocumentsMock, listDocPages: listDocPagesMock })
     const tracker = new CapabilityTracker()
 

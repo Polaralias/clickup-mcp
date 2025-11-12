@@ -42,6 +42,26 @@ export function chunkArray<T>(items: T[], size: number): Array<Chunk<T>> {
   return chunks
 }
 
+export function extractPageListing(response: unknown): PageRecord[] {
+  if (!response || typeof response !== "object") {
+    return []
+  }
+  const candidate = response as {
+    page_listing?: unknown
+    pages?: unknown
+  }
+  if (Array.isArray(candidate.page_listing)) {
+    return candidate.page_listing as PageRecord[]
+  }
+  if (Array.isArray(candidate.pages)) {
+    return candidate.pages as PageRecord[]
+  }
+  if (Array.isArray(response)) {
+    return response as PageRecord[]
+  }
+  return []
+}
+
 export async function fetchPages(client: ClickUpClient, docId: string, pageIds: string[]) {
   if (pageIds.length === 0) {
     return [] as PageRecord[]
@@ -53,11 +73,7 @@ export async function fetchPages(client: ClickUpClient, docId: string, pageIds: 
       return []
     }
     const response = await client.bulkGetDocumentPages(docId, ids)
-    const pages = Array.isArray(response?.pages) ? response.pages : response
-    if (!Array.isArray(pages)) {
-      return []
-    }
-    return pages as PageRecord[]
+    return extractPageListing(response)
   })
   return responses.flat()
 }

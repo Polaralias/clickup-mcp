@@ -93,6 +93,7 @@ export const GetDocumentPagesInput = z.object({
 })
 
 export const CreateDocumentPageInput = SafetyInput.extend({
+  workspaceId: Id.describe("Workspace/team containing the doc.").optional(),
   docId: RequiredId.describe("Document ID receiving the new page."),
   title: z.string().min(1).describe("Page title to display in ClickUp."),
   content: z
@@ -109,6 +110,7 @@ export const CreateDocumentPageInput = SafetyInput.extend({
 })
 
 export const CreateDocInput = SafetyInput.extend({
+  workspaceId: Id.describe("Workspace/team where the doc will live.").optional(),
   folderId: RequiredId.describe("Doc folder ID that will hold the new document."),
   name: z.string().min(1).describe("Document name; appears in navigation."),
   content: z
@@ -118,6 +120,7 @@ export const CreateDocInput = SafetyInput.extend({
 })
 
 export const ListDocPagesInput = z.object({
+  workspaceId: Id.describe("Workspace/team containing the doc.").optional(),
   docId: RequiredId.describe("Document ID whose pages to list.")
 })
 
@@ -127,6 +130,7 @@ export const GetDocPageInput = z.object({
 })
 
 export const UpdateDocPageInput = SafetyInput.extend({
+  workspaceId: Id.describe("Workspace/team containing the doc.").optional(),
   docId: RequiredId.describe("Document ID where the page lives."),
   pageId: RequiredId.describe("Page ID to modify."),
   title: z.string().describe("Updated page title.").optional(),
@@ -137,6 +141,7 @@ export const UpdateDocPageInput = SafetyInput.extend({
 })
 
 export const DocSearchInput = z.object({
+  workspaceId: Id.describe("Workspace/team context for the search.").optional(),
   query: z.string().min(1).describe("Full text search term for docs."),
   limit: z
     .number()
@@ -151,6 +156,7 @@ export const DocSearchInput = z.object({
 })
 
 export const BulkDocSearchInput = z.object({
+  workspaceId: Id.describe("Workspace/team context for all search queries.").optional(),
   queries: z
     .array(z.string().min(1).describe("Search term."))
     .min(1)
