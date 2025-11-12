@@ -5,6 +5,7 @@ import {
   HierarchyEnsureOptions
 } from "../../services/HierarchyDirectory.js"
 import { resolvePathToIds } from "./ResolvePathToIds.js"
+import { normaliseHierarchyPath } from "./pathShared.js"
 
 export type NormalisedStatus = {
   status: string
@@ -57,8 +58,18 @@ export async function resolveIdsFromPath(
   directory: HierarchyDirectory,
   options: HierarchyEnsureOptions = {}
 ): Promise<PathResolution | undefined> {
-  if (!path || path.length === 0) {
+  const segments = normaliseHierarchyPath(path)
+
+  if (segments.length === 0) {
     return undefined
   }
-  return resolvePathToIds({ path, forceRefresh: options.forceRefresh }, client, directory, options)
+
+  return resolvePathToIds(
+    { path: segments, forceRefresh: options.forceRefresh },
+    client,
+    directory,
+    options
+  )
 }
+
+export { normaliseHierarchyPath }

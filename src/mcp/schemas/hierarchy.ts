@@ -1,6 +1,9 @@
 import { z } from "zod"
 import { SafetyInput } from "./safety.js"
 
+export const HierarchyPathLevels = ["workspace", "space", "folder", "list"] as const
+export type HierarchyPathLevel = (typeof HierarchyPathLevels)[number]
+
 const Id = z.coerce.string().describe("ClickUp identifier; numeric string accepted.")
 const RequiredId = z.coerce
   .string()
@@ -118,12 +121,21 @@ export const ResolveMembersInput = z.object({
     .optional()
 })
 
-export const HierarchyPathSegment = z.object({
+const HierarchyPathSegmentObject = z.object({
   type: z
-    .enum(["workspace", "space", "folder", "list"])
+    .enum(HierarchyPathLevels)
     .describe("Segment type expected along the hierarchy."),
   name: z.string().describe("Exact name to match within that level.")
 })
+
+const HierarchyPathSegmentString = z
+  .string()
+  .min(1)
+  .describe("Segment name whose type is inferred from its order.")
+
+export const HierarchyPathSegment = z
+  .union([HierarchyPathSegmentObject, HierarchyPathSegmentString])
+  .describe("Hierarchy path segment provided as {type,name} or a raw name string.")
 
 export const ResolvePathToIdsInput = z.object({
   path: z

@@ -6,6 +6,7 @@ import {
   HierarchyEnsureOptions,
   HierarchyCacheMetadata
 } from "../../services/HierarchyDirectory.js"
+import { normaliseHierarchyPath } from "./pathShared.js"
 
 type Input = z.infer<typeof ResolvePathToIdsInput>
 
@@ -42,7 +43,9 @@ export async function resolvePathToIds(
     forceRefresh: options.forceRefresh ?? input.forceRefresh
   }
 
-  for (const segment of input.path) {
+  const segments = normaliseHierarchyPath(input.path)
+
+  for (const segment of segments) {
     if (segment.type === "workspace") {
       const { items: workspaces, cache: workspaceCache } = await directory.ensureWorkspaces(
         () => client.listWorkspaces(),
