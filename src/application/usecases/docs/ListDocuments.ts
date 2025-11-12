@@ -16,7 +16,12 @@ import {
   type DocRecord,
   type PageEntry
 } from "./docUtils.js"
-import { fetchPages, resolveConcurrency, resolveWorkspaceId } from "./pageFetchUtils.js"
+import {
+  extractPageListing,
+  fetchPages,
+  resolveConcurrency,
+  resolveWorkspaceId
+} from "./pageFetchUtils.js"
 
 type Input = z.infer<typeof ListDocumentsInput>
 
@@ -85,9 +90,7 @@ export async function listDocuments(
     const entries = await processor.run(limitedDocs as DocRecord[], async (doc) => {
       const docId = extractDocId(doc)
       const pagesResponse = await client.listDocPages(docId)
-      const metadata = Array.isArray(pagesResponse?.pages)
-        ? (pagesResponse.pages as Record<string, unknown>[])
-        : []
+      const metadata = extractPageListing(pagesResponse)
       const limitedMetadata = includePreviews
         ? metadata.slice(0, input.previewPageLimit)
         : []

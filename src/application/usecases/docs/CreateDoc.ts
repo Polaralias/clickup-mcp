@@ -4,6 +4,7 @@ import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { CapabilityTracker } from "../../services/CapabilityTracker.js"
 import { runWithDocsCapability, type DocCapabilityError } from "../../services/DocCapability.js"
+import { resolveWorkspaceId } from "./pageFetchUtils.js"
 
 type Input = z.infer<typeof CreateDocInput>
 
@@ -18,7 +19,12 @@ export async function createDoc(
   config: ApplicationConfig,
   capabilityTracker: CapabilityTracker
 ): Promise<Result | DocCapabilityError> {
-  return runWithDocsCapability(config.teamId, client, capabilityTracker, async () => {
+  const workspaceId = resolveWorkspaceId(
+    input.workspaceId,
+    config,
+    "teamId is required to create docs"
+  )
+  return runWithDocsCapability(workspaceId, client, capabilityTracker, async () => {
     if (input.dryRun) {
       return {
         preview: {
@@ -31,9 +37,12 @@ export async function createDoc(
 
     const payload: Record<string, unknown> = {
       name: input.name,
-      content: input.content
+      folder_id: input.folderId
     }
-    const doc = await client.createDoc(input.folderId, payload)
+    if (input.content !== undefined) {
+      payload.content = input.content
+    }
+    const doc = await client.createDoc(workspaceId, payload)
     return { doc }
   })
 }

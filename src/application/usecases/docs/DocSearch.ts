@@ -2,13 +2,13 @@ import { z } from "zod"
 import { DocSearchInput } from "../../../mcp/schemas/docs.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
-import { requireTeamId } from "../../config/applicationConfig.js"
 import { BulkProcessor } from "../../services/BulkProcessor.js"
 import { CapabilityTracker } from "../../services/CapabilityTracker.js"
 import {
   runWithDocsCapability,
   type DocCapabilityError
 } from "../../services/DocCapability.js"
+import { extractPageListing, resolveWorkspaceId } from "./pageFetchUtils.js"
 
 const DEFAULT_CONCURRENCY = 5
 
@@ -41,10 +41,6 @@ function buildPageSignature(docs: Array<Record<string, unknown>>) {
   return ids.join("|")
 }
 
-function resolveTeamId(config: ApplicationConfig) {
-  return requireTeamId(config, "teamId is required for doc search")
-}
-
 function resolveConcurrency() {
   const limit = Number(process.env.MAX_BULK_CONCURRENCY ?? DEFAULT_CONCURRENCY)
   return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_CONCURRENCY
@@ -56,16 +52,20 @@ export async function docSearch(
   config: ApplicationConfig,
   capabilityTracker: CapabilityTracker
 ): Promise<DocSearchOutcome> {
-  const teamId = resolveTeamId(config)
+  const workspaceId = resolveWorkspaceId(
+    input.workspaceId,
+    config,
+    "teamId is required for doc search"
+  )
   const limit = normaliseLimit(input.limit)
   const collected: Array<Record<string, unknown>> = []
   const seenIds = new Set<string>()
   const seenSignatures = new Set<string>()
   let exhausted = false
 
-  return runWithDocsCapability(teamId, client, capabilityTracker, async () => {
+  return runWithDocsCapability(workspaceId, client, capabilityTracker, async () => {
     for (let page = 0; collected.length < limit; page += 1) {
-      const response = await client.searchDocs(teamId, { search: input.query, page })
+      const response = await client.searchDocs(workspaceId, { search: input.query, page })
       const docs = Array.isArray(response?.docs) ? response.docs : []
       if (docs.length === 0) {
         exhausted = true
@@ -109,7 +109,7 @@ export async function docSearch(
       const results = await processor.run(limited, async (doc) => {
         const docId = extractDocId(doc) ?? ""
         const pagesResponse = await client.listDocPages(docId)
-        const pages = Array.isArray(pagesResponse?.pages) ? pagesResponse.pages : []
+        const pages = extractPageListing(pagesResponse)
         return { docId, pages }
       })
       expandedPages = Object.fromEntries(results.map((entry) => [entry.docId, entry.pages]))

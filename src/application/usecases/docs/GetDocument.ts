@@ -17,6 +17,7 @@ import {
   type PagePreview
 } from "./docUtils.js"
 import {
+  extractPageListing,
   fetchPages,
   orderMetadata,
   resolveWorkspaceId
@@ -56,8 +57,8 @@ export async function getDocument(
     const docId = extractDocId(doc)
 
     const pagesResponse = await client.listDocPages(docId)
-    const metadataAll = Array.isArray(pagesResponse?.pages) ? pagesResponse.pages : []
-    const orderedMetadata = orderMetadata(metadataAll as PageRecord[], input.pageIds)
+    const metadataAll = extractPageListing(pagesResponse)
+    const orderedMetadata = orderMetadata(metadataAll, input.pageIds)
     const limitedMetadata =
       Array.isArray(input.pageIds) && input.pageIds.length > 0
         ? orderedMetadata
@@ -73,15 +74,11 @@ export async function getDocument(
       : []
     const detailed = includePages ? await fetchPages(client, docId, fetchIds) : []
     const pageEntries = includePages
-      ? buildPageEntries(
-          limitedMetadata as Record<string, unknown>[],
-          detailed,
-          previewLimit
-        )
+      ? buildPageEntries(limitedMetadata as Record<string, unknown>[], detailed, previewLimit)
       : []
     const pagePreviews = pageEntries.map((entry) => entry.preview)
 
-    const pageCount = inferPageCount(doc, metadataAll as PageRecord[])
+    const pageCount = inferPageCount(doc, metadataAll)
     const summary = buildDocumentSummary(doc, pageCount, pagePreviews)
 
     const truncated = summary.truncated
