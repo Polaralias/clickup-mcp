@@ -460,9 +460,8 @@ export const ListTasksInListInput = TaskLookupReference.extend({
     .number()
     .int()
     .min(1)
-    .max(50)
     .default(20)
-    .describe("Tasks per page to return."),
+    .describe("Maximum tasks to return; larger requests paginate automatically."),
   page: z
     .number()
     .int()
