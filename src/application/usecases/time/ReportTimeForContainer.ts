@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { ReportTimeForContainerInput } from "../../../mcp/schemas/time.js"
-import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import { ClickUpClient, type SearchParams } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { requireTeamId } from "../../config/applicationConfig.js"
 
@@ -16,7 +16,7 @@ function resolveTeamId(config: ApplicationConfig) {
 
 export async function reportTimeForContainer(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
   const teamId = resolveTeamId(config)
-  const query: Record<string, unknown> = {
+  const query: SearchParams = {
     start_date: input.from,
     end_date: input.to
   }

@@ -806,7 +806,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
 
   registerReadOnly(
     "clickup_list_time_entries",
-    "List time entries with filters. GET /team/{team_id}/time_entries",
+    "List time entries with filters. GET /team/{team_id}/time_entries. Accepts ISO 8601 or epoch (seconds/milliseconds) boundaries.",
     ListTimeEntriesInput,
     async (input, client, config) => {
       const result = await listTimeEntries(input, client, config)
