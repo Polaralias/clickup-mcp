@@ -404,7 +404,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a space tag. PUT /space/{space_id}/tag/{tag_name}",
     UpdateSpaceTagInput,
     async (input, client) => updateSpaceTag(input, client, sessionSpaceTagCache),
-    destructiveAnnotation("tag", "update space tag", { scope: "space", input: "spaceId+currentName", dry: true })
+    destructiveAnnotation("tag", "update space tag", { scope: "space", input: "spaceId+currentName", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_delete_space_tag",
@@ -427,7 +427,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a folder. PUT /folder/{folder_id}",
     UpdateFolderInput,
     async (input, client) => updateFolder(input, client, sessionHierarchyDirectory),
-    destructiveAnnotation("hierarchy", "update folder", { scope: "space", input: "folderId|path", dry: true })
+    destructiveAnnotation("hierarchy", "update folder", { scope: "space", input: "folderId|path", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_delete_folder",
@@ -448,7 +448,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a list. PUT /list/{list_id}",
     UpdateListInput,
     async (input, client) => updateList(input, client, sessionHierarchyDirectory),
-    destructiveAnnotation("hierarchy", "update list", { scope: "space|folder", input: "listId|path", dry: true })
+    destructiveAnnotation("hierarchy", "update list", { scope: "space|folder", input: "listId|path", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_delete_list",
@@ -476,7 +476,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a view. PUT /view/{view_id}",
     UpdateViewInput,
     async (input, client) => updateView(input, client),
-    destructiveAnnotation("view", "update view", { scope: "view", input: "viewId", dry: true })
+    destructiveAnnotation("view", "update view", { scope: "view", input: "viewId", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_delete_view",
@@ -522,14 +522,14 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a task. PUT /task/{task_id}",
     UpdateTaskInput,
     async (input, client) => updateTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "update task", { scope: "task", input: "taskId", dry: true })
+    destructiveAnnotation("task", "update task", { scope: "task", input: "taskId", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_update_tasks_bulk",
     "Bulk update tasks. PUT /task/bulk",
     UpdateTasksBulkInput,
     async (input, client, config) => updateTasksBulk(input, client, config, sessionTaskCatalogue),
-    destructiveAnnotation("task", "bulk update", { scope: "task", input: "tasks[]", dry: true })
+    destructiveAnnotation("task", "bulk update", { scope: "task", input: "tasks[]", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_delete_task",
@@ -550,7 +550,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Move a task to another list. PUT /task/{task_id}/list/{list_id}",
     MoveTaskInput,
     async (input, client) => moveTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "move task", { scope: "task", input: "taskId+listId", dry: true })
+    destructiveAnnotation("task", "move task", { scope: "task", input: "taskId+listId", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_move_tasks_bulk",
@@ -710,7 +710,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a document page. PUT /doc/{doc_id}/page/{page_id}",
     UpdateDocPageInput,
     updateDocPage,
-    destructiveAnnotation("doc", "update page", { scope: "doc", input: "docId+pageId", dry: true })
+    destructiveAnnotation("doc", "update page", { scope: "doc", input: "docId+pageId", dry: true, idempotent: true })
   )
   registerReadOnly(
     "clickup_doc_search",
@@ -760,7 +760,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a time entry. PUT /team/{team_id}/time_entries/{timer_id}",
     UpdateTimeEntryInput,
     (input, client, config) => updateTimeEntry(input, client, config),
-    destructiveAnnotation("time", "update entry", { scope: "time", input: "entryId", dry: true })
+    destructiveAnnotation("time", "update entry", { scope: "time", input: "entryId", dry: true, idempotent: true })
   )
   registerDestructive(
     "clickup_delete_time_entry",

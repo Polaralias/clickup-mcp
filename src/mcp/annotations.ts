@@ -12,9 +12,9 @@ function baseAnnotation(mode: "ro" | "mut", cat: string, intent: string, extras:
 }
 
 export function readOnlyAnnotation(cat: string, intent: string, extras: AnnotationExtras = {}) {
-  return baseAnnotation("ro", cat, intent, extras)
+  return baseAnnotation("ro", cat, intent, { readOnly: true, ...extras })
 }
 
 export function destructiveAnnotation(cat: string, intent: string, extras: AnnotationExtras = {}) {
-  return baseAnnotation("mut", cat, intent, { confirm: "dryRun+confirm=yes", ...extras })
+  return baseAnnotation("mut", cat, intent, { destructive: true, confirm: "dryRun+confirm=yes", ...extras })
 }
