@@ -14,6 +14,13 @@ type SearchParamPrimitive = string | number | boolean
 type SearchParamValue = SearchParamPrimitive | SearchParamPrimitive[] | undefined
 export type SearchParams = Record<string, SearchParamValue>
 
+export type ClickUpMemberListing = {
+  members: unknown[]
+  source: "direct" | "fallback"
+  raw?: unknown
+  diagnostics?: string
+}
+
 function parseClickUpError(error: Error): ParsedClickUpError | undefined {
   const match = error.message.match(/^ClickUp (\d+):\s*(.+)$/s)
   if (!match) {
@@ -68,6 +75,13 @@ function normaliseId(value: unknown): string | undefined {
     return String(value)
   }
   return undefined
+}
+
+function truncate(value: string, maxLength = 400) {
+  if (value.length <= maxLength) {
+    return value
+  }
+  return `${value.slice(0, maxLength)}…`
 }
 
 export class ClickUpMembersFallbackError extends Error {
@@ -274,31 +288,38 @@ export class ClickUpClient {
     }
 
     try {
-      return await this.request(`team/${teamId}/member`)
+      const response = await this.request(`team/${teamId}/member`)
+      return this.buildMemberListing(response, "direct")
     } catch (error) {
-      if (!this.shouldFallbackToTeamListing(error)) {
+      const fallback = this.extractFallbackContext(error)
+      if (!fallback) {
         throw error
       }
 
       try {
-        return await this.listMembersViaTeamListing(teamId)
+        const fallbackResult = await this.listMembersViaTeamListing(teamId)
+        return this.buildMemberListing(fallbackResult.raw, "fallback", fallback.diagnostics)
       } catch (fallbackError) {
         throw new ClickUpMembersFallbackError(teamId, undefined, { cause: fallbackError })
       }
     }
   }
 
-  private shouldFallbackToTeamListing(error: unknown) {
+  private extractFallbackContext(error: unknown): { diagnostics?: string } | undefined {
     if (!(error instanceof Error)) {
-      return false
+      return undefined
     }
 
     const parsed = parseClickUpError(error)
-    if (!parsed || parsed.status !== 404) {
-      return false
+    if (parsed?.status === 404) {
+      return { diagnostics: this.formatFallbackDiagnostics(parsed.status, parsed.body) }
     }
 
-    return extractErrorCode(parsed.body) === "APP_001"
+    if (error.message.includes("ClickUp 404")) {
+      return { diagnostics: truncate(error.message) }
+    }
+
+    return undefined
   }
 
   private async listMembersViaTeamListing(teamId: string) {
@@ -312,7 +333,68 @@ export class ClickUpClient {
     }
 
     const members = Array.isArray((team as { members?: unknown[] }).members) ? (team as { members: unknown[] }).members : []
-    return { members }
+    return { members, raw: team }
+  }
+
+  private buildMemberListing(raw: unknown, source: "direct" | "fallback", diagnostics?: string): ClickUpMemberListing {
+    const members = this.extractMembers(raw)
+    const listing: ClickUpMemberListing = { members, source, raw }
+    if (diagnostics) {
+      listing.diagnostics = diagnostics
+    }
+    return listing
+  }
+
+  private extractMembers(response: unknown) {
+    if (Array.isArray((response as { members?: unknown[] } | undefined)?.members)) {
+      return ((response as { members?: unknown[] }).members ?? []) as unknown[]
+    }
+
+    if (Array.isArray(response)) {
+      return response as unknown[]
+    }
+
+    return []
+  }
+
+  private formatFallbackDiagnostics(status?: number, body?: unknown) {
+    const parts: string[] = []
+
+    if (typeof status === "number") {
+      parts.push(`status=${status}`)
+    }
+
+    const code = extractErrorCode(body)
+    if (code) {
+      parts.push(`code=${code}`)
+    }
+
+    const snippet = this.serialiseBody(body)
+    if (snippet) {
+      parts.push(`body=${snippet}`)
+    }
+
+    return parts.length > 0 ? parts.join(" ") : undefined
+  }
+
+  private serialiseBody(body: unknown) {
+    if (body === undefined || body === null) {
+      return undefined
+    }
+
+    if (typeof body === "string") {
+      return truncate(body)
+    }
+
+    if (typeof body === "object") {
+      try {
+        return truncate(JSON.stringify(body))
+      } catch {
+        return "[unserializable body]"
+      }
+    }
+
+    return truncate(String(body))
   }
 
   private extractTeams(response: unknown) {

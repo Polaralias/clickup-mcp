@@ -129,11 +129,12 @@ describe("ClickUpClient", () => {
   it("hits the member listing endpoint", async () => {
     const client = new ClickUpClient("token")
 
-    await client.listMembers("123")
+    const result = await client.listMembers("123")
 
     expect(fetchMock).toHaveBeenCalled()
     const [url] = fetchMock.mock.calls[0]
     expect(String(url)).toContain("/team/123/member")
+    expect(result).toEqual({ members: [], source: "direct", raw: null })
   })
 
   it("falls back to workspace listing when member endpoint returns APP_001", async () => {
@@ -158,7 +159,38 @@ describe("ClickUpClient", () => {
     const result = await client.listMembers("123")
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(result).toEqual({ members: [{ id: "member-1" }] })
+    expect(result.members).toEqual([{ id: "member-1" }])
+    expect(result.source).toBe("fallback")
+    expect(result.diagnostics).toContain("status=404")
+    expect(result.diagnostics).toContain("code=APP_001")
+  })
+
+  it("falls back to workspace listing when member endpoint returns a 404 without code", async () => {
+    const client = new ClickUpClient("token")
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        headers: new Headers({ "content-type": "application/json" }),
+        text: vi.fn().mockResolvedValue(JSON.stringify({ message: "not found" })),
+        json: vi.fn()
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: vi.fn().mockResolvedValue({ teams: [{ id: "123", members: [{ id: "fallback" }] }] }),
+        text: vi.fn()
+      })
+
+    const result = await client.listMembers("123")
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.source).toBe("fallback")
+    expect(result.members).toEqual([{ id: "fallback" }])
+    expect(result.diagnostics).toContain("status=404")
+    expect(result.diagnostics).not.toContain("code=APP_001")
   })
 
   it("throws a descriptive error when the fallback cannot find the workspace", async () => {
