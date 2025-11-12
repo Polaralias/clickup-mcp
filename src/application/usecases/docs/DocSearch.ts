@@ -68,7 +68,7 @@ export async function docSearch(input: Input, client: ClickUpClient, config: App
       seenSignatures.add(signature)
     }
 
-    const newDocs = docs.filter((doc) => {
+    const newDocs = docs.filter((doc: Record<string, unknown>) => {
       const docId = extractDocId(doc)
       if (!docId) {
         return true
