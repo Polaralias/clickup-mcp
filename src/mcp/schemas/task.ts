@@ -393,8 +393,22 @@ export const SearchTasksInput = z.object({
   tagIds: IdArray.describe("Restrict to tasks tagged with these IDs.").optional(),
   status: z
     .string()
-    .describe("Filter by exact status name.")
+    .min(1)
+    .describe("Filter by a single status name; mutually exclusive with statuses.")
+    .optional(),
+  statuses: z
+    .array(z.string().min(1).describe("Status name exactly as configured in ClickUp."))
+    .min(1)
+    .describe("Filter by one or more status names; mutually exclusive with status.")
     .optional()
+}).superRefine((value, ctx) => {
+  if (value.status && value.statuses) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["statuses"],
+      message: "Use status or statuses, not both"
+    })
+  }
 })
 
 export const FuzzySearchInput = z.object({

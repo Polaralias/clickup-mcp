@@ -10,6 +10,10 @@ type ParsedClickUpError = {
   body?: unknown
 }
 
+type SearchParamPrimitive = string | number | boolean
+type SearchParamValue = SearchParamPrimitive | SearchParamPrimitive[] | undefined
+export type SearchParams = Record<string, SearchParamValue>
+
 function parseClickUpError(error: Error): ParsedClickUpError | undefined {
   const match = error.message.match(/^ClickUp (\d+):\s*(.+)$/s)
   if (!match) {
@@ -81,7 +85,7 @@ export class ClickUpMembersFallbackError extends Error {
 type RequestOptions = {
   method?: string
   body?: unknown
-  searchParams?: Record<string, string | number | boolean | undefined>
+  searchParams?: SearchParams
   headers?: Record<string, string>
 }
 
@@ -100,9 +104,19 @@ export class ClickUpClient {
     const url = new URL(path, BASE_URL)
     if (options.searchParams) {
       Object.entries(options.searchParams).forEach(([key, value]) => {
-        if (value !== undefined) {
-          url.searchParams.set(key, String(value))
+        if (value === undefined || value === null) {
+          return
         }
+        if (Array.isArray(value)) {
+          const paramKey = key.endsWith("[]") ? key : `${key}[]`
+          value.forEach((entry) => {
+            if (entry !== undefined && entry !== null) {
+              url.searchParams.append(paramKey, String(entry))
+            }
+          })
+          return
+        }
+        url.searchParams.set(key, String(value))
       })
     }
 
@@ -333,10 +347,10 @@ export class ClickUpClient {
     return this.request(`team/${teamId}/member`)
   }
 
-  searchTasks(teamId: string, query: Record<string, unknown>) {
+  searchTasks(teamId: string, query: SearchParams) {
     return this.request(`team/${teamId}/task`, {
       method: "GET",
-      searchParams: query as Record<string, string>
+      searchParams: query
     })
   }
 
@@ -344,10 +358,10 @@ export class ClickUpClient {
     return this.request(`task/${taskId}`)
   }
 
-  listTasksInList(listId: string, query: Record<string, unknown> = {}) {
+  listTasksInList(listId: string, query: SearchParams = {}) {
     return this.request(`list/${listId}/task`, {
       method: "GET",
-      searchParams: query as Record<string, string | number | boolean | undefined>
+      searchParams: query
     })
   }
 

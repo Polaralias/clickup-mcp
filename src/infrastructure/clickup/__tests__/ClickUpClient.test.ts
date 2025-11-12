@@ -22,6 +22,21 @@ describe("ClickUpClient", () => {
     vi.restoreAllMocks()
   })
 
+  it("serialises array search params using bracket notation", async () => {
+    const client = new ClickUpClient("token")
+
+    await client.searchTasks("team-123", {
+      statuses: ["open", "closed"],
+      list_ids: "abc123"
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url] = fetchMock.mock.calls[0]
+    const actual = new URL(String(url))
+    expect(actual.searchParams.getAll("statuses[]")).toEqual(["open", "closed"])
+    expect(actual.searchParams.get("list_ids")).toBe("abc123")
+  })
+
   it("uses PUT when moving a task", async () => {
     const client = new ClickUpClient("token")
 
