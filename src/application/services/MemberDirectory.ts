@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import Fuse from "fuse.js"
 import type { IFuseOptions } from "fuse.js"
 
@@ -220,10 +221,26 @@ function prepareQuery(query: string): PreparedQuery | null {
   return { raw, normalized, tokens }
 }
 
+export type MemberDirectoryOptions = {
+  ttlMs?: number
+  credentialId?: string
+}
+
 export class MemberDirectory {
   private readonly cache = new Map<string, CachedTeam>()
+  private readonly ttlMs: number
+  private readonly credentialKey: string
 
-  constructor(private readonly ttlMs: number = DEFAULT_TTL_MS) {}
+  constructor(options: MemberDirectoryOptions = {}) {
+    this.ttlMs = options.ttlMs ?? DEFAULT_TTL_MS
+    this.credentialKey = options.credentialId
+      ? createHash("sha256").update(options.credentialId).digest("hex")
+      : "default"
+  }
+
+  private cacheKey(teamId: string) {
+    return `${this.credentialKey}:${teamId}`
+  }
 
   async ensure(
     teamId: string,
@@ -231,7 +248,8 @@ export class MemberDirectory {
     options: EnsureOptions = {}
   ): Promise<CachedTeam> {
     const now = Date.now()
-    const cached = this.cache.get(teamId)
+    const key = this.cacheKey(teamId)
+    const cached = this.cache.get(key)
     const expired = cached ? now > cached.expiresAt : true
 
     if (!cached || expired || options.forceRefresh) {
@@ -252,7 +270,7 @@ export class MemberDirectory {
         fetchedAt: now,
         expiresAt: now + this.ttlMs
       }
-      this.cache.set(teamId, entry)
+      this.cache.set(key, entry)
       return entry
     }
 
@@ -374,9 +392,11 @@ export class MemberDirectory {
       this.cache.clear()
       return
     }
-    this.cache.delete(teamId)
+    this.cache.delete(this.cacheKey(teamId))
   }
 }
 
-export const memberDirectory = new MemberDirectory()
+export function createMemberDirectory(options: MemberDirectoryOptions = {}) {
+  return new MemberDirectory(options)
+}
 

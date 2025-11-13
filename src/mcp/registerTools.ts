@@ -135,6 +135,7 @@ import { getWorkspaceHierarchy } from "../application/usecases/hierarchy/GetWork
 import { findMemberByName } from "../application/usecases/members/FindMemberByName.js"
 import { resolveAssignees } from "../application/usecases/members/ResolveAssignees.js"
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
+import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
 import { CapabilityTracker } from "../application/services/CapabilityTracker.js"
@@ -204,6 +205,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   const sessionTaskCatalogue = new TaskCatalogue()
   const sessionSpaceTagCache = new SpaceTagCache()
   const sessionCapabilityTracker = new CapabilityTracker()
+  const sessionMemberDirectory = new MemberDirectory({ credentialId: config.apiKey })
+
+  const previousOnClose = server.server.onclose
+  server.server.onclose = () => {
+    sessionMemberDirectory.clear()
+    previousOnClose?.()
+  }
 
   function registerClientTool(name: string, options: RegistrationOptions) {
     const jsonSchema = zodToJsonSchemaCompact(options.schema)
@@ -444,21 +452,21 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "clickup_resolve_members",
     "Resolve member identifiers to records. GET /team/{team_id}/member",
     ResolveMembersInput,
-    resolveMembers,
+    (input, client, config) => resolveMembers(input, client, config, sessionMemberDirectory),
     readOnlyAnnotation("member", "member resolve", { scope: "workspace", input: "identifiers", cache: "session|forceRefresh" })
   )
   registerReadOnly(
     "clickup_find_member_by_name",
     "Fuzzy search member names.",
     FindMemberByNameInput,
-    findMemberByName,
+    (input, client, config) => findMemberByName(input, client, config, sessionMemberDirectory),
     readOnlyAnnotation("member", "member search", { scope: "workspace", input: "query", cache: "session|refresh" })
   )
   registerReadOnly(
     "clickup_resolve_assignees",
     "Translate assignee references into member suggestions.",
     ResolveAssigneesInput,
-    resolveAssignees,
+    (input, client, config) => resolveAssignees(input, client, config, sessionMemberDirectory),
     readOnlyAnnotation("member", "assignee resolve", { scope: "workspace", input: "references" })
   )
   registerReadOnly(
