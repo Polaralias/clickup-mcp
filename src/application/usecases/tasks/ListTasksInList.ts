@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { ListTasksInListInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { SearchParams } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { truncateList } from "../../limits/truncation.js"
 import { resolveTaskReference, normaliseTaskRecord } from "./resolveTaskReference.js"
@@ -223,7 +224,7 @@ export async function listTasksInList(
       }
     }
 
-    const query: Record<string, unknown> = {
+    const query: SearchParams = {
       page,
       archived: input.includeClosed ? true : undefined,
       subtasks: input.includeSubtasks ? true : undefined

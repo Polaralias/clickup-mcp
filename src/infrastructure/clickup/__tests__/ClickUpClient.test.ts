@@ -120,7 +120,11 @@ describe("ClickUpClient", () => {
     const methods = fetchMock.mock.calls.map(([, init]) => init?.method)
     expect(methods.every((method) => method === "PUT")).toBe(true)
     expect(results[0]).toEqual({ success: true, taskId: "task-1", listId: "list-1" })
-    expect(results[1]).toMatchObject({
+    const failure = results[1]
+    if (failure.success) {
+      throw new Error("Expected a failed bulk move result")
+    }
+    expect(failure).toMatchObject({
       success: false,
       taskId: "task-2",
       listId: "list-2",
@@ -129,7 +133,7 @@ describe("ClickUpClient", () => {
         statusCode: 500
       }
     })
-    expect(results[1].error.upstream).toMatchObject({
+    expect(failure.error.upstream).toMatchObject({
       statusCode: 500,
       request: { method: "PUT" }
     })

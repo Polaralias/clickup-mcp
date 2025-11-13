@@ -329,7 +329,10 @@ export class ClickUpClient {
         }
       }
 
-      const headers = Object.fromEntries(response.headers.entries())
+      const headers: Record<string, string> = {}
+      response.headers.forEach((value, key) => {
+        headers[key] = value
+      })
       const statusCode = response.status
       const message = `ClickUp ${statusCode}: ${rawBody}`
       const ecode = extractErrorCode(parsedBody)

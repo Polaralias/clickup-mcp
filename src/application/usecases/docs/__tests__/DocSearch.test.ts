@@ -3,9 +3,29 @@ import type { ClickUpClient } from "../../../../infrastructure/clickup/ClickUpCl
 import type { ApplicationConfig } from "../../../config/applicationConfig.js"
 import { docSearch } from "../DocSearch.js"
 import { CapabilityTracker } from "../../../services/CapabilityTracker.js"
+import { isDocCapabilityError } from "../../../services/DocCapability.js"
+import type { DocCapabilityError } from "../../../services/DocCapability.js"
 
 function createClient(overrides: Partial<ClickUpClient>): ClickUpClient {
   return overrides as unknown as ClickUpClient
+}
+
+type DocSearchOutcome = Awaited<ReturnType<typeof docSearch>>
+type DocSearchSuccess = Exclude<DocSearchOutcome, DocCapabilityError>
+
+function ensureSuccess(outcome: DocSearchOutcome): DocSearchSuccess {
+  if (isDocCapabilityError(outcome)) {
+    throw new Error("Expected doc search to succeed")
+  }
+  return outcome
+}
+
+function extractDocId(doc: Record<string, unknown>) {
+  const candidate = doc.id ?? (doc as { doc_id?: unknown }).doc_id
+  if (typeof candidate !== "string") {
+    throw new Error("Document missing identifier")
+  }
+  return candidate
 }
 
 describe("docSearch", () => {
@@ -38,9 +58,15 @@ describe("docSearch", () => {
     const config = { teamId: "team-1" } as ApplicationConfig
     const tracker = new CapabilityTracker()
 
-    const result = await docSearch({ query: "guide", limit: 3, expandPages: false }, client, config, tracker)
+    const outcome = await docSearch(
+      { query: "guide", limit: 3, expandPages: false },
+      client,
+      config,
+      tracker
+    )
 
     expect(searchDocsMock).toHaveBeenCalledTimes(2)
+    const result = ensureSuccess(outcome)
     expect(result.docs.length).toBe(3)
     expect(result.guidance).toBe(
       "More docs available. Increase limit or refine the query to narrow results."
@@ -78,9 +104,16 @@ describe("docSearch", () => {
     const config = { teamId: "team-1" } as ApplicationConfig
     const tracker = new CapabilityTracker()
 
-    const result = await docSearch({ query: "guide", limit: 3, expandPages: false }, client, config, tracker)
+    const outcome = await docSearch(
+      { query: "guide", limit: 3, expandPages: false },
+      client,
+      config,
+      tracker
+    )
 
     expect(searchDocsMock).toHaveBeenCalledTimes(2)
-    expect(result.docs.map((doc) => doc.id)).toEqual(["doc-1", "doc-2", "doc-3"])
+    const result = ensureSuccess(outcome)
+    const ids = result.docs.map((doc) => extractDocId(doc))
+    expect(ids).toEqual(["doc-1", "doc-2", "doc-3"])
   })
 })

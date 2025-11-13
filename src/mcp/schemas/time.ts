@@ -59,7 +59,8 @@ const TimeBoundary = z
   .union([z.string(), z.number()])
   .superRefine((value, ctx) => {
     try {
-      const label = typeof ctx.path.at(-1) === "string" ? ctx.path.at(-1) : "timestamp"
+      const pathSegment = ctx.path.at(-1)
+      const label = typeof pathSegment === "string" ? pathSegment : undefined
       toEpochMilliseconds(value, label)
     } catch (error) {
       ctx.addIssue({
