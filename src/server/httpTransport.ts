@@ -5,6 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { ApplicationConfig, SessionConfigInput } from "../application/config/applicationConfig.js"
 import { createApplicationConfig } from "../application/config/applicationConfig.js"
 import { extractSessionConfig } from "./sessionConfig.js"
+import { authenticationMiddleware, type SessionCredential } from "./authentication.js"
 
 type Session = {
   server: McpServer
@@ -13,6 +14,7 @@ type Session = {
   sessionId?: string
   closed: boolean
   config: ApplicationConfig
+  credential: SessionCredential
 }
 
 export function registerHttpTransport(app: Express, createServer: (config: ApplicationConfig) => McpServer) {
@@ -28,8 +30,8 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
     }
   }
 
-  function createSession(configInput: SessionConfigInput) {
-    const config = createApplicationConfig(configInput)
+  function createSession(configInput: SessionConfigInput, credential: SessionCredential) {
+    const config = createApplicationConfig(configInput, credential.token)
     const server = createServer(config)
     let session: Session
     const transport = new StreamableHTTPServerTransport({
@@ -50,7 +52,8 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
       transport,
       connectPromise,
       closed: false,
-      config
+      config,
+      credential
     }
     transport.onclose = () => {
       if (!session.closed) {
@@ -63,6 +66,11 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
   }
 
   async function ensureSession(req: Request, res: Response) {
+    const credential = req.sessionCredential
+    if (!credential) {
+      res.status(401).json({ error: "Authentication required" })
+      return undefined
+    }
     const header = req.headers["mcp-session-id"]
     const sessionId = Array.isArray(header) ? header[header.length - 1] : header
     if (sessionId) {
@@ -73,6 +81,12 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
         })
         return undefined
       }
+      if (existing.credential.token !== credential.token) {
+        res.status(401).json({
+          error: "Session credential mismatch"
+        })
+        return undefined
+      }
       return existing
     }
     const config = await extractSessionConfig(req, res)
@@ -80,7 +94,7 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
       return undefined
     }
     try {
-      return createSession(config)
+      return createSession(config, credential)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Error initializing server"
       const lower = errorMessage.toLowerCase()
@@ -93,7 +107,7 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
     }
   }
 
-  app.all("/mcp", async (req: Request, res: Response) => {
+  app.all("/mcp", authenticationMiddleware, async (req: Request, res: Response) => {
     // Normalize Accept header to meet StreamableHTTP transport requirements
     // The transport requires both application/json and text/event-stream to be literally present
     // Even though */* should cover everything, the SDK checks for explicit strings

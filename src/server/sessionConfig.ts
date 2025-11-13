@@ -18,10 +18,6 @@ export const sessionConfigJsonSchema = {
       type: "string",
       description: "ClickUp workspace ID applied when tool inputs omit one"
     },
-    apiKey: {
-      type: "string",
-      description: "ClickUp personal API token used for all API requests"
-    },
     charLimit: {
       type: "number",
       description: "Maximum characters returned before responses are truncated"
@@ -31,11 +27,10 @@ export const sessionConfigJsonSchema = {
       description: "Largest file attachment (MB) allowed for uploads"
     }
   },
-  required: ["teamId", "apiKey"],
+  required: ["teamId"],
   additionalProperties: false,
   exampleConfig: {
     teamId: "team_123",
-    apiKey: "pk_123",
     charLimit: 16000,
     maxAttachmentMb: 8
   }
@@ -45,11 +40,9 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   const q = req.query as Record<string, string | string[] | undefined>
 
   const teamId = lastString(q.teamId) || lastString(q.teamID) || lastString(q.workspaceId) || lastString(q.workspaceID)
-  const apiKey = lastString(q.apiKey) || lastString(q.api_key) || lastString(q.token)
 
   const missing: string[] = []
   if (!teamId) missing.push("teamId")
-  if (!apiKey) missing.push("apiKey")
 
   if (missing.length) {
     res.status(400).json({
@@ -66,7 +59,6 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
 
   const config: SessionConfigInput = {
     teamId,
-    apiKey,
     ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
     ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {})
   } as SessionConfigInput
