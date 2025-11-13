@@ -7,7 +7,6 @@ const NumberSchema = z.number().finite().positive()
 
 export type SessionConfigInput = {
   teamId?: string
-  apiKey?: string
   charLimit?: number
   maxAttachmentMb?: number
 }
@@ -81,12 +80,12 @@ function resolveApiKey(candidate?: string) {
   return trimmed || undefined
 }
 
-export function createApplicationConfig(input: SessionConfigInput): ApplicationConfig {
+export function createApplicationConfig(input: SessionConfigInput, apiKeyCandidate?: string): ApplicationConfig {
   const teamId = resolveTeamId(input.teamId)
   if (!teamId) {
     throw new Error("teamId is required")
   }
-  const apiKey = resolveApiKey(input.apiKey)
+  const apiKey = resolveApiKey(apiKeyCandidate)
   if (!apiKey) {
     throw new Error("apiKey is required")
   }
