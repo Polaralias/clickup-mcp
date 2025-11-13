@@ -31,7 +31,9 @@ export async function bulkDocSearch(
   config: ApplicationConfig,
   capabilityTracker: CapabilityTracker
 ): Promise<BulkDocSearchOutcome> {
-  const processor = new BulkProcessor<string, Result[number]>(resolveConcurrency())
+  const processor = new BulkProcessor<string, Result[number] | DocCapabilityError>(
+    resolveConcurrency()
+  )
   const results = await processor.run(input.queries, async (query) => {
     const result = await docSearch(
       {

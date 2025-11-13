@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { FuzzySearchInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
+import type { SearchParams } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import { requireTeamId } from "../../config/applicationConfig.js"
 import { TaskSearchIndex } from "../../services/TaskSearchIndex.js"
@@ -33,7 +34,7 @@ function buildPageSignature(records: TaskResolutionRecord[]) {
 
 async function loadSearchPage(
   teamId: string,
-  params: Record<string, unknown>,
+  params: SearchParams,
   client: ClickUpClient,
   catalogue?: TaskCatalogue
 ) {
@@ -70,7 +71,7 @@ export async function fuzzySearch(
   const limit = normaliseLimit(input.limit)
 
   if (taskIdPattern.test(input.query)) {
-    const params = { task_ids: input.query }
+    const params: SearchParams = { task_ids: input.query }
     const cached = catalogue?.getSearchEntry(teamId, params)
     if (cached) {
       return { results: cached.records.slice(0, limit) }
@@ -91,7 +92,7 @@ export async function fuzzySearch(
   let exhausted = false
 
   for (let page = 0; aggregated.length < limit; page += 1) {
-    const params = { search: input.query, page }
+    const params: SearchParams = { search: input.query, page }
     const records = await loadSearchPage(teamId, params, client, catalogue)
     if (records.length === 0) {
       exhausted = true
