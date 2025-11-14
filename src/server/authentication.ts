@@ -30,6 +30,11 @@ export function authenticationMiddleware(req: Request, res: Response, next: Next
   const header = lastHeaderValue(req.headers.authorization)
   const token = extractBearerToken(header)
   if (!token) {
+    const sessionHeader = lastHeaderValue(req.headers["mcp-session-id"])
+    if (sessionHeader) {
+      next()
+      return
+    }
     res.status(401).json({ error: "Missing or invalid Authorization header" })
     return
   }
