@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { MoveTasksBulkInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
-import { summariseBulk } from "./bulkShared.js"
+import { summariseBulk, formatError } from "./bulkShared.js"
 import type { ApplicationConfig } from "../../config/applicationConfig.js"
 import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
@@ -20,6 +20,36 @@ function normaliseMoves(input: Input): NormalisedMove[] {
     taskId: task.taskId,
     listId: (task.listId ?? defaults.listId)!
   }))
+}
+
+function normaliseListId(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    return value
+  }
+  if (typeof value === "number") {
+    return String(value)
+  }
+  return undefined
+}
+
+function extractListId(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined
+  }
+  const candidate = payload as {
+    list?: { id?: unknown } | null
+    list_id?: unknown
+    listId?: unknown
+  }
+  const listSource = candidate.list && typeof candidate.list === "object"
+    ? (candidate.list as { id?: unknown })
+    : undefined
+  const fromList = normaliseListId(listSource?.id)
+  return (
+    fromList ??
+    normaliseListId(candidate.list_id) ??
+    normaliseListId(candidate.listId)
+  )
 }
 
 export async function moveTasksBulk(
@@ -48,8 +78,32 @@ export async function moveTasksBulk(
 
   const results = await client.moveTasksBulk(moves, { concurrency: CONCURRENCY_LIMIT })
 
+  const verifiedResults = await Promise.all(
+    results.map(async (result) => {
+      if (!result.success) {
+        return result
+      }
+      const verificationResponse = await client.getTask(result.taskId)
+      const payload = verificationResponse?.task ?? verificationResponse ?? {}
+      const actualListId = extractListId(payload)
+      if (!actualListId || actualListId !== result.listId) {
+        return {
+          success: false as const,
+          taskId: result.taskId,
+          listId: result.listId,
+          error: formatError(
+            new Error(
+              `Post-move verification failed: task ${result.taskId} expected in list ${result.listId} but found ${actualListId ?? "unknown"}`
+            )
+          )
+        }
+      }
+      return result
+    })
+  )
+
   let invalidatedSearch = false
-  results.forEach((result) => {
+  verifiedResults.forEach((result) => {
     if (result.success) {
       catalogue?.invalidateTask(result.taskId)
       catalogue?.invalidateList(result.listId)
@@ -60,14 +114,12 @@ export async function moveTasksBulk(
     catalogue?.invalidateSearch()
   }
 
-  const outcomes = results.map((result, index) => ({
+  const outcomes = verifiedResults.map((result, index) => ({
     index,
     status: result.success ? ("success" as const) : ("failed" as const),
-    payload: {
-      taskId: result.taskId,
-      listId: result.listId,
-      status: result.success ? "moved" : undefined
-    },
+    payload: result.success
+      ? { taskId: result.taskId, listId: result.listId, status: "moved" as const }
+      : { taskId: result.taskId, listId: result.listId },
     error: result.success ? undefined : result.error
   }))
 
