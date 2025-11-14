@@ -23,7 +23,7 @@ describe("authenticationMiddleware", () => {
   })
 
   it("rejects requests without a valid Authorization header", () => {
-    const req = { headers: {} } as unknown as Request
+    const req = { headers: {}, query: {} } as unknown as Request
     const res = createResponse()
     const next = vi.fn()
 
@@ -36,13 +36,25 @@ describe("authenticationMiddleware", () => {
   })
 
   it("allows requests that include a session header", () => {
-    const req = { headers: { "mcp-session-id": "session-123" } } as unknown as Request
+    const req = { headers: { "mcp-session-id": "session-123" }, query: {} } as unknown as Request
     const res = createResponse()
     const next = vi.fn()
 
     authenticationMiddleware(req, res, next)
 
     expect(req.sessionCredential).toBeUndefined()
+    expect(res.status).not.toHaveBeenCalled()
+    expect(next).toHaveBeenCalledOnce()
+  })
+
+  it("derives credentials from the apiKey query parameter", () => {
+    const req = { headers: {}, query: { apiKey: "pk_123" } } as unknown as Request
+    const res = createResponse()
+    const next = vi.fn()
+
+    authenticationMiddleware(req, res, next)
+
+    expect(req.sessionCredential?.token).toBe("pk_123")
     expect(res.status).not.toHaveBeenCalled()
     expect(next).toHaveBeenCalledOnce()
   })
