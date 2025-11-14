@@ -34,4 +34,16 @@ describe("authenticationMiddleware", () => {
     expect(res.status).toHaveBeenCalledWith(401)
     expect(res.json).toHaveBeenCalledWith({ error: "Missing or invalid Authorization header" })
   })
+
+  it("allows requests that include a session header", () => {
+    const req = { headers: { "mcp-session-id": "session-123" } } as unknown as Request
+    const res = createResponse()
+    const next = vi.fn()
+
+    authenticationMiddleware(req, res, next)
+
+    expect(req.sessionCredential).toBeUndefined()
+    expect(res.status).not.toHaveBeenCalled()
+    expect(next).toHaveBeenCalledOnce()
+  })
 })

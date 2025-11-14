@@ -66,13 +66,10 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
   }
 
   async function ensureSession(req: Request, res: Response) {
-    const credential = req.sessionCredential
-    if (!credential) {
-      res.status(401).json({ error: "Authentication required" })
-      return undefined
-    }
     const header = req.headers["mcp-session-id"]
     const sessionId = Array.isArray(header) ? header[header.length - 1] : header
+    const credential = req.sessionCredential
+
     if (sessionId) {
       const existing = sessions.get(sessionId)
       if (!existing) {
@@ -81,13 +78,24 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
         })
         return undefined
       }
-      if (existing.credential.token !== credential.token) {
-        res.status(401).json({
-          error: "Session credential mismatch"
-        })
-        return undefined
+
+      if (credential) {
+        if (existing.credential.token !== credential.token) {
+          res.status(401).json({
+            error: "Session credential mismatch"
+          })
+          return undefined
+        }
+      } else {
+        req.sessionCredential = existing.credential
       }
+
       return existing
+    }
+
+    if (!credential) {
+      res.status(401).json({ error: "Authentication required" })
+      return undefined
     }
     const config = await extractSessionConfig(req, res)
     if (!config) {
