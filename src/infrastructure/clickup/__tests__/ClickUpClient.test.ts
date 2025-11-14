@@ -49,7 +49,11 @@ describe("ClickUpClient", () => {
     expect(fetchMock).toHaveBeenCalled()
     const [, init] = fetchMock.mock.calls[0]
     expect(init?.method).toBe("PUT")
-    expect(init?.body).toBe(JSON.stringify({ list: "list-456" }))
+    expect(init?.body).toBeDefined()
+    expect(JSON.parse(String(init?.body))).toEqual({
+      list: "list-456",
+      list_id: "list-456"
+    })
   })
 
   it("falls back to POST when PUT is not available", async () => {
@@ -78,6 +82,11 @@ describe("ClickUpClient", () => {
     const [firstUrl, firstInit] = fetchMock.mock.calls[0]
     expect(String(firstUrl)).toContain("/task/task-123")
     expect(firstInit?.method).toBe("PUT")
+    expect(firstInit?.body).toBeDefined()
+    expect(JSON.parse(String(firstInit?.body))).toEqual({
+      list: "list-456",
+      list_id: "list-456"
+    })
     const [secondUrl, secondInit] = fetchMock.mock.calls[1]
     expect(String(secondUrl)).toContain("/task/task-123/list/list-456")
     expect(secondInit?.method).toBe("POST")
@@ -119,6 +128,14 @@ describe("ClickUpClient", () => {
     expect(calledUrls.filter((url) => url.endsWith("/task/task-2")).length).toBeGreaterThanOrEqual(1)
     const methods = fetchMock.mock.calls.map(([, init]) => init?.method)
     expect(methods.every((method) => method === "PUT")).toBe(true)
+    const bodies = fetchMock.mock.calls.map(([, init]) => init?.body)
+    bodies.forEach((body) => {
+      expect(body).toBeDefined()
+      const payload = JSON.parse(String(body))
+      expect(payload.list_id).toBeDefined()
+      expect(payload.list).toBe(payload.list_id)
+      expect(["list-1", "list-2"]).toContain(payload.list_id)
+    })
     expect(results[0]).toEqual({ success: true, taskId: "task-1", listId: "list-1" })
     const failure = results[1]
     if (failure.success) {
