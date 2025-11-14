@@ -197,6 +197,7 @@ export async function listTasksInList(
   }
   let listName = listResolution.listName
   let listUrl = listResolution.listUrl
+  const pageSize = Math.min(input.limit, 100)
 
   type LoadedPage = {
     tasks: TaskListItem[]
@@ -227,7 +228,8 @@ export async function listTasksInList(
     const query: SearchParams = {
       page,
       archived: input.includeClosed ? true : undefined,
-      subtasks: input.includeSubtasks ? true : undefined
+      subtasks: input.includeSubtasks ? true : undefined,
+      page_size: pageSize
     }
     const response = await client.listTasksInList(listResolution.listId, query)
     const rawTasks: unknown[] = Array.isArray(response?.tasks)
