@@ -1,0 +1,11 @@
+services:
+  clickup-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: "8081"
+      TRANSPORT: "http"
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
