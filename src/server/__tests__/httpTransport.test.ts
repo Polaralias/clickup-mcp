@@ -76,7 +76,7 @@ describe("registerHttpTransport", () => {
         authorization: "Bearer token-123",
         accept: "application/json"
       },
-      query: { teamId: "team_1" },
+      query: { teamId: "team_1", apiKey: "token-123" },
       body: {}
     } as unknown as MutableRequest
     const initialRes = createResponse()
@@ -109,6 +109,47 @@ describe("registerHttpTransport", () => {
     expect(createServer).toHaveBeenCalledTimes(1)
     expect(transportInstances[0].handleRequest).toHaveBeenCalledTimes(2)
     expect(followupReq.sessionCredential?.token).toBe("token-123")
+  })
+
+  it("creates a session using the apiKey from the request when Authorization is absent", async () => {
+    const handlers: Handler[] = []
+    const app = {
+      all: vi.fn((_path: string, ...routeHandlers: Handler[]) => {
+        handlers.push(...routeHandlers)
+      })
+    } as unknown as Express
+
+    const connect = vi.fn(async () => undefined)
+    const close = vi.fn(async () => undefined)
+
+    const createServer = vi.fn((_config: ApplicationConfig) => ({
+      connect,
+      close
+    }) as unknown as McpServer)
+
+    registerHttpTransport(app, createServer)
+
+    const [authMiddleware, routeHandler] = handlers
+
+    const initialReq = {
+      headers: {
+        accept: "application/json"
+      },
+      query: { teamId: "team_1", apiKey: "pk_456" },
+      body: {}
+    } as unknown as MutableRequest
+    const initialRes = createResponse()
+    const next = vi.fn()
+
+    authMiddleware(initialReq, initialRes, next)
+    expect(next).toHaveBeenCalledOnce()
+    expect(initialReq.sessionCredential?.token).toBe("pk_456")
+
+    await routeHandler(initialReq, initialRes, vi.fn())
+
+    expect(createServer).toHaveBeenCalledTimes(1)
+    expect(transportInstances).toHaveLength(1)
+    expect(transportInstances[0].handleRequest).toHaveBeenCalledTimes(1)
   })
 })
 

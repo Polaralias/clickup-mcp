@@ -26,12 +26,29 @@ function extractBearerToken(headerValue: string | undefined) {
   return token || undefined
 }
 
+function lastQueryString(value: unknown) {
+  if (Array.isArray(value)) {
+    return value[value.length - 1]
+  }
+  if (typeof value === "string") {
+    return value
+  }
+  return undefined
+}
+
 export function authenticationMiddleware(req: Request, res: Response, next: NextFunction) {
   const header = lastHeaderValue(req.headers.authorization)
   const token = extractBearerToken(header)
   if (!token) {
     const sessionHeader = lastHeaderValue(req.headers["mcp-session-id"])
     if (sessionHeader) {
+      next()
+      return
+    }
+    const apiKey = lastQueryString((req.query as Record<string, unknown> | undefined)?.apiKey)
+    const trimmedApiKey = apiKey?.trim()
+    if (trimmedApiKey) {
+      req.sessionCredential = { token: trimmedApiKey }
       next()
       return
     }

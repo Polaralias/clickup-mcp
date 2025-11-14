@@ -7,6 +7,7 @@ const NumberSchema = z.number().finite().positive()
 
 export type SessionConfigInput = {
   teamId?: string
+  apiKey?: string
   charLimit?: number
   maxAttachmentMb?: number
 }
@@ -70,10 +71,14 @@ function resolveTeamId(candidate?: string) {
   return trimmed || undefined
 }
 
-function resolveApiKey(candidate?: string) {
-  const value = candidate?.trim()
-  if (value) {
-    return value
+function resolveApiKey(candidate?: string, fallbackCandidate?: string) {
+  const direct = candidate?.trim()
+  if (direct) {
+    return direct
+  }
+  const fallback = fallbackCandidate?.trim()
+  if (fallback) {
+    return fallback
   }
   const envValue = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken
   const trimmed = envValue?.trim()
@@ -85,7 +90,7 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
   if (!teamId) {
     throw new Error("teamId is required")
   }
-  const apiKey = resolveApiKey(apiKeyCandidate)
+  const apiKey = resolveApiKey(input.apiKey, apiKeyCandidate)
   if (!apiKey) {
     throw new Error("apiKey is required")
   }

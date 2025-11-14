@@ -16,7 +16,7 @@ describe("extractSessionConfig", () => {
   }
 
   it("extracts teamId from query parameters", async () => {
-    const req = createMockRequest({ teamId: "team_123" })
+    const req = createMockRequest({ teamId: "team_123", apiKey: "pk_123" })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
@@ -27,7 +27,7 @@ describe("extractSessionConfig", () => {
   })
 
   it("accepts teamID synonym", async () => {
-    const req = createMockRequest({ teamID: "team_456" })
+    const req = createMockRequest({ teamID: "team_456", apiKey: "pk_123" })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
@@ -37,7 +37,7 @@ describe("extractSessionConfig", () => {
   })
 
   it("accepts workspaceId synonym", async () => {
-    const req = createMockRequest({ workspaceId: "workspace_789" })
+    const req = createMockRequest({ workspaceId: "workspace_789", apiKey: "pk_123" })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
@@ -47,7 +47,7 @@ describe("extractSessionConfig", () => {
   })
 
   it("accepts workspaceID synonym", async () => {
-    const req = createMockRequest({ workspaceID: "workspace_101" })
+    const req = createMockRequest({ workspaceID: "workspace_101", apiKey: "pk_123" })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
@@ -58,7 +58,8 @@ describe("extractSessionConfig", () => {
 
   it("handles array values by taking the last element", async () => {
     const req = createMockRequest({
-      teamId: ["team_1", "team_2", "team_3"]
+      teamId: ["team_1", "team_2", "team_3"],
+      apiKey: "pk_123"
     })
     const res = createMockResponse()
 
@@ -69,7 +70,7 @@ describe("extractSessionConfig", () => {
   })
 
   it("returns HTTP 400 with plain error when teamId is missing", async () => {
-    const req = createMockRequest({})
+    const req = createMockRequest({ apiKey: "pk_123" })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
@@ -81,9 +82,23 @@ describe("extractSessionConfig", () => {
     })
   })
 
+  it("returns HTTP 400 when apiKey is missing", async () => {
+    const req = createMockRequest({ teamId: "team_123" })
+    const res = createMockResponse()
+
+    const config = await extractSessionConfig(req, res)
+
+    expect(config).toBeUndefined()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid configuration: missing apiKey"
+    })
+  })
+
   it("parses numeric charLimit when provided", async () => {
     const req = createMockRequest({
       teamId: "team_123",
+      apiKey: "pk_123",
       charLimit: "20000"
     })
     const res = createMockResponse()
@@ -97,6 +112,7 @@ describe("extractSessionConfig", () => {
   it("parses numeric maxAttachmentMb when provided", async () => {
     const req = createMockRequest({
       teamId: "team_123",
+      apiKey: "pk_123",
       maxAttachmentMb: "10"
     })
     const res = createMockResponse()
@@ -110,6 +126,7 @@ describe("extractSessionConfig", () => {
   it("omits charLimit if it's an invalid number", async () => {
     const req = createMockRequest({
       teamId: "team_123",
+      apiKey: "pk_123",
       charLimit: "invalid"
     })
     const res = createMockResponse()
@@ -123,6 +140,7 @@ describe("extractSessionConfig", () => {
   it("omits maxAttachmentMb if it's an invalid number", async () => {
     const req = createMockRequest({
       teamId: "team_123",
+      apiKey: "pk_123",
       maxAttachmentMb: "not-a-number"
     })
     const res = createMockResponse()
@@ -143,13 +161,14 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.$id).toBe("https://clickup-mcp-server/.well-known/mcp-config")
   })
 
-  it("requires teamId", () => {
-    expect(sessionConfigJsonSchema.required).toEqual(["teamId"])
+  it("requires teamId and apiKey", () => {
+    expect(sessionConfigJsonSchema.required).toEqual(["teamId", "apiKey"])
   })
 
   it("includes exampleConfig", () => {
     expect(sessionConfigJsonSchema.exampleConfig).toBeDefined()
     expect(sessionConfigJsonSchema.exampleConfig.teamId).toBe("team_123")
+    expect(sessionConfigJsonSchema.exampleConfig.apiKey).toBe("pk_123")
     expect(sessionConfigJsonSchema.exampleConfig.charLimit).toBe(16000)
     expect(sessionConfigJsonSchema.exampleConfig.maxAttachmentMb).toBe(8)
   })
