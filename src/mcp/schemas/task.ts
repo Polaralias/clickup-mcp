@@ -120,11 +120,6 @@ export const DeleteTaskInput = SafetyInput.extend({
   taskId: Id.describe("Task ID to delete after confirmation.")
 })
 
-export const MoveTaskInput = SafetyInput.extend({
-  taskId: Id.describe("Task ID to move."),
-  listId: Id.describe("Destination list ID for the task.")
-})
-
 export const DuplicateTaskInput = SafetyInput.extend({
   taskId: Id.describe("Source task ID to copy."),
   listId: Id.describe("Override target list; defaults to source list.").optional(),
@@ -238,17 +233,6 @@ const BulkUpdateTask = UpdateFields.extend({
   taskId: Id.describe("Task ID receiving these updates.")
 })
 
-const BulkMoveDefaults = z
-  .object({
-    listId: Id.describe("Fallback destination list ID.").optional()
-  })
-  .partial()
-
-const BulkMoveTask = z.object({
-  taskId: Id.describe("Task ID to relocate."),
-  listId: Id.describe("Destination list ID; falls back to defaults.listId.").optional()
-})
-
 const BulkTagDefaults = z
   .object({
     tags: TagArray.describe("Tags to merge into each task when missing.")
@@ -312,26 +296,6 @@ export const UpdateTasksBulkInput = SafetyInput.extend({
       code: z.ZodIssueCode.custom,
       path: ["tasks", index],
       message: "Provide at least one field to update or set defaults"
-    })
-  })
-})
-
-export const MoveTasksBulkInput = SafetyInput.extend({
-  teamId: Id.describe("Workspace/team scope for bulk moves.").optional(),
-  defaults: BulkMoveDefaults.describe("Fallback destination when tasks omit listId.").optional(),
-  tasks: z
-    .array(BulkMoveTask)
-    .min(1)
-    .describe("Task moves; each entry must resolve to a destination list.")
-}).superRefine((value, ctx) => {
-  value.tasks.forEach((task, index) => {
-    if (task.listId || value.defaults?.listId) {
-      return
-    }
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["tasks", index, "listId"],
-      message: "Provide listId per task or in defaults"
     })
   })
 })

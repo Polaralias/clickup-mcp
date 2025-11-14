@@ -264,10 +264,6 @@ type RequestOptions = {
   headers?: Record<string, string>
 }
 
-export type MoveTaskBulkOutcome =
-  | { success: true; taskId: string; listId: string }
-  | { success: false; taskId: string; listId: string; error: NormalisedClickUpError }
-
 export class ClickUpClient {
   constructor(private readonly token: string) {
     if (!this.token) {
@@ -678,26 +674,6 @@ export class ClickUpClient {
     })
   }
 
-  async moveTask(taskId: string, listId: string) {
-    try {
-      return await this.request(`task/${taskId}`, {
-        method: "PUT",
-        body: { list_id: listId, list: listId }
-      })
-    } catch (error) {
-      const parsed = error instanceof Error ? parseClickUpError(error) : undefined
-      if (parsed?.status === 404) {
-        console.warn(
-          "ClickUp moveTask PUT returned 404. Falling back to deprecated POST /task/{taskId}/list/{listId}."
-        )
-        return this.request(`task/${taskId}/list/${listId}`, {
-          method: "POST"
-        })
-      }
-      throw error
-    }
-  }
-
   duplicateTask(taskId: string, body: Record<string, unknown>) {
     return this.request(`task/${taskId}/duplicate`, {
       method: "POST",
@@ -767,45 +743,6 @@ export class ClickUpClient {
       searchParams: { team_id: teamId },
       body: { tasks }
     })
-  }
-
-  async moveTasksBulk(
-    moves: Array<{ taskId: string; listId: string }>,
-    options: { concurrency?: number } = {}
-  ): Promise<MoveTaskBulkOutcome[]> {
-    if (moves.length === 0) {
-      return []
-    }
-
-    const limit = Math.max(1, options.concurrency ?? 5)
-    const results: MoveTaskBulkOutcome[] = new Array(moves.length)
-    let pointer = 0
-
-    const worker = async () => {
-      while (true) {
-        const index = pointer
-        if (index >= moves.length) {
-          return
-        }
-        pointer += 1
-        const move = moves[index]
-        try {
-          await this.moveTask(move.taskId, move.listId)
-          results[index] = { success: true as const, taskId: move.taskId, listId: move.listId }
-        } catch (error) {
-          results[index] = {
-            success: false as const,
-            taskId: move.taskId,
-            listId: move.listId,
-            error: normaliseClickUpError(error)
-          }
-        }
-      }
-    }
-
-    const workers = Array.from({ length: Math.min(limit, moves.length) }, () => worker())
-    await Promise.all(workers)
-    return results
   }
 
   deleteTasksBulk(teamId: string, taskIds: string[]) {

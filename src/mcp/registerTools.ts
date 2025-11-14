@@ -9,7 +9,6 @@ import {
   CreateTaskInput,
   UpdateTaskInput,
   DeleteTaskInput,
-  MoveTaskInput,
   DuplicateTaskInput,
   CommentTaskInput,
   AttachFileInput,
@@ -17,7 +16,6 @@ import {
   RemoveTagsInput,
   CreateTasksBulkInput,
   UpdateTasksBulkInput,
-  MoveTasksBulkInput,
   DeleteTasksBulkInput,
   AddTagsBulkInput,
   GetTaskInput,
@@ -79,7 +77,6 @@ import { withSafetyConfirmation } from "../application/safety/withSafetyConfirma
 import { createTask } from "../application/usecases/tasks/CreateTask.js"
 import { updateTask } from "../application/usecases/tasks/UpdateTask.js"
 import { deleteTask } from "../application/usecases/tasks/DeleteTask.js"
-import { moveTask } from "../application/usecases/tasks/MoveTask.js"
 import { duplicateTask } from "../application/usecases/tasks/DuplicateTask.js"
 import { commentTask } from "../application/usecases/tasks/CommentTask.js"
 import { attachFileToTask } from "../application/usecases/tasks/AttachFileToTask.js"
@@ -87,7 +84,6 @@ import { addTagsToTask } from "../application/usecases/tasks/AddTagsToTask.js"
 import { removeTagsFromTask } from "../application/usecases/tasks/RemoveTagsFromTask.js"
 import { createTasksBulk } from "../application/usecases/tasks/CreateTasksBulk.js"
 import { updateTasksBulk } from "../application/usecases/tasks/UpdateTasksBulk.js"
-import { moveTasksBulk } from "../application/usecases/tasks/MoveTasksBulk.js"
 import { deleteTasksBulk } from "../application/usecases/tasks/DeleteTasksBulk.js"
 import { addTagsBulk } from "../application/usecases/tasks/AddTagsBulk.js"
 import { getTask } from "../application/usecases/tasks/GetTask.js"
@@ -629,20 +625,6 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     DeleteTasksBulkInput,
     async (input, client, config) => deleteTasksBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk delete", { scope: "task", input: "taskIds", dry: true })
-  )
-  registerDestructive(
-    "clickup_move_task",
-    "Move a task to another list. PUT /task/{task_id} (fallback POST /task/{task_id}/list/{list_id})",
-    MoveTaskInput,
-    async (input, client) => moveTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "move task", { scope: "task", input: "taskId+listId", dry: true, idempotent: true })
-  )
-  registerDestructive(
-    "clickup_move_tasks_bulk",
-    "Bulk move tasks via per-task PUT /task/{task_id} requests (fallback POST /task/{task_id}/list/{list_id})",
-    MoveTasksBulkInput,
-    async (input, client, config) => moveTasksBulk(input, client, config, sessionTaskCatalogue),
-    destructiveAnnotation("task", "bulk move", { scope: "task", input: "tasks[]", dry: true })
   )
   registerDestructive(
     "clickup_duplicate_task",
