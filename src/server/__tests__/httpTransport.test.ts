@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { Request, Response, NextFunction, Express } from "express"
 import { registerHttpTransport } from "../httpTransport.js"
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { ApplicationConfig } from "../../application/config/applicationConfig.js"
 
 type TransportInstance = {
@@ -61,7 +62,7 @@ describe("registerHttpTransport", () => {
     const createServer = vi.fn((_config: ApplicationConfig) => ({
       connect,
       close
-    }))
+    }) as unknown as McpServer)
 
     registerHttpTransport(app, createServer)
 
