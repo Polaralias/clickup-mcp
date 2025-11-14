@@ -711,7 +711,22 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "clickup_list_tasks_in_list",
     "List tasks in a list. GET /list/{list_id}/task",
     ListTasksInListInput,
-    (input, client, config) => listTasksInList(input, client, config, sessionTaskCatalogue),
+    async (input, client, config) => {
+      const result = await listTasksInList(input, client, config, sessionTaskCatalogue)
+      const rawTasks = (result as any)?.tasks ?? result
+
+      const tasksArray = Array.isArray(rawTasks)
+        ? rawTasks
+        : rawTasks
+          ? [rawTasks]
+          : []
+
+      const total = (result as any)?.total ?? tasksArray.length
+      const truncated = !!(result as any)?.truncated
+      const guidance = (result as any)?.guidance
+
+      return { tasks: tasksArray, total, truncated, guidance }
+    },
     readOnlyAnnotation("task", "list tasks", { scope: "list", input: "listId|path" })
   )
   registerReadOnly(
