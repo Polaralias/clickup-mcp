@@ -682,7 +682,7 @@ export class ClickUpClient {
     try {
       return await this.request(`task/${taskId}`, {
         method: "PUT",
-        body: { list: listId }
+        body: { list_id: listId, list: listId }
       })
     } catch (error) {
       const parsed = error instanceof Error ? parseClickUpError(error) : undefined
