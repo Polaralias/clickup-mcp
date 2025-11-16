@@ -3,7 +3,8 @@ import { CreateTaskInput } from "../../../mcp/schemas/task.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import type { TaskCatalogue } from "../../services/TaskCatalogue.js"
 
-type Input = z.infer<typeof CreateTaskInput>
+type BaseInput = z.infer<typeof CreateTaskInput>
+type Input = BaseInput & { parentTaskId?: string }
 
 type Result = {
   preview?: Record<string, unknown>
@@ -22,7 +23,8 @@ export async function createTask(
         name: input.name,
         hasDescription: Boolean(input.description),
         assigneeCount: input.assigneeIds?.length ?? 0,
-        tagCount: input.tags?.length ?? 0
+        tagCount: input.tags?.length ?? 0,
+        parentTaskId: input.parentTaskId
       }
     }
   }
@@ -33,7 +35,8 @@ export async function createTask(
     assignees: input.assigneeIds,
     priority: input.priority,
     due_date: input.dueDate,
-    tags: input.tags
+    tags: input.tags,
+    parent: input.parentTaskId
   }
 
   const task = await client.createTask(input.listId, payload)

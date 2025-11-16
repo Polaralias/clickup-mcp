@@ -90,6 +90,10 @@ export const CreateTaskInput = SafetyInput.extend({
   tags: TagArray.describe("Tag names to attach at creation.").optional()
 })
 
+export const CreateSubtaskInput = CreateTaskInput.extend({
+  parentTaskId: Id.describe("Parent task ID; must belong to the same list as listId.")
+})
+
 export const UpdateTaskInput = SafetyInput.extend({
   taskId: Id.describe("Task ID to modify."),
   name: z.string().describe("New task title.").optional(),

@@ -7,6 +7,7 @@ import { readOnlyAnnotation, destructiveAnnotation } from "./annotations.js"
 import { zodToJsonSchemaCompact } from "./zodToJsonSchema.js"
 import {
   CreateTaskInput,
+  CreateSubtaskInput,
   UpdateTaskInput,
   DeleteTaskInput,
   DuplicateTaskInput,
@@ -590,6 +591,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     CreateTaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "create task", { scope: "list", input: "listId", dry: true })
+  )
+  registerDestructive(
+    "clickup_create_subtask",
+    "Create a subtask in a list. POST /list/{list_id}/task with parent parameter",
+    CreateSubtaskInput,
+    async (input, client) => createTask(input, client, sessionTaskCatalogue),
+    destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true })
   )
   registerDestructive(
     "clickup_create_tasks_bulk",
