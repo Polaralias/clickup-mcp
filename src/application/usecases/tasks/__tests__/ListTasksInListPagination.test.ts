@@ -24,6 +24,7 @@ describe("listTasksInList pagination", () => {
     page: 0,
     includeClosed: false,
     includeSubtasks: false,
+    includeTasksInMultipleLists: false,
     assigneePreviewLimit: 3
   }
 
@@ -101,5 +102,46 @@ describe("listTasksInList pagination", () => {
     expect(listTasksMock).toHaveBeenCalledTimes(2)
     expect(result.tasks.length).toBe(15)
     expect(result.truncated).toBe(false)
+  })
+
+  it("passes include_closed and subtasks flags when requested", async () => {
+    const flagsInput = { ...baseInput, includeClosed: true, includeSubtasks: true }
+    const listTasksMock = vi
+      .fn()
+      .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
+        expect(params).toMatchObject({
+          page: 0,
+          page_size: 100,
+          include_closed: true,
+          subtasks: true
+        })
+        return { tasks: [] }
+      })
+
+    const client = createClient({ listTasksInList: listTasksMock })
+
+    await listTasksInList(flagsInput, client, config)
+
+    expect(listTasksMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("forwards include_timl when tasks in multiple lists are requested", async () => {
+    const timlInput = { ...baseInput, includeTasksInMultipleLists: true }
+    const listTasksMock = vi
+      .fn()
+      .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
+        expect(params).toMatchObject({
+          page: 0,
+          page_size: 100,
+          include_timl: true
+        })
+        return { tasks: [] }
+      })
+
+    const client = createClient({ listTasksInList: listTasksMock })
+
+    await listTasksInList(timlInput, client, config)
+
+    expect(listTasksMock).toHaveBeenCalledTimes(1)
   })
 })
