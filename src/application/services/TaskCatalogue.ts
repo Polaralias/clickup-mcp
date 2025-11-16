@@ -4,6 +4,7 @@ import type { TaskResolutionRecord } from "../usecases/tasks/resolveTaskReferenc
 type ListFilters = {
   includeClosed: boolean
   includeSubtasks: boolean
+  includeTasksInMultipleLists: boolean
 }
 
 type CachedListPage = {
@@ -84,7 +85,8 @@ const DEFAULT_MAX_TASK_RECORDS = 1000
 function normaliseFilters(filters: ListFilters) {
   return {
     includeClosed: Boolean(filters.includeClosed),
-    includeSubtasks: Boolean(filters.includeSubtasks)
+    includeSubtasks: Boolean(filters.includeSubtasks),
+    includeTasksInMultipleLists: Boolean(filters.includeTasksInMultipleLists)
   }
 }
 
@@ -95,6 +97,7 @@ function buildListKey(listId: string, filters: ListFilters, page: number) {
     listId,
     normalised.includeClosed ? "closed:1" : "closed:0",
     normalised.includeSubtasks ? "subs:1" : "subs:0",
+    normalised.includeTasksInMultipleLists ? "timl:1" : "timl:0",
     `page:${page}`
   ].join(":")
 }

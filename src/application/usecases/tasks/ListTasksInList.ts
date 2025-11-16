@@ -52,6 +52,7 @@ type Result = {
   filters: {
     includeClosed: boolean
     includeSubtasks: boolean
+    includeTasksInMultipleLists: boolean
   }
   guidance?: string
 }
@@ -193,7 +194,8 @@ export async function listTasksInList(
   const listResolution = await resolveListDetails(input, client, catalogue)
   const filters = {
     includeClosed: input.includeClosed,
-    includeSubtasks: input.includeSubtasks
+    includeSubtasks: input.includeSubtasks,
+    includeTasksInMultipleLists: input.includeTasksInMultipleLists
   }
   let listName = listResolution.listName
   let listUrl = listResolution.listUrl
@@ -227,8 +229,9 @@ export async function listTasksInList(
 
     const query: SearchParams = {
       page,
-      archived: input.includeClosed ? true : undefined,
+      include_closed: input.includeClosed ? true : undefined,
       subtasks: input.includeSubtasks ? true : undefined,
+      include_timl: input.includeTasksInMultipleLists ? true : undefined,
       page_size: pageSize
     }
     const response = await client.listTasksInList(listResolution.listId, query)
@@ -335,7 +338,8 @@ export async function listTasksInList(
     },
     filters: {
       includeClosed: input.includeClosed,
-      includeSubtasks: input.includeSubtasks
+      includeSubtasks: input.includeSubtasks,
+      includeTasksInMultipleLists: input.includeTasksInMultipleLists
     },
     guidance
   }

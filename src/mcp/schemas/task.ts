@@ -490,8 +490,12 @@ export const ListTasksInListInput = TaskLookupReference.extend({
     .describe("true to include closed tasks in the listing."),
   includeSubtasks: z
     .boolean()
-    .default(false)
+    .default(true)
     .describe("true to include child tasks."),
+  includeTasksInMultipleLists: z
+    .boolean()
+    .default(false)
+    .describe("true to include tasks whose home list differs; maps to ClickUp include_timl."),
   assigneePreviewLimit: z
     .number()
     .int()
