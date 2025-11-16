@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { ListSpacesInput, CreateSpaceTagInput } from "../hierarchy.js"
 import {
   CreateTaskInput,
+  CreateSubtaskInput,
   DeleteTasksBulkInput,
   SearchTasksInput,
   CommentTaskInput
@@ -31,6 +32,14 @@ describe("schema ID coercion", () => {
     })
     expect(createTask.listId).toBe("789")
     expect(createTask.assigneeIds?.[0]).toBe("1011")
+
+    const createSubtask = CreateSubtaskInput.parse({
+      listId: 555,
+      parentTaskId: 777,
+      name: "Child"
+    })
+    expect(createSubtask.parentTaskId).toBe("777")
+    expect(createSubtask.listId).toBe("555")
 
     const bulkDelete = DeleteTasksBulkInput.parse({
       teamId: 1,
