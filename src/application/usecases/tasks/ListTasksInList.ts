@@ -229,7 +229,7 @@ export async function listTasksInList(
 
     const query: SearchParams = {
       page,
-      include_closed: input.includeClosed ? true : undefined,
+      archived: input.includeClosed ? true : undefined,
       subtasks: input.includeSubtasks ? true : undefined,
       include_timl: input.includeTasksInMultipleLists ? true : undefined,
       page_size: pageSize

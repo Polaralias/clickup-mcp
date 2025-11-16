@@ -104,7 +104,7 @@ describe("listTasksInList pagination", () => {
     expect(result.truncated).toBe(false)
   })
 
-  it("passes include_closed and subtasks flags when requested", async () => {
+  it("passes archived and subtasks flags when requested", async () => {
     const flagsInput = { ...baseInput, includeClosed: true, includeSubtasks: true }
     const listTasksMock = vi
       .fn()
@@ -112,7 +112,7 @@ describe("listTasksInList pagination", () => {
         expect(params).toMatchObject({
           page: 0,
           page_size: 100,
-          include_closed: true,
+          archived: true,
           subtasks: true
         })
         return { tasks: [] }
@@ -123,6 +123,34 @@ describe("listTasksInList pagination", () => {
     await listTasksInList(flagsInput, client, config)
 
     expect(listTasksMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("returns closed tasks when includeClosed is true", async () => {
+    const closedTask = buildTasks(1)[0]
+    closedTask.status = { status: "closed" }
+    const flagsInput = { ...baseInput, includeClosed: true }
+    const listTasksMock = vi
+      .fn()
+      .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
+        expect(params).toMatchObject({
+          page: 0,
+          page_size: 100,
+          archived: true
+        })
+        return { tasks: [closedTask] }
+      })
+      .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
+        expect(params).toMatchObject({ page: 1, page_size: 100, archived: true })
+        return { tasks: [] }
+      })
+
+    const client = createClient({ listTasksInList: listTasksMock })
+
+    const result = await listTasksInList(flagsInput, client, config)
+
+    expect(listTasksMock).toHaveBeenCalledTimes(2)
+    expect(result.tasks).toHaveLength(1)
+    expect(result.tasks[0].status).toBe("closed")
   })
 
   it("forwards include_timl when tasks in multiple lists are requested", async () => {
