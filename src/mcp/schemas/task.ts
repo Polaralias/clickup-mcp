@@ -208,6 +208,14 @@ const BulkCreateTask = z.object({
   tags: TagArray.describe("Tags for this task; merged with defaults.").optional()
 })
 
+const BulkCreateSubtaskDefaults = BulkCreateDefaults.extend({
+  parentTaskId: Id.describe("Default parent task ID when subtasks omit one.").optional()
+})
+
+const BulkCreateSubtask = BulkCreateTask.extend({
+  parentTaskId: Id.describe("Parent task ID for this subtask.").optional()
+})
+
 const UpdateFields = z.object({
   name: z.string().describe("Replacement title to set.").optional(),
   description: z
@@ -265,6 +273,32 @@ export const CreateTasksBulkInput = SafetyInput.extend({
       path: ["tasks", index, "listId"],
       message: "Provide listId per task or in defaults"
     })
+  })
+})
+
+export const CreateSubtasksBulkInput = SafetyInput.extend({
+  teamId: Id.describe("Workspace/team scope for bulk creation.").optional(),
+  defaults: BulkCreateSubtaskDefaults.describe("Fallback values merged into each subtask.").optional(),
+  subtasks: z
+    .array(BulkCreateSubtask)
+    .min(1)
+    .describe("Subtasks to create; each entry needs a name, list, and parent task.")
+}).superRefine((value, ctx) => {
+  value.subtasks.forEach((subtask, index) => {
+    if (!(subtask.listId || value.defaults?.listId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["subtasks", index, "listId"],
+        message: "Provide listId per subtask or in defaults"
+      })
+    }
+    if (!(subtask.parentTaskId || value.defaults?.parentTaskId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["subtasks", index, "parentTaskId"],
+        message: "Provide parentTaskId per subtask or in defaults"
+      })
+    }
   })
 })
 
