@@ -726,7 +726,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
   )
   registerReadOnly(
     "clickup_list_tasks_in_list",
-    "List tasks in a list. GET /list/{list_id}/task",
+    "List tasks in a list. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
     ListTasksInListInput,
     async (input, client, config) => {
       const result = await listTasksInList(input, client, config, sessionTaskCatalogue)
