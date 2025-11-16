@@ -187,25 +187,25 @@ const BulkCreateDefaults = z
   .partial()
 
 const BulkCreateTask = z.object({
-  listId: Id.describe("List ID for this task; overrides defaults.listId.").optional(),
-  name: z.string().min(1).describe("Task title for this entry."),
+  listId: Id.describe("Destination list ID where the task will be created.").optional(),
+  name: z.string().min(1).describe("Task title; supply at least one character."),
   description: z
     .string()
-    .describe("Task-specific description overriding defaults.")
+    .describe("Rich description body; omit to leave blank.")
     .optional(),
-  assigneeIds: IdArray.describe("Assignees for this task; overrides defaults.").optional(),
+  assigneeIds: IdArray.describe("User IDs to assign immediately.").optional(),
   priority: z
     .number()
     .int()
     .min(0)
     .max(4)
-    .describe("Priority for this task; overrides defaults.")
+    .describe("Priority 0 (none) through 4 (urgent).")
     .optional(),
   dueDate: z
     .string()
-    .describe("Due date for this task; overrides defaults.")
+    .describe("ISO 8601 due date; omit to leave unscheduled.")
     .optional(),
-  tags: TagArray.describe("Tags for this task; merged with defaults.").optional()
+  tags: TagArray.describe("Tag names to attach at creation.").optional()
 })
 
 const BulkCreateSubtaskDefaults = BulkCreateDefaults.extend({
@@ -213,7 +213,7 @@ const BulkCreateSubtaskDefaults = BulkCreateDefaults.extend({
 })
 
 const BulkCreateSubtask = BulkCreateTask.extend({
-  parentTaskId: Id.describe("Parent task ID for this subtask.").optional()
+  parentTaskId: Id.describe("Parent task ID; must belong to the same list as listId.").optional()
 })
 
 const UpdateFields = z.object({
