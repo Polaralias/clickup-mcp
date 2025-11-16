@@ -8,6 +8,7 @@ import { zodToJsonSchemaCompact } from "./zodToJsonSchema.js"
 import {
   CreateTaskInput,
   CreateSubtaskInput,
+  CreateSubtasksBulkInput,
   UpdateTaskInput,
   DeleteTaskInput,
   DuplicateTaskInput,
@@ -84,6 +85,7 @@ import { attachFileToTask } from "../application/usecases/tasks/AttachFileToTask
 import { addTagsToTask } from "../application/usecases/tasks/AddTagsToTask.js"
 import { removeTagsFromTask } from "../application/usecases/tasks/RemoveTagsFromTask.js"
 import { createTasksBulk } from "../application/usecases/tasks/CreateTasksBulk.js"
+import { createSubtasksBulk } from "../application/usecases/tasks/CreateSubtasksBulk.js"
 import { updateTasksBulk } from "../application/usecases/tasks/UpdateTasksBulk.js"
 import { deleteTasksBulk } from "../application/usecases/tasks/DeleteTasksBulk.js"
 import { addTagsBulk } from "../application/usecases/tasks/AddTagsBulk.js"
@@ -598,6 +600,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     CreateSubtaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true })
+  )
+  registerDestructive(
+    "clickup_create_subtasks_bulk",
+    "Bulk create subtasks across one or many parents. POST /task/bulk via sequential calls",
+    CreateSubtasksBulkInput,
+    async (input, client, config) => createSubtasksBulk(input, client, config, sessionTaskCatalogue),
+    destructiveAnnotation("task", "bulk create subtasks", { scope: "task", input: "subtasks[]", dry: true })
   )
   registerDestructive(
     "clickup_create_tasks_bulk",
