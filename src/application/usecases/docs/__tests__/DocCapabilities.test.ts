@@ -9,7 +9,8 @@ function createConfig(): ApplicationConfig {
     teamId: "team-1",
     apiKey: "token",
     charLimit: 16000,
-    maxAttachmentMb: 8
+    maxAttachmentMb: 8,
+    readOnly: false
   }
 }
 
