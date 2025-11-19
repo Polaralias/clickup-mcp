@@ -10,6 +10,7 @@ export type SessionConfigInput = {
   apiKey?: string
   charLimit?: number
   maxAttachmentMb?: number
+  readOnly?: boolean
 }
 
 export type ApplicationConfig = {
@@ -17,6 +18,7 @@ export type ApplicationConfig = {
   apiKey: string
   charLimit: number
   maxAttachmentMb: number
+  readOnly: boolean
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {
@@ -39,6 +41,29 @@ function coalesceNumber(candidate: unknown, ...fallbacks: Array<() => number | u
   }
   for (const fallback of fallbacks) {
     const value = fallback()
+    if (value !== undefined) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function parseBooleanFlag(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") {
+    return value
+  }
+  if (typeof value === "string") {
+    const normalised = value.trim().toLowerCase()
+    if (normalised === "") return undefined
+    if (["1", "true", "yes", "y", "on"].includes(normalised)) return true
+    if (["0", "false", "no", "n", "off"].includes(normalised)) return false
+  }
+  return undefined
+}
+
+function resolveBoolean(keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = parseBooleanFlag(process.env[key])
     if (value !== undefined) {
       return value
     }
@@ -104,11 +129,14 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
     () => resolveEnvNumber(["MAX_ATTACHMENT_MB", "maxAttachmentMb"]),
     () => DEFAULT_ATTACHMENT_LIMIT_MB
   ) ?? DEFAULT_ATTACHMENT_LIMIT_MB
+  const readOnly =
+    parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY"]) ?? false
   return {
     teamId,
     apiKey,
     charLimit,
-    maxAttachmentMb
+    maxAttachmentMb,
+    readOnly
   }
 }
 

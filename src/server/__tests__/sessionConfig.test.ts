@@ -146,9 +146,37 @@ describe("extractSessionConfig", () => {
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
-    
+
     expect(config).toBeDefined()
     expect(config?.maxAttachmentMb).toBeUndefined()
+  })
+
+  it("parses readOnly flag when provided", async () => {
+    const req = createMockRequest({
+      teamId: "team_123",
+      apiKey: "pk_123",
+      readOnly: "true"
+    })
+    const res = createMockResponse()
+
+    const config = await extractSessionConfig(req, res)
+
+    expect(config).toBeDefined()
+    expect(config?.readOnly).toBe(true)
+  })
+
+  it("omits readOnly when value cannot be parsed", async () => {
+    const req = createMockRequest({
+      teamId: "team_123",
+      apiKey: "pk_123",
+      readOnly: "maybe"
+    })
+    const res = createMockResponse()
+
+    const config = await extractSessionConfig(req, res)
+
+    expect(config).toBeDefined()
+    expect(config?.readOnly).toBeUndefined()
   })
 })
 
@@ -171,6 +199,7 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.exampleConfig.apiKey).toBe("pk_123")
     expect(sessionConfigJsonSchema.exampleConfig.charLimit).toBe(16000)
     expect(sessionConfigJsonSchema.exampleConfig.maxAttachmentMb).toBe(8)
+    expect(sessionConfigJsonSchema.exampleConfig.readOnly).toBe(false)
   })
 
   it("preserves x-query-style", () => {
