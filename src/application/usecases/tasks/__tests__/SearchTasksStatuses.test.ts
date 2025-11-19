@@ -8,7 +8,8 @@ describe("searchTasks status normalisation", () => {
     teamId: "team-1",
     apiKey: "token",
     charLimit: 1000,
-    maxAttachmentMb: 8
+    maxAttachmentMb: 8,
+    readOnly: false
   }
 
   it("coerces a single status into statuses[]", async () => {

@@ -8,7 +8,8 @@ const config = {
   teamId: "123",
   apiKey: "token",
   charLimit: 16000,
-  maxAttachmentMb: 8
+  maxAttachmentMb: 8,
+  readOnly: false
 }
 
 describe("listMembers", () => {
