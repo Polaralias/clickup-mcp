@@ -1,15 +1,20 @@
+version: "3.8"
+
 services:
   clickup-mcp-server:
     build:
       context: .
       dockerfile: Dockerfile
+    image: clickup-mcp-server:latest
     environment:
+      NODE_ENV: production
       PORT: "8081"
       TRANSPORT: "http"
-      TEAM_ID: ${TEAM_ID:-team_123}
-      CLICKUP_API_TOKEN: ${CLICKUP_API_TOKEN:-pk_123}
-      CHAR_LIMIT: ${CHAR_LIMIT:-16000}
-      MAX_ATTACHMENT_MB: ${MAX_ATTACHMENT_MB:-8}
+      TEAM_ID: "team_123"
+      CLICKUP_API_TOKEN: "pk_123"
+      CHAR_LIMIT: "16000"
+      MAX_ATTACHMENT_MB: "8"
+      READ_ONLY_MODE: "false"
     ports:
       - "8081:8081"
     restart: unless-stopped
