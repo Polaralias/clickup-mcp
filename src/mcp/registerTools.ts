@@ -346,6 +346,9 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     annotation: ReturnType<typeof destructiveAnnotation>,
     availability?: { requiresDocs?: boolean }
   ) => {
+    if (config.readOnly) {
+      return
+    }
     const jsonSchema = zodToJsonSchemaCompact(schema)
     const rawShape = toRawShape(schema)
     entries.push({

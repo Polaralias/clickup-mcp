@@ -9,7 +9,8 @@ describe("registerTools", () => {
       teamId: "test-team",
       apiKey: "test-api-key",
       charLimit: 16000,
-      maxAttachmentMb: 8
+      maxAttachmentMb: 8,
+      readOnly: false
     }
 
     const server = new McpServer({
@@ -26,7 +27,8 @@ describe("registerTools", () => {
       teamId: "test-team",
       apiKey: "session-api-key-123",
       charLimit: 16000,
-      maxAttachmentMb: 8
+      maxAttachmentMb: 8,
+      readOnly: false
     }
 
     // Save and clear environment variables to verify they're not needed
@@ -60,7 +62,8 @@ describe("registerTools", () => {
       teamId: "test-team",
       apiKey: "test-api-key",
       charLimit: 16000,
-      maxAttachmentMb: 8
+      maxAttachmentMb: 8,
+      readOnly: false
     }
 
     const server = new McpServer({
@@ -84,5 +87,34 @@ describe("registerTools", () => {
       properties: { forceRefresh: { type: "boolean" } }
     })
     expect(tool.inputSchema.required ?? []).not.toContain("forceRefresh")
+  })
+
+  it("omits destructive tools when readOnly mode is enabled", async () => {
+    const config: ApplicationConfig = {
+      teamId: "test-team",
+      apiKey: "test-api-key",
+      charLimit: 16000,
+      maxAttachmentMb: 8,
+      readOnly: true
+    }
+
+    const server = new McpServer({
+      name: "Test Server",
+      version: "1.0.0"
+    })
+
+    registerTools(server, config)
+
+    expect((server as any)._registeredTools["clickup_create_task"]).toBeUndefined()
+    expect((server as any)._registeredTools["clickup_get_task"]).toBeDefined()
+
+    const catalogueTool = (server as any)._registeredTools["tool_catalogue"]
+    const response = await catalogueTool.callback({})
+    const payload = JSON.parse(response.content[0].text) as { tools: Array<{ name: string }> }
+
+    const toolNames = payload.tools.map((entry) => entry.name)
+
+    expect(toolNames).not.toContain("clickup_create_task")
+    expect(toolNames).toContain("clickup_get_task")
   })
 })

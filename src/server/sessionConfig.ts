@@ -6,6 +6,14 @@ function lastString(v: string | string[] | undefined): string | undefined {
   return v
 }
 
+function parseBooleanFlag(value: string | undefined): boolean | undefined {
+  if (value === undefined || value === "") return undefined
+  const normalised = value.trim().toLowerCase()
+  if (["1", "true", "yes", "y", "on"].includes(normalised)) return true
+  if (["0", "false", "no", "n", "off"].includes(normalised)) return false
+  return undefined
+}
+
 export const sessionConfigJsonSchema = {
   $schema: "https://json-schema.org/draft-07/schema",
   $id: "https://clickup-mcp-server/.well-known/mcp-config",
@@ -29,6 +37,10 @@ export const sessionConfigJsonSchema = {
     maxAttachmentMb: {
       type: "number",
       description: "Largest file attachment (MB) allowed for uploads"
+    },
+    readOnly: {
+      type: "boolean",
+      description: "When true only read-only tools are enabled to prevent mutations"
     }
   },
   required: ["teamId", "apiKey"],
@@ -37,7 +49,8 @@ export const sessionConfigJsonSchema = {
     teamId: "team_123",
     apiKey: "pk_123",
     charLimit: 16000,
-    maxAttachmentMb: 8
+    maxAttachmentMb: 8,
+    readOnly: false
   }
 }
 
@@ -60,15 +73,18 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
 
   const charLimitRaw = lastString(q.charLimit)
   const maxAttachmentMbRaw = lastString(q.maxAttachmentMb)
+  const readOnlyRaw = lastString(q.readOnly)
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined
+  const readOnly = parseBooleanFlag(readOnlyRaw)
 
   const config: SessionConfigInput = {
     teamId,
     apiKey,
     ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
-    ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {})
+    ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {}),
+    ...(readOnly !== undefined ? { readOnly } : {})
   } as SessionConfigInput
 
   return config

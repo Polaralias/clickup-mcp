@@ -19,9 +19,13 @@ startCommand:
       maxAttachmentMb:
         type: number
         description: Largest file attachment (MB) allowed for uploads
+      readOnly:
+        type: boolean
+        description: When true only read-only tools are enabled to prevent mutations
     required: [teamId, apiKey]
   exampleConfig:
     teamId: "team_123"
     apiKey: "pk_123"
     charLimit: 16000
     maxAttachmentMb: 8
+    readOnly: false
