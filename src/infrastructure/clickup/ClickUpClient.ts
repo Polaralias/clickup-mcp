@@ -434,6 +434,23 @@ export class ClickUpClient {
     })
   }
 
+  getListCustomFields(listId: string) {
+    return this.request(`list/${listId}/field`)
+  }
+
+  setTaskCustomFieldValue(taskId: string, fieldId: string, value: unknown) {
+    return this.request(`task/${taskId}/field/${fieldId}`, {
+      method: "POST",
+      body: { value }
+    })
+  }
+
+  clearTaskCustomFieldValue(taskId: string, fieldId: string) {
+    return this.request(`task/${taskId}/field/${fieldId}`, {
+      method: "DELETE"
+    })
+  }
+
   createListView(listId: string, body: Record<string, unknown>) {
     return this.request(`list/${listId}/view`, {
       method: "POST",
