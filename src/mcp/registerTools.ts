@@ -73,7 +73,10 @@ import {
   CreateListViewInput,
   CreateSpaceViewInput,
   UpdateViewInput,
-  DeleteViewInput
+  DeleteViewInput,
+  ListCustomFieldsInput,
+  SetTaskCustomFieldValueInput,
+  ClearTaskCustomFieldValueInput
 } from "./schemas/index.js"
 import { withSafetyConfirmation } from "../application/safety/withSafetyConfirmation.js"
 import { createTask } from "../application/usecases/tasks/CreateTask.js"
@@ -118,6 +121,9 @@ import { getTaskTimeEntries } from "../application/usecases/time/GetTaskTimeEntr
 import { getCurrentTimeEntry } from "../application/usecases/time/GetCurrentTimeEntry.js"
 import { listReferenceLinks } from "../application/usecases/reference/ListReferenceLinks.js"
 import { fetchReferencePage } from "../application/usecases/reference/FetchReferencePage.js"
+import { listCustomFields } from "../application/usecases/customFields/ListCustomFields.js"
+import { setTaskCustomFieldValue } from "../application/usecases/customFields/SetTaskCustomFieldValue.js"
+import { clearTaskCustomFieldValue } from "../application/usecases/customFields/ClearTaskCustomFieldValue.js"
 import { listWorkspaces } from "../application/usecases/hierarchy/ListWorkspaces.js"
 import { listSpaces } from "../application/usecases/hierarchy/ListSpaces.js"
 import { listFolders } from "../application/usecases/hierarchy/ListFolders.js"
@@ -755,6 +761,35 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     GetTaskCommentsInput,
     (input, client, config) => getTaskComments(input, client, config, sessionTaskCatalogue),
     readOnlyAnnotation("task", "task comments", { scope: "task", input: "taskId", limit: "limit" })
+  )
+
+  registerReadOnly(
+    "clickup_list_custom_fields",
+    "List custom fields configured for a list. GET /list/{list_id}/field",
+    ListCustomFieldsInput,
+    (input, client) => listCustomFields(input, client, sessionHierarchyDirectory),
+    readOnlyAnnotation("custom-field", "list fields", { scope: "list", input: "listId|path" })
+  )
+
+  registerDestructive(
+    "clickup_set_task_custom_field_value",
+    "Set a custom field value on a task. POST /task/{task_id}/field/{field_id}",
+    SetTaskCustomFieldValueInput,
+    (input, client) => setTaskCustomFieldValue(input, client, sessionTaskCatalogue),
+    destructiveAnnotation("custom-field", "set value", { scope: "task", input: "taskId+fieldId", dry: true })
+  )
+
+  registerDestructive(
+    "clickup_clear_task_custom_field_value",
+    "Clear a custom field value on a task. DELETE /task/{task_id}/field/{field_id}",
+    ClearTaskCustomFieldValueInput,
+    (input, client) => clearTaskCustomFieldValue(input, client, sessionTaskCatalogue),
+    destructiveAnnotation("custom-field", "clear value", {
+      scope: "task",
+      input: "taskId+fieldId",
+      dry: true,
+      idempotent: true
+    })
   )
 
   // Docs
