@@ -1,3 +1,5 @@
+import { CachedHierarchy, CachedHierarchyEntry, SessionCache } from "./SessionCache.js"
+
 const DEFAULT_TTL_MS = 5 * 60 * 1000
 
 export type HierarchyEnsureOptions = {
@@ -66,13 +68,124 @@ export class HierarchyDirectory {
   private readonly spaces = new Map<string, CacheEntry<Record<string, unknown>>>()
   private readonly folders = new Map<string, CacheEntry<Record<string, unknown>>>()
   private readonly lists = new Map<string, CacheEntry<Record<string, unknown>>>()
+  private readonly ttlMs: number
 
-  constructor(private readonly ttlMs: number = DEFAULT_TTL_MS) {}
+  constructor(ttlMs: number = DEFAULT_TTL_MS, private readonly sessionCache?: SessionCache, private readonly teamId?: string) {
+    this.ttlMs = ttlMs ?? DEFAULT_TTL_MS
+    this.restoreFromSessionCache()
+  }
+
+  private toCacheEntry(
+    scope: CacheMetadataScope,
+    key: string,
+    cached: CachedHierarchyEntry
+  ): CacheEntry<Record<string, unknown>> | undefined {
+    const expiresAt = cached.fetchedAt + this.ttlMs
+    if (this.ttlMs <= 0 || Date.now() > expiresAt) {
+      return undefined
+    }
+    return {
+      scope,
+      key,
+      items: [...cached.items],
+      fetchedAt: cached.fetchedAt,
+      expiresAt,
+      context: cached.context
+    }
+  }
+
+  private restoreFromSessionCache() {
+    if (!this.sessionCache || !this.teamId) {
+      return
+    }
+    const cached = this.sessionCache.getHierarchy(this.teamId)
+    if (!cached) {
+      return
+    }
+    if (cached.workspaces) {
+      this.workspaces = this.toCacheEntry("workspaces", "workspaces", cached.workspaces)
+    }
+    this.restoreMapEntries(this.spaces, "spaces", cached.spaces)
+    this.restoreMapEntries(this.folders, "folders", cached.folders)
+    this.restoreMapEntries(this.lists, "lists", cached.lists)
+  }
+
+  private restoreMapEntries(
+    target: Map<string, CacheEntry<Record<string, unknown>>>,
+    scope: CacheMetadataScope,
+    entries?: Record<string, CachedHierarchyEntry>
+  ) {
+    if (!entries) {
+      return
+    }
+    for (const [key, cached] of Object.entries(entries)) {
+      const entry = this.toCacheEntry(scope, key, cached)
+      if (entry) {
+        target.set(key, entry)
+      }
+    }
+  }
+
+  private purgeExpired() {
+    const now = Date.now()
+    if (this.workspaces && now > this.workspaces.expiresAt) {
+      this.workspaces = undefined
+    }
+    for (const [key, entry] of this.spaces.entries()) {
+      if (now > entry.expiresAt) {
+        this.spaces.delete(key)
+      }
+    }
+    for (const [key, entry] of this.folders.entries()) {
+      if (now > entry.expiresAt) {
+        this.folders.delete(key)
+      }
+    }
+    for (const [key, entry] of this.lists.entries()) {
+      if (now > entry.expiresAt) {
+        this.lists.delete(key)
+      }
+    }
+  }
+
+  private toCachedHierarchyEntry(entry: CacheEntry<Record<string, unknown>>): CachedHierarchyEntry {
+    return {
+      items: [...entry.items],
+      fetchedAt: entry.fetchedAt,
+      context: entry.context
+    }
+  }
+
+  private persist() {
+    this.purgeExpired()
+    if (!this.sessionCache || !this.teamId || this.ttlMs <= 0) {
+      return
+    }
+    const hierarchy: CachedHierarchy = {
+      spaces: {},
+      folders: {},
+      lists: {}
+    }
+    if (this.workspaces) {
+      hierarchy.workspaces = this.toCachedHierarchyEntry(this.workspaces)
+    }
+    for (const [key, entry] of this.spaces.entries()) {
+      hierarchy.spaces[key] = this.toCachedHierarchyEntry(entry)
+    }
+    for (const [key, entry] of this.folders.entries()) {
+      hierarchy.folders[key] = this.toCachedHierarchyEntry(entry)
+    }
+    for (const [key, entry] of this.lists.entries()) {
+      hierarchy.lists[key] = this.toCachedHierarchyEntry(entry)
+    }
+    this.sessionCache.setHierarchy(this.teamId, hierarchy)
+  }
 
   async ensureWorkspaces(
     fetchWorkspaces: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    this.purgeExpired()
     const now = Date.now()
     const expired = this.workspaces ? now > this.workspaces.expiresAt : true
 
@@ -88,6 +201,7 @@ export class HierarchyDirectory {
       }
     }
 
+    this.persist()
     return {
       items: this.workspaces.items,
       cache: buildMetadata(this.workspaces, this.ttlMs)
@@ -99,6 +213,7 @@ export class HierarchyDirectory {
     fetchSpaces: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    this.purgeExpired()
     const key = workspaceId
     const existing = this.spaces.get(key)
     const now = Date.now()
@@ -122,6 +237,7 @@ export class HierarchyDirectory {
       }
     }
 
+    this.persist()
     return {
       items: existing.items,
       cache: buildMetadata(existing, this.ttlMs)
@@ -133,6 +249,7 @@ export class HierarchyDirectory {
     fetchFolders: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    this.purgeExpired()
     const key = spaceId
     const existing = this.folders.get(key)
     const now = Date.now()
@@ -156,6 +273,7 @@ export class HierarchyDirectory {
       }
     }
 
+    this.persist()
     return {
       items: existing.items,
       cache: buildMetadata(existing, this.ttlMs)
@@ -168,6 +286,7 @@ export class HierarchyDirectory {
     fetchLists: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    this.purgeExpired()
     const key = folderId ? `folder:${folderId}` : `space:${spaceId ?? ""}`
     const existing = this.lists.get(key)
     const now = Date.now()
@@ -194,6 +313,7 @@ export class HierarchyDirectory {
       }
     }
 
+    this.persist()
     return {
       items: existing.items,
       cache: buildMetadata(existing, this.ttlMs)
@@ -203,21 +323,25 @@ export class HierarchyDirectory {
   invalidateWorkspaces() {
     this.workspaces = undefined
     this.invalidateSpaces()
+    this.persist()
   }
 
   invalidateSpaces(workspaceId?: string) {
     if (!workspaceId) {
       this.spaces.clear()
       this.invalidateFolders()
+      this.persist()
       return
     }
     this.spaces.delete(workspaceId)
+    this.persist()
   }
 
   invalidateFolders(spaceId?: string) {
     if (!spaceId) {
       this.folders.clear()
       this.invalidateLists()
+      this.persist()
       return
     }
     for (const [key, entry] of this.folders.entries()) {
@@ -225,6 +349,7 @@ export class HierarchyDirectory {
         this.folders.delete(key)
       }
     }
+    this.persist()
   }
 
   invalidateListsForSpace(spaceId: string) {
@@ -233,6 +358,7 @@ export class HierarchyDirectory {
         this.lists.delete(key)
       }
     }
+    this.persist()
   }
 
   invalidateListsForFolder(folderId: string) {
@@ -241,9 +367,11 @@ export class HierarchyDirectory {
         this.lists.delete(key)
       }
     }
+    this.persist()
   }
 
   private invalidateLists() {
     this.lists.clear()
+    this.persist()
   }
 }

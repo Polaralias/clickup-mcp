@@ -144,6 +144,7 @@ import { MemberDirectory } from "../application/services/MemberDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { SpaceTagCache } from "../application/services/SpaceTagCache.js"
 import { CapabilityTracker } from "../application/services/CapabilityTracker.js"
+import { SessionCache } from "../application/services/SessionCache.js"
 import {
   ensureDocsCapability,
   isDocCapabilityError,
@@ -203,13 +204,21 @@ function formatContent(payload: unknown) {
   }
 }
 
-export function registerTools(server: McpServer, config: ApplicationConfig) {
+export function registerTools(server: McpServer, config: ApplicationConfig, sessionCache: SessionCache) {
   const entries: CatalogueEntryConfig[] = []
 
   const createClient = () => new ClickUpClient(config.apiKey)
-  const sessionHierarchyDirectory = new HierarchyDirectory()
+  const sessionHierarchyDirectory = new HierarchyDirectory(
+    config.hierarchyCacheTtlMs,
+    sessionCache,
+    config.teamId
+  )
   const sessionTaskCatalogue = new TaskCatalogue()
-  const sessionSpaceTagCache = new SpaceTagCache()
+  const sessionSpaceTagCache = new SpaceTagCache(
+    config.spaceConfigCacheTtlMs,
+    sessionCache,
+    config.teamId
+  )
   const sessionCapabilityTracker = new CapabilityTracker()
   const sessionMemberDirectory = new MemberDirectory({ credentialId: config.apiKey })
 

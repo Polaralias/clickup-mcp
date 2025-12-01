@@ -2,6 +2,7 @@ import { z } from "zod"
 
 const DEFAULT_CHAR_LIMIT = 16000
 const DEFAULT_ATTACHMENT_LIMIT_MB = 8
+const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000
 
 const NumberSchema = z.number().finite().positive()
 
@@ -11,6 +12,8 @@ export type SessionConfigInput = {
   charLimit?: number
   maxAttachmentMb?: number
   readOnly?: boolean
+  hierarchyCacheTtlMs?: number
+  spaceConfigCacheTtlMs?: number
 }
 
 export type ApplicationConfig = {
@@ -19,6 +22,8 @@ export type ApplicationConfig = {
   charLimit: number
   maxAttachmentMb: number
   readOnly: boolean
+  hierarchyCacheTtlMs: number
+  spaceConfigCacheTtlMs: number
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {
@@ -82,6 +87,20 @@ function resolveEnvNumber(keys: string[]): number | undefined {
   return undefined
 }
 
+function resolveNonNegativeNumber(keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = process.env[key]
+    if (value === undefined || value === "") {
+      continue
+    }
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed
+    }
+  }
+  return undefined
+}
+
 function resolveTeamId(candidate?: string) {
   const value = candidate?.trim()
   if (value) {
@@ -131,12 +150,19 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
   ) ?? DEFAULT_ATTACHMENT_LIMIT_MB
   const readOnly =
     parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY"]) ?? false
+  const hierarchyCacheTtlMs = (input.hierarchyCacheTtlMs ?? resolveNonNegativeNumber(["HIERARCHY_CACHE_TTL_MS"])) ??
+    (resolveNonNegativeNumber(["HIERARCHY_CACHE_TTL_SECONDS"]) ?? DEFAULT_CACHE_TTL_MS / 1000) * 1000
+  const spaceConfigCacheTtlMs =
+    (input.spaceConfigCacheTtlMs ?? resolveNonNegativeNumber(["SPACE_CONFIG_CACHE_TTL_MS"])) ??
+    (resolveNonNegativeNumber(["SPACE_CONFIG_CACHE_TTL_SECONDS"]) ?? DEFAULT_CACHE_TTL_MS / 1000) * 1000
   return {
     teamId,
     apiKey,
     charLimit,
     maxAttachmentMb,
-    readOnly
+    readOnly,
+    hierarchyCacheTtlMs,
+    spaceConfigCacheTtlMs
   }
 }
 
