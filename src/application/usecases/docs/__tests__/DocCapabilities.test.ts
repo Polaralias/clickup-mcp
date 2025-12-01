@@ -10,7 +10,9 @@ function createConfig(): ApplicationConfig {
     apiKey: "token",
     charLimit: 16000,
     maxAttachmentMb: 8,
-    readOnly: false
+    readOnly: false,
+    hierarchyCacheTtlMs: 300000,
+    spaceConfigCacheTtlMs: 300000
   }
 }
 

@@ -18,6 +18,7 @@ import {
 import { HierarchyDirectory } from "../application/services/HierarchyDirectory.js"
 import { TaskCatalogue } from "../application/services/TaskCatalogue.js"
 import { CapabilityTracker } from "../application/services/CapabilityTracker.js"
+import { SessionCache } from "../application/services/SessionCache.js"
 
 type Identifiable = Record<string, unknown>
 
@@ -56,9 +57,13 @@ function formatResourceContent(uri: URL, payload: unknown) {
   }
 }
 
-export function registerResources(server: McpServer, config: ApplicationConfig) {
+export function registerResources(server: McpServer, config: ApplicationConfig, sessionCache: SessionCache) {
   const createClient = () => new ClickUpClient(config.apiKey)
-  const hierarchyDirectory = new HierarchyDirectory()
+  const hierarchyDirectory = new HierarchyDirectory(
+    config.hierarchyCacheTtlMs,
+    sessionCache,
+    config.teamId
+  )
   const taskCatalogue = new TaskCatalogue()
   const capabilityTracker = new CapabilityTracker()
 

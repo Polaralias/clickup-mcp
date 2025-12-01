@@ -7,16 +7,17 @@ import { registerHttpTransport } from "./httpTransport.js"
 import { startStdioTransport } from "./stdioTransport.js"
 import { sessionConfigJsonSchema } from "./sessionConfig.js"
 import type { ApplicationConfig } from "../application/config/applicationConfig.js"
+import { SessionCache } from "../application/services/SessionCache.js"
 import { registerTools } from "../mcp/registerTools.js"
 import { registerResources } from "../mcp/registerResources.js"
 
-function createServer(config: ApplicationConfig) {
+function createServer(config: ApplicationConfig, sessionCache: SessionCache) {
   const server = new McpServer({
     name: "ClickUp MCP",
     version: "1.0.0"
   })
-  registerTools(server, config)
-  registerResources(server, config)
+  registerTools(server, config, sessionCache)
+  registerResources(server, config, sessionCache)
   return server
 }
 
@@ -34,7 +35,9 @@ async function start() {
     const port = Number(process.env.PORT ?? 8081)
     app.listen(port)
   } else {
-    await startStdioTransport(createServer)
+    await startStdioTransport(createServer, (config) =>
+      new SessionCache(config.hierarchyCacheTtlMs, config.spaceConfigCacheTtlMs)
+    )
   }
 }
 

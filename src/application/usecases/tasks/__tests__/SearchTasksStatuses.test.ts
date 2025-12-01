@@ -9,7 +9,9 @@ describe("searchTasks status normalisation", () => {
     apiKey: "token",
     charLimit: 1000,
     maxAttachmentMb: 8,
-    readOnly: false
+    readOnly: false,
+    hierarchyCacheTtlMs: 300000,
+    spaceConfigCacheTtlMs: 300000
   }
 
   it("coerces a single status into statuses[]", async () => {

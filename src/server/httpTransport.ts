@@ -6,6 +6,7 @@ import type { ApplicationConfig, SessionConfigInput } from "../application/confi
 import { createApplicationConfig } from "../application/config/applicationConfig.js"
 import { extractSessionConfig } from "./sessionConfig.js"
 import { authenticationMiddleware, type SessionCredential } from "./authentication.js"
+import { SessionCache } from "../application/services/SessionCache.js"
 
 type Session = {
   server: McpServer
@@ -15,9 +16,13 @@ type Session = {
   closed: boolean
   config: ApplicationConfig
   credential: SessionCredential
+  sessionCache: SessionCache
 }
 
-export function registerHttpTransport(app: Express, createServer: (config: ApplicationConfig) => McpServer) {
+export function registerHttpTransport(
+  app: Express,
+  createServer: (config: ApplicationConfig, sessionCache: SessionCache) => McpServer
+) {
   const sessions = new Map<string, Session>()
 
   function removeSession(session: Session) {
@@ -32,7 +37,8 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
 
   function createSession(configInput: SessionConfigInput, credential: SessionCredential) {
     const config = createApplicationConfig(configInput, credential.token)
-    const server = createServer(config)
+    const sessionCache = new SessionCache(config.hierarchyCacheTtlMs, config.spaceConfigCacheTtlMs)
+    const server = createServer(config, sessionCache)
     let session: Session
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
@@ -53,7 +59,8 @@ export function registerHttpTransport(app: Express, createServer: (config: Appli
       connectPromise,
       closed: false,
       config,
-      credential
+      credential,
+      sessionCache
     }
     transport.onclose = () => {
       if (!session.closed) {
