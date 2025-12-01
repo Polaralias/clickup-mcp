@@ -60,7 +60,7 @@ export function extractCustomFieldOptions(typeConfig: Record<string, unknown> | 
     return [] as CustomFieldOption[]
   }
   return options
-    .map((entry) => {
+    .map((entry): CustomFieldOption | undefined => {
       if (!entry || typeof entry !== "object") {
         return undefined
       }

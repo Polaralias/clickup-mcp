@@ -174,6 +174,7 @@ type RegistrationOptions = {
   schema: z.ZodTypeAny | null
   description: string
   annotations?: Record<string, unknown>
+  meta?: Record<string, unknown>
   handler: ToolHandler
   requiresDocs?: boolean
 }
@@ -233,7 +234,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       {
         description: options.description,
         ...(rawShape ? { inputSchema: rawShape } : {}),
-        annotations: options.annotations
+        annotations: options.annotations,
+        _meta: options.meta
       },
       async (rawInput: unknown) => {
         const client = createClient()
@@ -350,7 +352,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     schema: z.ZodTypeAny,
     handler: ToolHandler,
     annotation: ReturnType<typeof destructiveAnnotation>,
-    availability?: { requiresDocs?: boolean }
+    availability?: { requiresDocs?: boolean },
+    meta?: Record<string, unknown>
   ) => {
     if (config.readOnly) {
       return
@@ -371,7 +374,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       {
         description,
         ...(rawShape ? { inputSchema: rawShape } : {}),
-        ...annotation
+        ...annotation,
+        _meta: meta
       },
       withSafetyConfirmation(async (rawInput: unknown) => {
         const client = createClient()
@@ -388,14 +392,16 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     schema: z.ZodTypeAny | null,
     handler: ToolHandler,
     annotation: ReturnType<typeof readOnlyAnnotation>,
-    availability?: { requiresDocs?: boolean }
+    availability?: { requiresDocs?: boolean },
+    meta?: Record<string, unknown>
   ) => {
     registerClientTool(name, {
       description,
       schema,
       annotations: annotation.annotations,
       handler,
-      requiresDocs: availability?.requiresDocs
+      requiresDocs: availability?.requiresDocs,
+      meta
     })
   }
 
@@ -413,7 +419,11 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "List spaces in a workspace. GET /team/{team_id}/space",
     ListSpacesInput,
     (input, client) => listSpaces(input, client, sessionHierarchyDirectory),
-    readOnlyAnnotation("hierarchy", "space list", { scope: "workspace", input: "workspaceId", cache: "session" })
+    readOnlyAnnotation("hierarchy", "space list", { scope: "workspace", input: "workspaceId", cache: "session" }),
+    undefined,
+    {
+      input_examples: [{ workspaceId: "12345" }]
+    }
   )
   registerReadOnly(
     "clickup_list_folders",
@@ -427,7 +437,9 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       throw new Error("Provide spaceId or folderId")
     }
     return listLists(input, client, sessionHierarchyDirectory)
-  }, readOnlyAnnotation("hierarchy", "list list", { scope: "space|folder", input: "spaceId|folderId", cache: "session" }))
+  }, readOnlyAnnotation("hierarchy", "list list", { scope: "space|folder", input: "spaceId|folderId", cache: "session" }), undefined, {
+    input_examples: [{ spaceId: "23456" }]
+  })
   registerReadOnly(
     "clickup_get_workspace_overview",
     "Return workspace metrics and recent structures. GET /team/{team_id}",
@@ -440,14 +452,32 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Fetch nested workspace hierarchy with depth control. GET /team",
     GetWorkspaceHierarchyInput,
     (input, client, config) => getWorkspaceHierarchy(input, client, config, sessionHierarchyDirectory),
-    readOnlyAnnotation("hierarchy", "workspace tree", { scope: "workspace", input: "workspaceIds|names" })
+    readOnlyAnnotation("hierarchy", "workspace tree", { scope: "workspace", input: "workspaceIds|names" }),
+    undefined,
+    {
+      input_examples: [
+        {
+          workspaceIds: ["12345"],
+          maxDepth: 2,
+          maxSpacesPerWorkspace: 3
+        }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_resolve_path_to_ids",
     "Resolve hierarchical path names to IDs.",
     ResolvePathToIdsInput,
     (input, client) => resolvePathToIds(input, client, sessionHierarchyDirectory),
-    readOnlyAnnotation("hierarchy", "path resolve", { scope: "workspace", input: "names", cache: "session|forceRefresh" })
+    readOnlyAnnotation("hierarchy", "path resolve", { scope: "workspace", input: "names", cache: "session|forceRefresh" }),
+    undefined,
+    {
+      input_examples: [
+        {
+          path: ["Acme Workspace", "Engineering", "Backlog"]
+        }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_list_members",
@@ -601,7 +631,19 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Create a task in a list. POST /list/{list_id}/task",
     CreateTaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "create task", { scope: "list", input: "listId", dry: true })
+    destructiveAnnotation("task", "create task", { scope: "list", input: "listId", dry: true }),
+    undefined,
+    {
+      input_examples: [
+        {
+          listId: "654321",
+          name: "Draft onboarding plan",
+          description: "Outline steps for new hires",
+          tags: ["people"],
+          dryRun: true
+        }
+      ]
+    }
   )
   registerDestructive(
     "clickup_create_subtask",
@@ -629,7 +671,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Update a task. PUT /task/{task_id}",
     UpdateTaskInput,
     async (input, client) => updateTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "update task", { scope: "task", input: "taskId", dry: true, idempotent: true })
+    destructiveAnnotation("task", "update task", { scope: "task", input: "taskId", dry: true, idempotent: true }),
+    undefined,
+    {
+      input_examples: [
+        { taskId: "123456", status: "In Progress", priority: 3, confirm: "yes" }
+      ]
+    }
   )
   registerDestructive(
     "clickup_update_tasks_bulk",
@@ -664,7 +712,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Post a comment on a task. POST /task/{task_id}/comment",
     CommentTaskInput,
     commentTask,
-    destructiveAnnotation("task", "comment", { scope: "task", input: "taskId", dry: true })
+    destructiveAnnotation("task", "comment", { scope: "task", input: "taskId", dry: true }),
+    undefined,
+    {
+      input_examples: [
+        { taskId: "123456", comment: "Please review the latest spec", dryRun: true }
+      ]
+    }
   )
   registerDestructive(
     "clickup_attach_file_to_task",
@@ -703,7 +757,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       const result = await searchTasks(input, client, config, sessionTaskCatalogue)
       return { tasks: result.results, truncated: result.truncated }
     },
-    readOnlyAnnotation("task", "search structured", { scope: "workspace", input: "query+filters" })
+    readOnlyAnnotation("task", "search structured", { scope: "workspace", input: "query+filters" }),
+    undefined,
+    {
+      input_examples: [
+        { query: "onboarding checklist", listIds: ["321"], pageSize: 10 }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_fuzzy_search",
@@ -713,7 +773,11 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       const result = await fuzzySearch(input, client, config, sessionTaskCatalogue)
       return { tasks: result.results, guidance: result.guidance }
     },
-    readOnlyAnnotation("task", "search fuzzy", { scope: "workspace", input: "query" })
+    readOnlyAnnotation("task", "search fuzzy", { scope: "workspace", input: "query" }),
+    undefined,
+    {
+      input_examples: [{ query: "recent hiring tasks", limit: 5 }]
+    }
   )
   registerReadOnly(
     "clickup_bulk_fuzzy_search",
@@ -731,7 +795,17 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Fetch task details. GET /task/{task_id}",
     GetTaskInput,
     (input, client, config) => getTask(input, client, config, sessionTaskCatalogue),
-    readOnlyAnnotation("task", "task fetch", { scope: "task", input: "taskId|lookup" })
+    readOnlyAnnotation("task", "task fetch", { scope: "task", input: "taskId|lookup" }),
+    undefined,
+    {
+      input_examples: [
+        { taskId: "abc123", detailLimit: 10 },
+        {
+          taskName: "Prepare release notes",
+          context: { tasks: [{ id: "456", name: "Prepare release notes" }] }
+        }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_list_tasks_in_list",
@@ -839,7 +913,10 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     GetDocPageInput,
     (input, client, config) => getDocPage(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("doc", "doc page fetch", { scope: "doc", input: "docId+pageId" }),
-    { requiresDocs: true }
+    { requiresDocs: true },
+    {
+      input_examples: [{ docId: "doc-123", pageId: "page-2" }]
+    }
   )
   registerDestructive(
     "clickup_create_document_page",
@@ -847,7 +924,19 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     CreateDocumentPageInput,
     (input, client, config) => createDocumentPage(input, client, config, sessionCapabilityTracker),
     destructiveAnnotation("doc", "create page", { scope: "doc", input: "docId", dry: true }),
-    { requiresDocs: true }
+    { requiresDocs: true },
+    {
+      input_examples: [
+        {
+          docId: "doc-123",
+          title: "Retrospective notes",
+          content: "Action items to follow up",
+          parentId: "page-1",
+          position: 0,
+          dryRun: true
+        }
+      ]
+    }
   )
   registerDestructive(
     "clickup_update_doc_page",
@@ -869,7 +958,12 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       return { docs: result.docs, expandedPages: result.expandedPages, guidance: result.guidance }
     },
     readOnlyAnnotation("doc", "doc search", { scope: "workspace", input: "query", option: "expandPages" }),
-    { requiresDocs: true }
+    { requiresDocs: true },
+    {
+      input_examples: [
+        { workspaceId: "12345", query: "Q3 roadmap", limit: 5, expandPages: true }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_bulk_doc_search",
@@ -965,7 +1059,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
       const result = await listTimeEntries(input, client, config)
       return { entries: result.entries, truncated: result.truncated }
     },
-    readOnlyAnnotation("time", "entry list", { scope: "workspace", input: "filters" })
+    readOnlyAnnotation("time", "entry list", { scope: "workspace", input: "filters" }),
+    undefined,
+    {
+      input_examples: [
+        { from: "2024-05-01T00:00:00Z", to: "2024-05-07T00:00:00Z", pageSize: 10 }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_report_time_for_tag",
@@ -979,7 +1079,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig) {
     "Aggregate time for a container.",
     ReportTimeForContainerInput,
     reportTimeForContainer,
-    readOnlyAnnotation("time", "container report", { scope: "space|folder|list", input: "containerId", window: "from|to" })
+    readOnlyAnnotation("time", "container report", { scope: "space|folder|list", input: "containerId", window: "from|to" }),
+    undefined,
+    {
+      input_examples: [
+        { containerId: "list-123", from: "2024-04-01T00:00:00Z", to: "2024-04-08T00:00:00Z" }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_report_time_for_space_tag",
