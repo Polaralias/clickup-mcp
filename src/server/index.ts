@@ -8,6 +8,7 @@ import { startStdioTransport } from "./stdioTransport.js"
 import { sessionConfigJsonSchema } from "./sessionConfig.js"
 import type { ApplicationConfig } from "../application/config/applicationConfig.js"
 import { registerTools } from "../mcp/registerTools.js"
+import { registerResources } from "../mcp/registerResources.js"
 
 function createServer(config: ApplicationConfig) {
   const server = new McpServer({
@@ -15,6 +16,7 @@ function createServer(config: ApplicationConfig) {
     version: "1.0.0"
   })
   registerTools(server, config)
+  registerResources(server, config)
   return server
 }
 
