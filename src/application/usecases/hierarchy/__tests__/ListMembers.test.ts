@@ -11,7 +11,9 @@ const config = {
   maxAttachmentMb: 8,
   readOnly: false,
   hierarchyCacheTtlMs: 300000,
-  spaceConfigCacheTtlMs: 300000
+  spaceConfigCacheTtlMs: 300000,
+  reportingMaxTasks: 200,
+  defaultRiskWindowDays: 5
 }
 
 describe("listMembers", () => {
