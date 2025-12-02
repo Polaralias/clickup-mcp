@@ -3,6 +3,8 @@ import { z } from "zod"
 const DEFAULT_CHAR_LIMIT = 16000
 const DEFAULT_ATTACHMENT_LIMIT_MB = 8
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000
+const DEFAULT_REPORTING_MAX_TASKS = 200
+const DEFAULT_RISK_WINDOW_DAYS = 5
 
 const NumberSchema = z.number().finite().positive()
 
@@ -14,6 +16,8 @@ export type SessionConfigInput = {
   readOnly?: boolean
   hierarchyCacheTtlMs?: number
   spaceConfigCacheTtlMs?: number
+  reportingMaxTasks?: number
+  defaultRiskWindowDays?: number
 }
 
 export type ApplicationConfig = {
@@ -24,6 +28,8 @@ export type ApplicationConfig = {
   readOnly: boolean
   hierarchyCacheTtlMs: number
   spaceConfigCacheTtlMs: number
+  reportingMaxTasks: number
+  defaultRiskWindowDays: number
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {
@@ -155,6 +161,12 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
   const spaceConfigCacheTtlMs =
     (input.spaceConfigCacheTtlMs ?? resolveNonNegativeNumber(["SPACE_CONFIG_CACHE_TTL_MS"])) ??
     (resolveNonNegativeNumber(["SPACE_CONFIG_CACHE_TTL_SECONDS"]) ?? DEFAULT_CACHE_TTL_MS / 1000) * 1000
+  const reportingMaxTasks =
+    coalesceNumber(input.reportingMaxTasks, () => resolveEnvNumber(["REPORTING_MAX_TASKS", "reportingMaxTasks"])) ??
+    DEFAULT_REPORTING_MAX_TASKS
+  const defaultRiskWindowDays =
+    coalesceNumber(input.defaultRiskWindowDays, () => resolveEnvNumber(["DEFAULT_RISK_WINDOW_DAYS", "defaultRiskWindowDays"])) ??
+    DEFAULT_RISK_WINDOW_DAYS
   return {
     teamId,
     apiKey,
@@ -162,7 +174,9 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
     maxAttachmentMb,
     readOnly,
     hierarchyCacheTtlMs,
-    spaceConfigCacheTtlMs
+    spaceConfigCacheTtlMs,
+    reportingMaxTasks,
+    defaultRiskWindowDays
   }
 }
 

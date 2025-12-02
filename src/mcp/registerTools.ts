@@ -26,6 +26,8 @@ import {
   SearchTasksInput,
   FuzzySearchInput,
   BulkFuzzySearchInput,
+  TaskStatusReportInput,
+  TaskRiskReportInput,
   CreateDocInput,
   ListDocumentsInput,
   GetDocumentInput,
@@ -98,6 +100,8 @@ import { getTaskComments } from "../application/usecases/tasks/GetTaskComments.j
 import { searchTasks } from "../application/usecases/tasks/SearchTasks.js"
 import { fuzzySearch } from "../application/usecases/tasks/FuzzySearch.js"
 import { bulkFuzzySearch } from "../application/usecases/tasks/BulkFuzzySearch.js"
+import { taskStatusReport } from "../application/usecases/tasks/TaskStatusReport.js"
+import { taskRiskReport } from "../application/usecases/tasks/TaskRiskReport.js"
 import { createDoc } from "../application/usecases/docs/CreateDoc.js"
 import { listDocuments } from "../application/usecases/docs/ListDocuments.js"
 import { getDocument } from "../application/usecases/docs/GetDocument.js"
@@ -797,6 +801,44 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
       return { queries: result }
     },
     readOnlyAnnotation("task", "search fuzzy bulk", { scope: "workspace", input: "queries[]" })
+  )
+
+  registerReadOnly(
+    "clickup_report_tasks_for_container",
+    "Summarise task status and priority for a workspace, space, folder or list without returning full task lists.",
+    TaskStatusReportInput,
+    async (input, client, config) =>
+      taskStatusReport(input, client, config, sessionHierarchyDirectory, sessionTaskCatalogue),
+    readOnlyAnnotation("reporting", "task status report", { scope: "container", weight: "medium" }),
+    undefined,
+    {
+      input_examples: [
+        { listId: "12345" },
+        { path: ["Workspace A", "Space B", "Folder C"] },
+        { path: ["Workspace A", "Space B", "List D"], tags: ["priority"], assignees: ["alex"] }
+      ]
+    }
+  )
+
+  registerReadOnly(
+    "clickup_risk_summary_for_container",
+    "Summarise overdue and at-risk tasks within a workspace, space, folder or list.",
+    TaskRiskReportInput,
+    async (input, client, config) =>
+      taskRiskReport(input, client, config, sessionHierarchyDirectory, sessionTaskCatalogue),
+    readOnlyAnnotation("reporting", "task risk report", {
+      scope: "container",
+      weight: "medium",
+      window: `${config.defaultRiskWindowDays}d`
+    }),
+    undefined,
+    {
+      input_examples: [
+        { listId: "12345" },
+        { path: ["Workspace A", "Space B"] },
+        { path: ["Workspace A", "Space B", "List D"], dueWithinDays: 7 }
+      ]
+    }
   )
 
   registerReadOnly(
