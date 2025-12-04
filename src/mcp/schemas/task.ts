@@ -91,7 +91,9 @@ export const CreateTaskInput = SafetyInput.extend({
 })
 
 export const CreateSubtaskInput = CreateTaskInput.extend({
-  parentTaskId: Id.describe("Parent task ID; must belong to the same list as listId.")
+  parentTaskId: Id.describe(
+    "Parent task ID; creates the new record as a child of this task. The parent must belong to the same list as listId."
+  )
 })
 
 export const UpdateTaskInput = SafetyInput.extend({
@@ -117,7 +119,10 @@ export const UpdateTaskInput = SafetyInput.extend({
     .describe("ISO 8601 due timestamp; omit for no change.")
     .optional(),
   assigneeIds: IdArray.describe("Replace assignees with these member IDs.").optional(),
-  tags: TagArray.describe("Complete tag set to apply; overrides existing tags.").optional()
+  tags: TagArray.describe("Complete tag set to apply; overrides existing tags.").optional(),
+  parentTaskId: Id.describe(
+    "Parent task ID to nest this task beneath; supply to convert a task into a subtask or move it to a new parent."
+  ).optional()
 })
 
 export const DeleteTaskInput = SafetyInput.extend({
@@ -209,11 +214,15 @@ const BulkCreateTask = z.object({
 })
 
 const BulkCreateSubtaskDefaults = BulkCreateDefaults.extend({
-  parentTaskId: Id.describe("Default parent task ID when subtasks omit one.").optional()
+  parentTaskId: Id.describe(
+    "Default parent task ID when subtasks omit one; must reference a task in the same list as listId."
+  ).optional()
 })
 
 const BulkCreateSubtask = BulkCreateTask.extend({
-  parentTaskId: Id.describe("Parent task ID; must belong to the same list as listId.").optional()
+  parentTaskId: Id.describe(
+    "Parent task ID; must belong to the same list as listId. Provide per subtask to mix parents in a single bulk call."
+  ).optional()
 })
 
 const UpdateFields = z.object({
@@ -402,7 +411,11 @@ export const SearchTasksInput = z.object({
     .array(z.string().min(1).describe("Status name exactly as configured in ClickUp."))
     .min(1)
     .describe("Filter by one or more status names; mutually exclusive with status.")
-    .optional()
+    .optional(),
+  includeSubtasks: z
+    .boolean()
+    .default(true)
+    .describe("Include subtasks in results; disable only when explicitly excluding child tasks.")
 }).superRefine((value, ctx) => {
   if (value.status && value.statuses) {
     ctx.addIssue({
@@ -512,6 +525,52 @@ export const ListTasksInListInput = TaskLookupReference.extend({
   }
   ensureTaskResolvable(value, ctx, ["taskName"])
 })
+
+export const TaskHierarchyMeta = z.object({
+  isSubtask: z.boolean().describe("true when this task has a parentId; signals the record is a child task."),
+  parentId: Id.describe("Parent task ID if this task is a subtask.").optional(),
+  hasSubtasks: z
+    .boolean()
+    .describe("true when ClickUp reports child tasks; check before asserting that no subtasks exist."),
+  subtaskCount: z
+    .number()
+    .int()
+    .describe("Number of subtasks ClickUp reported. When zero, treat as no subtasks unless otherwise indicated.")
+})
+
+export const TaskDetailOutput = TaskHierarchyMeta.extend({
+  id: Id.describe("Task ID."),
+  name: z.string().optional(),
+  status: z.string().optional(),
+  description: z.string().optional(),
+  priority: z.string().optional(),
+  dueDate: z.string().optional(),
+  startDate: z.string().optional(),
+  url: z.string(),
+  list: z
+    .object({ id: Id.optional(), name: z.string().optional(), url: z.string().optional() })
+    .optional(),
+  assignees: z.array(z.object({ id: Id, username: z.string().optional(), email: z.string().optional() })),
+  tags: z.array(z.object({ name: z.string(), color: z.object({ fg: z.string().optional(), bg: z.string().optional() }).optional() })),
+  watchers: z.array(z.object({ id: Id, username: z.string().optional(), email: z.string().optional() })),
+  checklists: z.array(z.object({ id: Id, name: z.string().optional(), resolvedItems: z.number(), totalItems: z.number() }))
+}).describe(
+  "Task detail response. Inspect hasSubtasks/subtaskCount to avoid incorrectly stating that a task has no children."
+)
+
+export const TaskListItemOutput = TaskHierarchyMeta.extend({
+  id: Id.describe("Task ID."),
+  name: z.string().optional(),
+  status: z.string().optional(),
+  dueDate: z.string().optional(),
+  startDate: z.string().optional(),
+  priority: z.string().optional(),
+  url: z.string(),
+  assignees: z.array(z.object({ id: Id, username: z.string().optional(), email: z.string().optional() })),
+  assigneesTruncated: z.boolean()
+}).describe(
+  "Task listing entry with hierarchy flags. Check parentId/isSubtask to see if this is a child task, and hasSubtasks/subtaskCount before claiming no children exist."
+)
 
 export const GetTaskCommentsInput = TaskLookupReference.extend({
   limit: z

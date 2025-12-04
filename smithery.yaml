@@ -1,4 +1,6 @@
 runtime: "container"
+description: |
+  ClickUp MCP server with subtask-aware tools. Responses surface hasSubtasks/subtaskCount and parentId/isSubtask metadata so agents do not miss child tasks.
 build:
   dockerfile: "Dockerfile"
   dockerBuildPath: "."

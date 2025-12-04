@@ -660,17 +660,36 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerDestructive(
     "clickup_create_subtask",
-    "Create a subtask in a list. POST /list/{list_id}/task with parent parameter",
+    "Create a subtask in a list. parentTaskId is required and must belong to the same list. POST /list/{list_id}/task with parent parameter",
     CreateSubtaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true })
+    destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true }),
+    undefined,
+    {
+      input_examples: [
+        { listId: "654321", parentTaskId: "parent-1", name: "Write test plan", confirm: "yes" },
+        { listId: "654321", parentTaskId: "parent-2", name: "Draft design", description: "Outline components" }
+      ]
+    }
   )
   registerDestructive(
     "clickup_create_subtasks_bulk",
-    "Bulk create subtasks across one or many parents. POST /task/bulk via sequential calls",
+    "Bulk create subtasks across one or many parents. Provide parentTaskId per subtask or via defaults; POST /task/bulk via sequential calls",
     CreateSubtasksBulkInput,
     async (input, client, config) => createSubtasksBulk(input, client, config, sessionTaskCatalogue),
-    destructiveAnnotation("task", "bulk create subtasks", { scope: "task", input: "subtasks[]", dry: true })
+    destructiveAnnotation("task", "bulk create subtasks", { scope: "task", input: "subtasks[]", dry: true }),
+    undefined,
+    {
+      input_examples: [
+        {
+          defaults: { listId: "list-1", parentTaskId: "parent-1" },
+          subtasks: [
+            { name: "Break down work" },
+            { name: "Child for another parent", parentTaskId: "parent-2" }
+          ]
+        }
+      ]
+    }
   )
   registerDestructive(
     "clickup_create_tasks_bulk",
@@ -805,7 +824,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_report_tasks_for_container",
-    "Summarise task status and priority for a workspace, space, folder or list without returning full task lists.",
+    "Summarise task status and priority for a workspace, space, folder or list without returning full task lists. Responses note whether subtasks were included and expose parentId/isSubtask flags on samples.",
     TaskStatusReportInput,
     async (input, client, config) =>
       taskStatusReport(input, client, config, sessionHierarchyDirectory, sessionTaskCatalogue),
@@ -822,7 +841,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_risk_summary_for_container",
-    "Summarise overdue and at-risk tasks within a workspace, space, folder or list.",
+    "Summarise overdue and at-risk tasks within a workspace, space, folder or list. Responses note whether subtasks were included and expose parentId/isSubtask flags on samples.",
     TaskRiskReportInput,
     async (input, client, config) =>
       taskRiskReport(input, client, config, sessionHierarchyDirectory, sessionTaskCatalogue),
@@ -843,7 +862,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_get_task",
-    "Fetch task details. GET /task/{task_id}",
+    "Fetch task details with hierarchy cues (hasSubtasks, subtaskCount, parentId). GET /task/{task_id}",
     GetTaskInput,
     (input, client, config) => getTask(input, client, config, sessionTaskCatalogue),
     readOnlyAnnotation("task", "task fetch", { scope: "task", input: "taskId|lookup" }),
@@ -853,14 +872,15 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
         { taskId: "abc123", detailLimit: 10 },
         {
           taskName: "Prepare release notes",
-          context: { tasks: [{ id: "456", name: "Prepare release notes" }] }
+          context: { tasks: [{ id: "456", name: "Prepare release notes" }] },
+          detailLimit: 5
         }
       ]
     }
   )
   registerReadOnly(
     "clickup_list_tasks_in_list",
-    "List tasks in a list. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
+    "List tasks in a list. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. Each entry includes parentId/isSubtask flags plus hasSubtasks/subtaskCount so agents can see hierarchy context. GET /list/{list_id}/task",
     ListTasksInListInput,
     async (input, client, config) => {
       const result = await listTasksInList(input, client, config, sessionTaskCatalogue)

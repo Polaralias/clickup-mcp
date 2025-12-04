@@ -25,6 +25,10 @@ type TaskListItem = {
   startDate?: string
   priority?: string
   url: string
+  isSubtask: boolean
+  parentId?: string
+  hasSubtasks: boolean
+  subtaskCount: number
   assignees: TaskMember[]
   assigneesTruncated: boolean
 }
@@ -117,6 +121,16 @@ function mapTask(task: any, assigneeLimit: number): TaskListItem | undefined {
         ? (task.priority as any).priority ?? (task.priority as any).label
         : undefined
   const url = typeof task?.url === "string" ? task.url : `https://app.clickup.com/t/${id}`
+  const parentId = typeof task?.parent === "string" ? task.parent : undefined
+  const subtasks = Array.isArray(task?.subtasks) ? task.subtasks : undefined
+  const inferredSubtaskCount =
+    typeof task?.subtask_count === "number"
+      ? task.subtask_count
+      : typeof task?.subtasks_count === "number"
+        ? task.subtasks_count
+        : undefined
+  const subtaskCount =
+    (Array.isArray(subtasks) ? subtasks.length : undefined) ?? (Number.isFinite(inferredSubtaskCount) ? inferredSubtaskCount : 0)
   return {
     id: String(id),
     name: typeof task?.name === "string" ? task.name : undefined,
@@ -125,6 +139,10 @@ function mapTask(task: any, assigneeLimit: number): TaskListItem | undefined {
     startDate: toIsoDate(task?.start_date ?? task?.date_started),
     priority,
     url,
+    isSubtask: Boolean(parentId),
+    parentId,
+    hasSubtasks: subtaskCount > 0,
+    subtaskCount,
     assignees,
     assigneesTruncated
   }
@@ -160,7 +178,7 @@ async function resolveListDetails(
       taskResolution: resolution
     }
   }
-  const taskResponse = await client.getTask(resolution.taskId)
+  const taskResponse = await client.getTask(resolution.taskId, {})
   const payload = taskResponse?.task ?? taskResponse ?? {}
   const listSource = payload?.list
   const listId =

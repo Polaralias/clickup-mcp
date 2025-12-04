@@ -47,6 +47,8 @@ type TaskSummary = {
   dueDate?: string
   startDate?: string
   parentId?: string
+  hasSubtasks: boolean
+  subtaskCount: number
   url: string
   list?: TaskList
   creator?: TaskMember
@@ -191,7 +193,7 @@ export async function getTask(
     context: input.context
   }, catalogue)
 
-  const response = await client.getTask(resolution.taskId)
+  const response = await client.getTask(resolution.taskId, { subtasks: true })
   const payload = response?.task ?? response ?? {}
   const taskId = String(payload?.id ?? payload?.task_id ?? resolution.taskId)
   const url = ensureTaskUrl(taskId, payload?.url ?? resolution.record?.url)
@@ -245,6 +247,17 @@ export async function getTask(
     checklists: checklistsTruncated
   }
 
+  const subtasks = Array.isArray(payload?.subtasks) ? payload.subtasks : undefined
+  const inferredSubtaskCount =
+    typeof payload?.subtask_count === "number"
+      ? payload.subtask_count
+      : typeof payload?.subtasks_count === "number"
+        ? payload.subtasks_count
+        : undefined
+  const subtaskCount =
+    (Array.isArray(subtasks) ? subtasks.length : undefined) ?? (Number.isFinite(inferredSubtaskCount) ? inferredSubtaskCount : 0)
+  const hasSubtasks = subtaskCount > 0
+
   const guidance = Object.values(truncatedFlags).some(Boolean)
     ? "Some collections were truncated for token safety. Increase detailLimit if additional entries are required."
     : undefined
@@ -259,6 +272,8 @@ export async function getTask(
       dueDate: toIsoDate(payload?.due_date ?? payload?.dueDate),
       startDate: toIsoDate(payload?.start_date ?? payload?.date_started),
       parentId: typeof payload?.parent === "string" ? payload.parent : undefined,
+      hasSubtasks,
+      subtaskCount,
       url,
       list: buildList(payload, resolution.record),
       creator,

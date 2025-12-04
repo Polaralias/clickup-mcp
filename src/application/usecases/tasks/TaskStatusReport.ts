@@ -33,6 +33,10 @@ type TaskSample = {
   priority?: string
   dueDate?: string
   url: string
+  isSubtask: boolean
+  parentId?: string
+  hasSubtasks: boolean
+  subtaskCount: number
   assignees: TaskMember[]
   assigneesTruncated: boolean
   tags: string[]
@@ -65,6 +69,7 @@ type Result = {
     byStatus: StatusBucket[]
     byPriority: PriorityBucket[]
   }
+  scopeNote: string
   filters: {
     includeClosed: boolean
     includeSubtasks: boolean
@@ -174,6 +179,16 @@ function mapTask(task: any, assigneeLimit: number): TaskSample | undefined {
   const { status } = readStatus(task)
   const priority = readPriority(task)
   const url = typeof task?.url === "string" ? task.url : `https://app.clickup.com/t/${id}`
+  const parentId = typeof task?.parent === "string" ? task.parent : undefined
+  const subtasks = Array.isArray(task?.subtasks) ? task.subtasks : undefined
+  const inferredSubtaskCount =
+    typeof task?.subtask_count === "number"
+      ? task.subtask_count
+      : typeof task?.subtasks_count === "number"
+        ? task.subtasks_count
+        : undefined
+  const subtaskCount =
+    (Array.isArray(subtasks) ? subtasks.length : undefined) ?? (Number.isFinite(inferredSubtaskCount) ? inferredSubtaskCount : 0)
   return {
     id: String(id),
     name: typeof task?.name === "string" ? task.name : undefined,
@@ -181,6 +196,10 @@ function mapTask(task: any, assigneeLimit: number): TaskSample | undefined {
     priority,
     dueDate: toIsoDate(task?.due_date ?? task?.dueDate),
     url,
+    isSubtask: Boolean(parentId),
+    parentId,
+    hasSubtasks: subtaskCount > 0,
+    subtaskCount,
     assignees,
     assigneesTruncated,
     tags: mapTags(task?.tags)
@@ -387,6 +406,9 @@ export async function taskStatusReport(
       byStatus: statusBuckets,
       byPriority: priorityBuckets
     },
+    scopeNote: input.includeSubtasks === false
+      ? "Subtasks excluded from aggregation; parent tasks only."
+      : "Subtasks included when available; check parentId/isSubtask flags for hierarchy.",
     filters: {
       includeClosed: Boolean(input.includeClosed),
       includeSubtasks: Boolean(input.includeSubtasks),

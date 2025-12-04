@@ -36,6 +36,10 @@ type RiskSample = {
   dueInDays?: number
   overdueDays?: number
   url: string
+  isSubtask: boolean
+  parentId?: string
+  hasSubtasks: boolean
+  subtaskCount: number
   assignees: TaskMember[]
   assigneesTruncated: boolean
   tags: string[]
@@ -75,6 +79,7 @@ type Result = {
     tasks: RiskSample[]
     truncated: boolean
   }
+  scopeNote: string
   filters: {
     includeClosed: boolean
     includeSubtasks: boolean
@@ -184,6 +189,16 @@ function mapTask(task: any, assigneeLimit: number): RiskSample | undefined {
   const { status, type } = readStatus(task)
   const priority = readPriority(task)
   const url = typeof task?.url === "string" ? task.url : `https://app.clickup.com/t/${id}`
+  const parentId = typeof task?.parent === "string" ? task.parent : undefined
+  const subtasks = Array.isArray(task?.subtasks) ? task.subtasks : undefined
+  const inferredSubtaskCount =
+    typeof task?.subtask_count === "number"
+      ? task.subtask_count
+      : typeof task?.subtasks_count === "number"
+        ? task.subtasks_count
+        : undefined
+  const subtaskCount =
+    (Array.isArray(subtasks) ? subtasks.length : undefined) ?? (Number.isFinite(inferredSubtaskCount) ? inferredSubtaskCount : 0)
   return {
     id: String(id),
     name: typeof task?.name === "string" ? task.name : undefined,
@@ -192,6 +207,10 @@ function mapTask(task: any, assigneeLimit: number): RiskSample | undefined {
     priority,
     dueDate: toIsoDate(task?.due_date ?? task?.dueDate),
     url,
+    isSubtask: Boolean(parentId),
+    parentId,
+    hasSubtasks: subtaskCount > 0,
+    subtaskCount,
     assignees,
     assigneesTruncated,
     tags: mapTags(task?.tags)
@@ -449,6 +468,9 @@ export async function taskRiskReport(
       tasks: sampleItems,
       truncated: samplesTruncated
     },
+    scopeNote: input.includeSubtasks === false
+      ? "Subtasks excluded from risk analysis; parent tasks only."
+      : "Subtasks included; use isSubtask/parentId to interpret hierarchy.",
     filters: {
       includeClosed: Boolean(input.includeClosed),
       includeSubtasks: Boolean(input.includeSubtasks),

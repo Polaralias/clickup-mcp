@@ -656,8 +656,11 @@ export class ClickUpClient {
     })
   }
 
-  getTask(taskId: string) {
-    return this.request(`task/${taskId}`)
+  getTask(taskId: string, query: SearchParams = {}) {
+    return this.request(`task/${taskId}`, {
+      method: "GET",
+      searchParams: query
+    })
   }
 
   listTasksInList(listId: string, query: SearchParams = {}) {

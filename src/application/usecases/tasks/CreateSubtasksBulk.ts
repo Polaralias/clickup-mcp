@@ -42,6 +42,14 @@ export async function createSubtasksBulk(
   catalogue?: TaskCatalogue
 ) {
   const subtasks = normaliseSubtasks(input)
+  subtasks.forEach((subtask, index) => {
+    if (!subtask.parentTaskId) {
+      throw new Error(`Subtask at index ${index} is missing parentTaskId after defaults were applied`)
+    }
+    if (!subtask.listId) {
+      throw new Error(`Subtask at index ${index} is missing listId after defaults were applied`)
+    }
+  })
   const outcomes = await runBulk(subtasks, async (subtask) => {
     const payloadBase = {
       listId: subtask.listId,

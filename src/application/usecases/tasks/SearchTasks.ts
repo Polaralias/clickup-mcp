@@ -41,7 +41,8 @@ export async function searchTasks(
   const query: ClickUpSearchParams = {
     page: input.page,
     order_by: "updated",
-    reverse: true
+    reverse: true,
+    subtasks: input.includeSubtasks
   }
   if (input.query) query.search = input.query
   if (input.listIds) query.list_ids = input.listIds.join(",")
