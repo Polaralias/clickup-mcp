@@ -36,6 +36,10 @@ type TaskSample = {
   assignees: TaskMember[]
   assigneesTruncated: boolean
   tags: string[]
+  isSubtask: boolean
+  parentId?: string
+  hasSubtasks?: boolean
+  subtaskCount?: number
 }
 
 type StatusBucket = {
@@ -75,6 +79,7 @@ type Result = {
     dueWithinDays?: number
   }
   truncated: boolean
+  guidance?: string
 }
 
 function readString(candidate: unknown): string | undefined {
@@ -175,6 +180,19 @@ function mapTask(task: any, assigneeLimit: number): TaskSample | undefined {
   const { status } = readStatus(task)
   const priority = readPriority(task)
   const url = typeof task?.url === "string" ? task.url : `https://app.clickup.com/t/${id}`
+  const parentId = typeof task?.parent === "string" ? task.parent : undefined
+  const subtaskEntries: unknown[] = Array.isArray((task as any)?.subtasks) ? (task as any).subtasks : []
+  const subtaskCountFromPayload =
+    typeof (task as any)?.subtask_count === "number"
+      ? (task as any).subtask_count
+      : typeof (task as any)?.subtasks_count === "number"
+        ? (task as any).subtasks_count
+        : undefined
+  const subtaskCount = subtaskEntries.length > 0
+    ? subtaskEntries.length
+    : typeof subtaskCountFromPayload === "number"
+      ? subtaskCountFromPayload
+      : undefined
   return {
     id: String(id),
     name: typeof task?.name === "string" ? task.name : undefined,
@@ -184,7 +202,11 @@ function mapTask(task: any, assigneeLimit: number): TaskSample | undefined {
     url,
     assignees,
     assigneesTruncated,
-    tags: mapTags(task?.tags)
+    tags: mapTags(task?.tags),
+    isSubtask: Boolean(parentId),
+    parentId,
+    hasSubtasks: typeof subtaskCount === "number" ? subtaskCount > 0 : undefined,
+    subtaskCount
   }
 }
 
@@ -231,7 +253,7 @@ function buildQuery(
     page,
     page_size: pageSize,
     include_closed: input.includeClosed,
-    subtasks: input.includeSubtasks,
+    subtasks: input.includeSubtasks !== false ? true : undefined,
     include_timl: includeTiml ? true : undefined,
     order_by: "updated",
     reverse: true
@@ -392,14 +414,18 @@ export async function taskStatusReport(
     },
     filters: {
       includeClosed: Boolean(input.includeClosed),
-      includeSubtasks: Boolean(input.includeSubtasks),
+      includeSubtasks: input.includeSubtasks !== false,
       includeTasksInMultipleLists: input.includeTasksInMultipleLists !== false,
       tags: input.tags ?? [],
       assignees: input.assignees ?? [],
       statusFilter: input.statusFilter ?? [],
       dueWithinDays: input.dueWithinDays
     },
-    truncated: false
+    truncated: false,
+    guidance:
+      input.includeSubtasks !== false
+        ? "Subtasks were included; check isSubtask and parentId flags before assuming hierarchy."
+        : "Subtasks were excluded from this summary; enable includeSubtasks to incorporate child tasks."
   }
 
   return applyCharLimit(base, config)

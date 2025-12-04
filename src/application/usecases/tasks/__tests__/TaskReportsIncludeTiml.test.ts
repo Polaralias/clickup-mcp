@@ -28,6 +28,7 @@ describe("task reporting include_timl defaults", () => {
 
     expect(searchTasksMock).toHaveBeenCalled()
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBe(true)
+    expect(searchTasksMock.mock.calls[0]?.[1]?.subtasks).toBe(true)
   })
 
   it("omits include_timl when disabled for status reports", async () => {
@@ -42,6 +43,7 @@ describe("task reporting include_timl defaults", () => {
     )
 
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBeUndefined()
+    expect(searchTasksMock.mock.calls[0]?.[1]?.subtasks).toBe(true)
   })
 
   it("propagates include_timl default for risk reports", async () => {
@@ -52,6 +54,7 @@ describe("task reporting include_timl defaults", () => {
 
     expect(searchTasksMock).toHaveBeenCalled()
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBe(true)
+    expect(searchTasksMock.mock.calls[0]?.[1]?.subtasks).toBe(true)
   })
 
   it("omits include_timl when disabled for risk reports", async () => {
@@ -59,12 +62,13 @@ describe("task reporting include_timl defaults", () => {
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
     await taskRiskReport(
-      { workspaceId: "ws-1", includeTasksInMultipleLists: false },
+      { workspaceId: "ws-1", includeTasksInMultipleLists: false, includeSubtasks: false },
       client,
       config,
       directory
     )
 
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBeUndefined()
+    expect(searchTasksMock.mock.calls[0]?.[1]?.subtasks).toBeUndefined()
   })
 })
