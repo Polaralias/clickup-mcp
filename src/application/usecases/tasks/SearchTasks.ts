@@ -43,7 +43,8 @@ export async function searchTasks(
     page: input.page,
     order_by: "updated",
     reverse: true,
-    include_timl: includeTiml ? true : undefined
+    include_timl: includeTiml ? true : undefined,
+    subtasks: input.includeSubtasks ? true : undefined
   }
   if (input.query) query.search = input.query
   if (input.listIds) query.list_ids = input.listIds.join(",")

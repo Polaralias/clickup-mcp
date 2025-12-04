@@ -24,8 +24,20 @@ type NormalisedCreateSubtask = {
 function normaliseSubtasks(input: Input): NormalisedCreateSubtask[] {
   const defaults = input.defaults ?? {}
   return input.subtasks.map((subtask) => ({
-    listId: (subtask.listId ?? defaults.listId)!,
-    parentTaskId: (subtask.parentTaskId ?? defaults.parentTaskId)!,
+    listId: (() => {
+      const listId = subtask.listId ?? defaults.listId
+      if (!listId) {
+        throw new Error("Missing listId for subtask; provide per entry or via defaults")
+      }
+      return listId
+    })(),
+    parentTaskId: (() => {
+      const parentId = subtask.parentTaskId ?? defaults.parentTaskId
+      if (!parentId) {
+        throw new Error("Missing parentTaskId for subtask; provide per entry or via defaults")
+      }
+      return parentId
+    })(),
     name: subtask.name,
     description: subtask.description ?? defaults.description,
     assigneeIds: subtask.assigneeIds ?? defaults.assigneeIds,

@@ -49,6 +49,9 @@ type TaskSummary = {
   createdDate?: string
   updatedDate?: string
   parentId?: string
+  isSubtask: boolean
+  hasSubtasks: boolean
+  subtaskCount: number
   url: string
   list?: TaskList
   creator?: TaskMember
@@ -193,7 +196,7 @@ export async function getTask(
     context: input.context
   }, catalogue)
 
-  const response = await client.getTask(resolution.taskId)
+  const response = await client.getTask(resolution.taskId, { subtasks: true })
   const payload = response?.task ?? response ?? {}
   const taskId = String(payload?.id ?? payload?.task_id ?? resolution.taskId)
   const url = ensureTaskUrl(taskId, payload?.url ?? resolution.record?.url)
@@ -240,6 +243,22 @@ export async function getTask(
     .filter((entry): entry is TaskChecklist => Boolean(entry))
   const { items: checklists, truncated: checklistsTruncated } = truncateList<TaskChecklist>(checklistRecords, detailLimit)
 
+  const subtaskEntries: unknown[] = Array.isArray((payload as any)?.subtasks) ? (payload as any).subtasks : []
+  const subtaskCountFromPayload =
+    typeof (payload as any)?.subtask_count === "number"
+      ? (payload as any).subtask_count
+      : typeof (payload as any)?.subtasks_count === "number"
+        ? (payload as any).subtasks_count
+        : undefined
+  const subtaskCount = subtaskEntries.length > 0
+    ? subtaskEntries.length
+    : typeof subtaskCountFromPayload === "number"
+      ? subtaskCountFromPayload
+      : 0
+  const hasSubtasks = subtaskCount > 0
+  const parentId = typeof payload?.parent === "string" ? payload.parent : undefined
+  const isSubtask = Boolean(parentId)
+
   const truncatedFlags = {
     assignees: assigneesTruncated,
     tags: tagsTruncated,
@@ -262,7 +281,10 @@ export async function getTask(
       startDate: toIsoDate(payload?.start_date ?? payload?.date_started),
       createdDate: toIsoDate(payload?.date_created ?? payload?.dateCreated),
       updatedDate: toIsoDate(payload?.date_updated ?? payload?.dateUpdated),
-      parentId: typeof payload?.parent === "string" ? payload.parent : undefined,
+      parentId,
+      isSubtask,
+      hasSubtasks,
+      subtaskCount,
       url,
       list: buildList(payload, resolution.record),
       creator,

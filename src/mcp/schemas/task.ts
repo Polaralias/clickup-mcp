@@ -62,7 +62,21 @@ export const TaskListItemOutput = z
     assignees: z.array(TaskMember).describe("Preview of assigned members."),
     assigneesTruncated: z
       .boolean()
-      .describe("true when assignee previews were truncated for token safety.")
+      .describe("true when assignee previews were truncated for token safety."),
+    isSubtask: z
+      .boolean()
+      .describe("true when the task has a parent; indicates this entry is itself a subtask."),
+    parentId: Id.describe("Parent task ID when isSubtask is true.").optional(),
+    hasSubtasks: z
+      .boolean()
+      .describe(
+        "Indicates whether ClickUp reports child subtasks for this task; check before assuming there are none."
+      )
+      .optional(),
+    subtaskCount: z
+      .number()
+      .describe("Number of reported subtasks when available from ClickUp responses.")
+      .optional()
   })
   .describe("Task summary payload returned from listing/search tools.")
 
@@ -84,6 +98,18 @@ export const TaskDetailOutput = z
       .describe("Last updated timestamp in ISO 8601 format derived from ClickUp date_updated field.")
       .optional(),
     parentId: Id.optional(),
+    isSubtask: z
+      .boolean()
+      .default(false)
+      .describe("true when the task has a parent; check before claiming the task is top level."),
+    hasSubtasks: z
+      .boolean()
+      .default(false)
+      .describe("true when ClickUp reports this task has child subtasks; avoid asserting none exist without checking."),
+    subtaskCount: z
+      .number()
+      .default(0)
+      .describe("Reported number of subtasks when available; zero when none or not returned."),
     url: z.string(),
     list: TaskListReference.optional(),
     creator: TaskMember.optional(),
@@ -179,7 +205,7 @@ export const CreateTaskInput = SafetyInput.extend({
 
 export const CreateSubtaskInput = CreateTaskInput.extend({
   parentTaskId: Id.describe("Parent task ID; must belong to the same list as listId.")
-})
+}).describe("Create a subtask under parentTaskId within the provided list.")
 
 export const UpdateTaskInput = SafetyInput.extend({
   taskId: Id.describe("Task ID to modify."),
@@ -188,6 +214,7 @@ export const UpdateTaskInput = SafetyInput.extend({
     .string()
     .describe("Replacement description body.")
     .optional(),
+  parentTaskId: Id.describe("New parent task ID to move this task under; must be in the same list.").optional(),
   status: z
     .string()
     .describe("Status name exactly as configured in ClickUp.")
@@ -301,7 +328,7 @@ const BulkCreateSubtaskDefaults = BulkCreateDefaults.extend({
 
 const BulkCreateSubtask = BulkCreateTask.extend({
   parentTaskId: Id.describe("Parent task ID; must belong to the same list as listId.").optional()
-})
+}).describe("Subtask descriptor; supply parentTaskId here or via defaults to create a child task.")
 
 const UpdateFields = z.object({
   name: z.string().describe("Replacement title to set.").optional(),
@@ -484,6 +511,10 @@ export const SearchTasksInput = z.object({
     .boolean()
     .default(true)
     .describe("Include tasks that belong to multiple lists; maps to ClickUp include_timl."),
+  includeSubtasks: z
+    .boolean()
+    .default(true)
+    .describe("true to include subtasks in the search results; disable to focus on parent tasks."),
   status: z
     .string()
     .min(1)

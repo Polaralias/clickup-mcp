@@ -660,17 +660,36 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerDestructive(
     "clickup_create_subtask",
-    "Create a subtask in a list. POST /list/{list_id}/task with parent parameter",
+    "Create a subtask in a list. Requires parentTaskId to place the new task under its parent. POST /list/{list_id}/task with parent parameter.",
     CreateSubtaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
-    destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true })
+    destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true }),
+    undefined,
+    {
+      input_examples: [
+        { listId: "654321", parentTaskId: "parent-1", name: "Write API docs" },
+        { listId: "654321", parentTaskId: "parent-1", name: "Draft schema", dryRun: true }
+      ]
+    }
   )
   registerDestructive(
     "clickup_create_subtasks_bulk",
-    "Bulk create subtasks across one or many parents. POST /task/bulk via sequential calls",
+    "Bulk create subtasks across one or many parents. Provide parentTaskId per entry or via defaults; each subtask is created with the parent field. POST /task/bulk via sequential calls.",
     CreateSubtasksBulkInput,
     async (input, client, config) => createSubtasksBulk(input, client, config, sessionTaskCatalogue),
-    destructiveAnnotation("task", "bulk create subtasks", { scope: "task", input: "subtasks[]", dry: true })
+    destructiveAnnotation("task", "bulk create subtasks", { scope: "task", input: "subtasks[]", dry: true }),
+    undefined,
+    {
+      input_examples: [
+        {
+          defaults: { listId: "123", parentTaskId: "parent-123" },
+          subtasks: [
+            { name: "Design" },
+            { name: "Build", parentTaskId: "parent-override", listId: "456" }
+          ]
+        }
+      ]
+    }
   )
   registerDestructive(
     "clickup_create_tasks_bulk",
@@ -823,7 +842,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_risk_summary_for_container",
-    "Summarise overdue and at-risk tasks within a workspace, space, folder or list.",
+    "Summarise overdue and at-risk tasks within a workspace, space, folder or list. Subtasks are included by default; use includeSubtasks to focus on parent tasks and inspect isSubtask/parentId in results to understand hierarchy.",
     TaskRiskReportInput,
     async (input, client, config) =>
       taskRiskReport(input, client, config, sessionHierarchyDirectory, sessionTaskCatalogue),
@@ -836,7 +855,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     {
       input_examples: [
         { listId: "12345" },
-        { path: ["Workspace A", "Space B"] },
+        { path: ["Workspace A", "Space B"], includeSubtasks: false },
         { path: ["Workspace A", "Space B", "List D"], dueWithinDays: 7 }
       ]
     }
@@ -844,7 +863,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_get_task",
-    "Fetch task details including createdDate/updatedDate fields derived from ClickUp timestamps. GET /task/{task_id}",
+    "Fetch task details including createdDate/updatedDate fields derived from ClickUp timestamps. Subtask cues (isSubtask, parentId, hasSubtasks, subtaskCount) are included; check them before claiming there are no subtasks. GET /task/{task_id}",
     GetTaskInput,
     (input, client, config) => getTask(input, client, config, sessionTaskCatalogue),
     readOnlyAnnotation("task", "task fetch", { scope: "task", input: "taskId|lookup" }),
@@ -861,7 +880,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerReadOnly(
     "clickup_list_tasks_in_list",
-    "List tasks in a list. Tasks linked from other lists are included by default (include_timl=true). Outputs include createdDate derived from ClickUp date_created. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
+    "List tasks in a list. Tasks linked from other lists are included by default (include_timl=true). Outputs include createdDate derived from ClickUp date_created and hierarchy cues (isSubtask, parentId, hasSubtasks, subtaskCount). Always review hasSubtasks/subtaskCount before asserting there are no subtasks. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
     ListTasksInListInput,
     async (input, client, config) => {
       const result = await listTasksInList(input, client, config, sessionTaskCatalogue)

@@ -23,6 +23,7 @@ export async function updateTask(
   if (input.dueDate !== undefined) payload.due_date = input.dueDate
   if (input.assigneeIds !== undefined) payload.assignees = input.assigneeIds
   if (input.tags !== undefined) payload.tags = input.tags
+  if (input.parentTaskId !== undefined) payload.parent = input.parentTaskId
 
   if (input.dryRun) {
     return { preview: { taskId: input.taskId, fields: Object.keys(payload) } }

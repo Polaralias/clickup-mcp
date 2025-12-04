@@ -131,7 +131,7 @@ export async function resolveCustomFieldMetadata(
   fieldId: string,
   client: ClickUpClient
 ): Promise<FieldResolution> {
-  const taskResponse = await client.getTask(taskId)
+  const taskResponse = await client.getTask(taskId, {})
   const taskPayload = (taskResponse as { task?: unknown })?.task ?? (taskResponse as TaskPayload)
   const task = (taskPayload && typeof taskPayload === "object"
     ? (taskPayload as TaskPayload)

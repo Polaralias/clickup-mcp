@@ -59,8 +59,8 @@ export const TaskStatusReportInput = z
       .optional(),
     includeSubtasks: z
       .boolean()
-      .describe("true to include subtasks during aggregation.")
-      .optional(),
+      .default(true)
+      .describe("true to include subtasks during aggregation; set false to focus on parent tasks only."),
     includeTasksInMultipleLists: z
       .boolean()
       .default(true)
@@ -94,8 +94,8 @@ export const TaskRiskReportInput = z
       .optional(),
     includeSubtasks: z
       .boolean()
-      .describe("true to include subtasks during aggregation.")
-      .optional(),
+      .default(true)
+      .describe("true to include subtasks during aggregation; set false to focus on parent tasks only."),
     includeTasksInMultipleLists: z
       .boolean()
       .default(true)

@@ -28,6 +28,10 @@ type TaskListItem = {
   url: string
   assignees: TaskMember[]
   assigneesTruncated: boolean
+  isSubtask: boolean
+  parentId?: string
+  hasSubtasks?: boolean
+  subtaskCount?: number
 }
 
 type Result = {
@@ -118,6 +122,19 @@ function mapTask(task: any, assigneeLimit: number): TaskListItem | undefined {
         ? (task.priority as any).priority ?? (task.priority as any).label
         : undefined
   const url = typeof task?.url === "string" ? task.url : `https://app.clickup.com/t/${id}`
+  const parentId = typeof task?.parent === "string" ? task.parent : undefined
+  const subtaskEntries: unknown[] = Array.isArray((task as any)?.subtasks) ? (task as any).subtasks : []
+  const subtaskCountFromPayload =
+    typeof (task as any)?.subtask_count === "number"
+      ? (task as any).subtask_count
+      : typeof (task as any)?.subtasks_count === "number"
+        ? (task as any).subtasks_count
+        : undefined
+  const subtaskCount = subtaskEntries.length > 0
+    ? subtaskEntries.length
+    : typeof subtaskCountFromPayload === "number"
+      ? subtaskCountFromPayload
+      : undefined
   return {
     id: String(id),
     name: typeof task?.name === "string" ? task.name : undefined,
@@ -128,7 +145,11 @@ function mapTask(task: any, assigneeLimit: number): TaskListItem | undefined {
     priority,
     url,
     assignees,
-    assigneesTruncated
+    assigneesTruncated,
+    isSubtask: Boolean(parentId),
+    parentId,
+    hasSubtasks: typeof subtaskCount === "number" ? subtaskCount > 0 : undefined,
+    subtaskCount
   }
 }
 
@@ -162,7 +183,7 @@ async function resolveListDetails(
       taskResolution: resolution
     }
   }
-  const taskResponse = await client.getTask(resolution.taskId)
+  const taskResponse = await client.getTask(resolution.taskId, {})
   const payload = taskResponse?.task ?? taskResponse ?? {}
   const listSource = payload?.list
   const listId =
@@ -195,9 +216,10 @@ export async function listTasksInList(
 ): Promise<Result> {
   const listResolution = await resolveListDetails(input, client, catalogue)
   const includeTiml = input.includeTasksInMultipleLists !== false
+  const includeSubtasks = input.includeSubtasks !== false
   const filters = {
     includeClosed: input.includeClosed,
-    includeSubtasks: input.includeSubtasks,
+    includeSubtasks,
     includeTasksInMultipleLists: includeTiml
   }
   let listName = listResolution.listName
@@ -221,7 +243,11 @@ export async function listTasksInList(
             status: task.status,
             url: task.url ?? `https://app.clickup.com/t/${task.id}`,
             assignees: [],
-            assigneesTruncated: false
+            assigneesTruncated: false,
+            isSubtask: Boolean((task as any).parent ?? task.parentId),
+            parentId: (task as any).parent ?? task.parentId,
+            hasSubtasks: undefined,
+            subtaskCount: undefined
           }))
       return {
         tasks,
@@ -233,7 +259,7 @@ export async function listTasksInList(
     const query: SearchParams = {
       page,
       include_closed: input.includeClosed ? true : undefined,
-      subtasks: input.includeSubtasks ? true : undefined,
+      subtasks: includeSubtasks ? true : undefined,
       include_timl: includeTiml ? true : undefined,
       page_size: pageSize
     }
@@ -341,7 +367,7 @@ export async function listTasksInList(
     },
     filters: {
       includeClosed: input.includeClosed,
-      includeSubtasks: input.includeSubtasks,
+      includeSubtasks,
       includeTasksInMultipleLists: includeTiml
     },
     guidance
