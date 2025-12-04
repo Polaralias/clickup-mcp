@@ -53,14 +53,14 @@ export const TaskStatusReportInput = z
     folderId: Id.describe("Folder scope to summarise.").optional(),
     listId: Id.describe("List scope to summarise.").optional(),
     path: HierarchyPath.describe("Hierarchy path resolving to the container.").optional(),
-  includeClosed: z
-    .boolean()
-    .describe("true to include closed statuses in the report.")
-    .optional(),
-  includeSubtasks: z
-    .boolean()
-    .default(true)
-    .describe("true to include subtasks during aggregation; disable to report only parent tasks."),
+    includeClosed: z
+      .boolean()
+      .describe("true to include closed statuses in the report.")
+      .optional(),
+    includeSubtasks: z
+      .boolean()
+      .default(true)
+      .describe("true to include subtasks during aggregation; disable to report only parent tasks."),
     tags: TagArray,
     assignees: AssigneeArray,
     statusFilter: StatusArray,
@@ -84,14 +84,14 @@ export const TaskRiskReportInput = z
     folderId: Id.describe("Folder scope to summarise.").optional(),
     listId: Id.describe("List scope to summarise.").optional(),
     path: HierarchyPath.describe("Hierarchy path resolving to the container.").optional(),
-  includeClosed: z
-    .boolean()
-    .describe("true to include closed statuses in the source set.")
-    .optional(),
-  includeSubtasks: z
-    .boolean()
-    .default(true)
-    .describe("true to include subtasks during aggregation; disable to focus only on parent tasks."),
+    includeClosed: z
+      .boolean()
+      .describe("true to include closed statuses in the source set.")
+      .optional(),
+    includeSubtasks: z
+      .boolean()
+      .default(true)
+      .describe("true to include subtasks during aggregation; disable to focus only on parent tasks."),
     tags: TagArray,
     assignees: AssigneeArray,
     statusFilter: StatusArray,
