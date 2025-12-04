@@ -23,6 +23,7 @@ type TaskListItem = {
   status?: string
   dueDate?: string
   startDate?: string
+  createdDate?: string
   priority?: string
   url: string
   assignees: TaskMember[]
@@ -123,6 +124,7 @@ function mapTask(task: any, assigneeLimit: number): TaskListItem | undefined {
     status,
     dueDate: toIsoDate(task?.due_date ?? task?.dueDate),
     startDate: toIsoDate(task?.start_date ?? task?.date_started),
+    createdDate: toIsoDate(task?.date_created ?? task?.dateCreated),
     priority,
     url,
     assignees,
@@ -192,10 +194,11 @@ export async function listTasksInList(
   catalogue?: TaskCatalogue
 ): Promise<Result> {
   const listResolution = await resolveListDetails(input, client, catalogue)
+  const includeTiml = input.includeTasksInMultipleLists !== false
   const filters = {
     includeClosed: input.includeClosed,
     includeSubtasks: input.includeSubtasks,
-    includeTasksInMultipleLists: input.includeTasksInMultipleLists
+    includeTasksInMultipleLists: includeTiml
   }
   let listName = listResolution.listName
   let listUrl = listResolution.listUrl
@@ -231,7 +234,7 @@ export async function listTasksInList(
       page,
       include_closed: input.includeClosed ? true : undefined,
       subtasks: input.includeSubtasks ? true : undefined,
-      include_timl: input.includeTasksInMultipleLists ? true : undefined,
+      include_timl: includeTiml ? true : undefined,
       page_size: pageSize
     }
     const response = await client.listTasksInList(listResolution.listId, query)
@@ -339,7 +342,7 @@ export async function listTasksInList(
     filters: {
       includeClosed: input.includeClosed,
       includeSubtasks: input.includeSubtasks,
-      includeTasksInMultipleLists: input.includeTasksInMultipleLists
+      includeTasksInMultipleLists: includeTiml
     },
     guidance
   }

@@ -38,14 +38,16 @@ export async function searchTasks(
   catalogue?: TaskCatalogue
 ): Promise<Result> {
   const teamId = resolveTeamId(config)
+  const includeTiml = input.includeTasksInMultipleLists !== false
   const query: ClickUpSearchParams = {
     page: input.page,
     order_by: "updated",
-    reverse: true
+    reverse: true,
+    include_timl: includeTiml ? true : undefined
   }
   if (input.query) query.search = input.query
   if (input.listIds) query.list_ids = input.listIds.join(",")
-  if (input.tagIds) query.tags = input.tagIds.join(",")
+  if (input.tagIds && input.tagIds.length > 0) query.tags = input.tagIds
   const statuses = normaliseStatuses(input)
   if (statuses) query.statuses = statuses
 

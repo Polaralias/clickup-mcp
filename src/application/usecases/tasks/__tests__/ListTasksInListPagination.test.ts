@@ -24,7 +24,7 @@ describe("listTasksInList pagination", () => {
     page: 0,
     includeClosed: false,
     includeSubtasks: false,
-    includeTasksInMultipleLists: false,
+    includeTasksInMultipleLists: true,
     assigneePreviewLimit: 3
   }
 
@@ -34,15 +34,15 @@ describe("listTasksInList pagination", () => {
     const listTasksMock = vi
       .fn()
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 0, page_size: 100 })
+        expect(params).toMatchObject({ page: 0, page_size: 100, include_timl: true })
         return { tasks: buildTasks(100) }
       })
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 1, page_size: 100 })
+        expect(params).toMatchObject({ page: 1, page_size: 100, include_timl: true })
         return { tasks: buildTasks(15, 100) }
       })
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 2, page_size: 100 })
+        expect(params).toMatchObject({ page: 2, page_size: 100, include_timl: true })
         return { tasks: [] }
       })
 
@@ -61,11 +61,11 @@ describe("listTasksInList pagination", () => {
     const listTasksMock = vi
       .fn()
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 0, page_size: 100 })
+        expect(params).toMatchObject({ page: 0, page_size: 100, include_timl: true })
         return { tasks: buildTasks(100) }
       })
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 1, page_size: 100 })
+        expect(params).toMatchObject({ page: 1, page_size: 100, include_timl: true })
         return { tasks: buildTasks(80, 100) }
       })
 
@@ -87,11 +87,11 @@ describe("listTasksInList pagination", () => {
     const listTasksMock = vi
       .fn()
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 0, page_size: 15 })
+        expect(params).toMatchObject({ page: 0, page_size: 15, include_timl: true })
         return { tasks: buildTasks(15) }
       })
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({ page: 1, page_size: 15 })
+        expect(params).toMatchObject({ page: 1, page_size: 15, include_timl: true })
         return { tasks: [] }
       })
 
@@ -113,7 +113,8 @@ describe("listTasksInList pagination", () => {
           page: 0,
           page_size: 100,
           include_closed: true,
-          subtasks: true
+          subtasks: true,
+          include_timl: true
         })
         return { tasks: [] }
       })
@@ -125,16 +126,12 @@ describe("listTasksInList pagination", () => {
     expect(listTasksMock).toHaveBeenCalledTimes(1)
   })
 
-  it("forwards include_timl when tasks in multiple lists are requested", async () => {
-    const timlInput = { ...baseInput, includeTasksInMultipleLists: true }
+  it("omits include_timl when explicitly disabled", async () => {
+    const timlInput = { ...baseInput, includeTasksInMultipleLists: false }
     const listTasksMock = vi
       .fn()
       .mockImplementationOnce((_listId: string, params: Record<string, unknown>) => {
-        expect(params).toMatchObject({
-          page: 0,
-          page_size: 100,
-          include_timl: true
-        })
+        expect(params).toMatchObject({ page: 0, page_size: 100 })
         return { tasks: [] }
       })
 
@@ -143,5 +140,27 @@ describe("listTasksInList pagination", () => {
     await listTasksInList(timlInput, client, config)
 
     expect(listTasksMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("maps ClickUp creation timestamps to ISO strings", async () => {
+    const created = 1_700_000_000_000
+    const listTasksMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        tasks: [
+          {
+            id: "task-1",
+            name: "Created task",
+            assignees: [],
+            date_created: created
+          }
+        ]
+      })
+
+    const client = createClient({ listTasksInList: listTasksMock })
+
+    const result = await listTasksInList(baseInput, client, config)
+
+    expect(result.tasks[0]?.createdDate).toBe(new Date(created).toISOString())
   })
 })

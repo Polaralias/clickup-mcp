@@ -68,6 +68,7 @@ type Result = {
   filters: {
     includeClosed: boolean
     includeSubtasks: boolean
+    includeTasksInMultipleLists: boolean
     tags: string[]
     assignees: string[]
     statusFilter: string[]
@@ -225,11 +226,13 @@ function buildQuery(
   pageSize: number,
   limit: number
 ): SearchParams {
+  const includeTiml = input.includeTasksInMultipleLists !== false
   const query: SearchParams = {
     page,
     page_size: pageSize,
     include_closed: input.includeClosed,
     subtasks: input.includeSubtasks,
+    include_timl: includeTiml ? true : undefined,
     order_by: "updated",
     reverse: true
   }
@@ -390,6 +393,7 @@ export async function taskStatusReport(
     filters: {
       includeClosed: Boolean(input.includeClosed),
       includeSubtasks: Boolean(input.includeSubtasks),
+      includeTasksInMultipleLists: input.includeTasksInMultipleLists !== false,
       tags: input.tags ?? [],
       assignees: input.assignees ?? [],
       statusFilter: input.statusFilter ?? [],

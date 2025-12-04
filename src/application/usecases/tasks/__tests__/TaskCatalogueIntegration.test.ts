@@ -39,7 +39,7 @@ describe("TaskCatalogue integration", () => {
       page: 0,
       includeClosed: false,
       includeSubtasks: false,
-      includeTasksInMultipleLists: false,
+      includeTasksInMultipleLists: true,
       assigneePreviewLimit: 3
     }
 
