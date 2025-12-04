@@ -35,4 +35,19 @@ describe("SearchTasksInput", () => {
     const outcome = SearchTasksInput.safeParse({ ...baseInput, statuses: [] })
     expect(outcome.success).toBe(false)
   })
+
+  it("accepts tag names as filters", () => {
+    const result = SearchTasksInput.parse({ ...baseInput, tagIds: ["alpha", "beta"] })
+    expect(result.tagIds).toEqual(["alpha", "beta"])
+  })
+
+  it("defaults includeTasksInMultipleLists to true", () => {
+    const result = SearchTasksInput.parse(baseInput)
+    expect(result.includeTasksInMultipleLists).toBe(true)
+  })
+
+  it("allows includeTasksInMultipleLists to be disabled", () => {
+    const result = SearchTasksInput.parse({ ...baseInput, includeTasksInMultipleLists: false })
+    expect(result.includeTasksInMultipleLists).toBe(false)
+  })
 })

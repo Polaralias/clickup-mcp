@@ -10,6 +10,89 @@ const TagArray = z
   .array(z.string().min(1).describe("Tag label exactly as stored in ClickUp."))
   .describe("List of tag names; defaults to empty when omitted.")
   .default([])
+
+const TaskMember = z
+  .object({
+    id: Id,
+    username: z.string().optional(),
+    email: z.string().optional()
+  })
+  .describe("Task member identity and contact details.")
+
+const TaskTag = z
+  .object({
+    name: z.string().min(1),
+    color: z
+      .object({ fg: z.string().optional(), bg: z.string().optional() })
+      .describe("Tag foreground/background colors when available.")
+      .optional()
+  })
+  .describe("Tag label and optional colors applied to a task.")
+
+const TaskChecklist = z
+  .object({
+    id: Id,
+    name: z.string().optional(),
+    resolvedItems: z.number(),
+    totalItems: z.number()
+  })
+  .describe("Checklist summary with completion counts.")
+
+const TaskListReference = z
+  .object({
+    id: Id.optional(),
+    name: z.string().optional(),
+    url: z.string().optional()
+  })
+  .describe("List metadata attached to a task when available.")
+
+export const TaskListItemOutput = z
+  .object({
+    id: Id,
+    name: z.string().optional(),
+    status: z.string().optional(),
+    dueDate: z.string().optional(),
+    startDate: z.string().optional(),
+    createdDate: z
+      .string()
+      .describe("Task creation timestamp in ISO 8601 format derived from ClickUp date_created field.")
+      .optional(),
+    priority: z.string().optional(),
+    url: z.string(),
+    assignees: z.array(TaskMember).describe("Preview of assigned members."),
+    assigneesTruncated: z
+      .boolean()
+      .describe("true when assignee previews were truncated for token safety.")
+  })
+  .describe("Task summary payload returned from listing/search tools.")
+
+export const TaskDetailOutput = z
+  .object({
+    id: Id,
+    name: z.string().optional(),
+    status: z.string().optional(),
+    description: z.string().optional(),
+    priority: z.string().optional(),
+    dueDate: z.string().optional(),
+    startDate: z.string().optional(),
+    createdDate: z
+      .string()
+      .describe("Task creation timestamp in ISO 8601 format derived from ClickUp date_created field.")
+      .optional(),
+    updatedDate: z
+      .string()
+      .describe("Last updated timestamp in ISO 8601 format derived from ClickUp date_updated field.")
+      .optional(),
+    parentId: Id.optional(),
+    url: z.string(),
+    list: TaskListReference.optional(),
+    creator: TaskMember.optional(),
+    assignees: z.array(TaskMember).default([]),
+    tags: z.array(TaskTag).default([]),
+    watchers: z.array(TaskMember).default([]),
+    checklists: z.array(TaskChecklist).default([])
+  })
+  .describe("Full task detail payload exposed via MCP tools.")
 const numericIdPattern = /^[0-9]+$/
 
 const TaskContextTask = z
@@ -28,6 +111,10 @@ const TaskContextTask = z
       .optional(),
     updatedAt: z.number().optional(),
     date_updated: z.union([z.string(), z.number()]).optional(),
+    createdDate: z
+      .string()
+      .describe("Task creation timestamp in ISO 8601 format derived from ClickUp date_created field.")
+      .optional(),
     listId: Id.optional(),
     listName: z.string().optional(),
     listUrl: z.string().optional(),
@@ -392,7 +479,11 @@ export const SearchTasksInput = z.object({
     .describe("Full text query; omit to list all tasks with other filters.")
     .optional(),
   listIds: IdArray.describe("Restrict to these list IDs.").optional(),
-  tagIds: IdArray.describe("Restrict to tasks tagged with these IDs.").optional(),
+  tagIds: TagArray.describe("Restrict to tasks tagged with these names.").optional(),
+  includeTasksInMultipleLists: z
+    .boolean()
+    .default(true)
+    .describe("Include tasks that belong to multiple lists; maps to ClickUp include_timl."),
   status: z
     .string()
     .min(1)
@@ -494,8 +585,8 @@ export const ListTasksInListInput = TaskLookupReference.extend({
     .describe("true to include child tasks."),
   includeTasksInMultipleLists: z
     .boolean()
-    .default(false)
-    .describe("true to include tasks whose home list differs; maps to ClickUp include_timl."),
+    .default(true)
+    .describe("Include tasks whose home list differs; maps to ClickUp include_timl on list task queries."),
   assigneePreviewLimit: z
     .number()
     .int()

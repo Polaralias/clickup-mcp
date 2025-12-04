@@ -764,7 +764,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_search_tasks",
-    "Structured task search with filters. GET /team/{team_id}/task",
+    "Structured task search with filters. Includes tasks in multiple lists by default (include_timl) and supports tag name filters via tags[]. GET /team/{team_id}/task",
     SearchTasksInput,
     async (input, client, config) => {
       const result = await searchTasks(input, client, config, sessionTaskCatalogue)
@@ -774,7 +774,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     undefined,
     {
       input_examples: [
-        { query: "onboarding checklist", listIds: ["321"], pageSize: 10 }
+        { query: "onboarding checklist", listIds: ["321"], tagIds: ["backend"], pageSize: 10 },
+        { statuses: ["In Progress"], tagIds: ["priority", "blocked"], includeTasksInMultipleLists: false }
       ]
     }
   )
@@ -843,7 +844,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     "clickup_get_task",
-    "Fetch task details. GET /task/{task_id}",
+    "Fetch task details including createdDate/updatedDate fields derived from ClickUp timestamps. GET /task/{task_id}",
     GetTaskInput,
     (input, client, config) => getTask(input, client, config, sessionTaskCatalogue),
     readOnlyAnnotation("task", "task fetch", { scope: "task", input: "taskId|lookup" }),
@@ -860,7 +861,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerReadOnly(
     "clickup_list_tasks_in_list",
-    "List tasks in a list. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
+    "List tasks in a list. Tasks linked from other lists are included by default (include_timl=true). Outputs include createdDate derived from ClickUp date_created. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
     ListTasksInListInput,
     async (input, client, config) => {
       const result = await listTasksInList(input, client, config, sessionTaskCatalogue)
@@ -878,7 +879,14 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
       return { tasks: tasksArray, total, truncated, guidance }
     },
-    readOnlyAnnotation("task", "list tasks", { scope: "list", input: "listId|path" })
+    readOnlyAnnotation("task", "list tasks", { scope: "list", input: "listId|path" }),
+    undefined,
+    {
+      input_examples: [
+        { listId: "12345" },
+        { path: ["Workspace", "Space", "List"], includeTasksInMultipleLists: false }
+      ]
+    }
   )
   registerReadOnly(
     "clickup_get_task_comments",

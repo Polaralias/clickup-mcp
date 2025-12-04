@@ -48,9 +48,9 @@ describe("schema ID coercion", () => {
     expect(bulkDelete.teamId).toBe("1")
     expect(bulkDelete.tasks[0].taskId).toBe("2")
 
-    const search = SearchTasksInput.parse({ listIds: [3], tagIds: [4] })
+    const search = SearchTasksInput.parse({ listIds: [3], tagIds: ["backend"] })
     expect(search.listIds?.[0]).toBe("3")
-    expect(search.tagIds?.[0]).toBe("4")
+    expect(search.tagIds?.[0]).toBe("backend")
 
     const comment = CommentTaskInput.parse({ taskId: 5, comment: "Hi" })
     expect(comment.taskId).toBe("5")

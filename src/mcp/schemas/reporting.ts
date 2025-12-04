@@ -61,6 +61,10 @@ export const TaskStatusReportInput = z
       .boolean()
       .describe("true to include subtasks during aggregation.")
       .optional(),
+    includeTasksInMultipleLists: z
+      .boolean()
+      .default(true)
+      .describe("Include tasks that belong to multiple lists; maps to ClickUp include_timl."),
     tags: TagArray,
     assignees: AssigneeArray,
     statusFilter: StatusArray,
@@ -92,6 +96,10 @@ export const TaskRiskReportInput = z
       .boolean()
       .describe("true to include subtasks during aggregation.")
       .optional(),
+    includeTasksInMultipleLists: z
+      .boolean()
+      .default(true)
+      .describe("Include tasks that belong to multiple lists; maps to ClickUp include_timl."),
     tags: TagArray,
     assignees: AssigneeArray,
     statusFilter: StatusArray,

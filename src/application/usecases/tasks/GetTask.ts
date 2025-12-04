@@ -46,6 +46,8 @@ type TaskSummary = {
   priority?: string
   dueDate?: string
   startDate?: string
+  createdDate?: string
+  updatedDate?: string
   parentId?: string
   url: string
   list?: TaskList
@@ -258,6 +260,8 @@ export async function getTask(
       priority,
       dueDate: toIsoDate(payload?.due_date ?? payload?.dueDate),
       startDate: toIsoDate(payload?.start_date ?? payload?.date_started),
+      createdDate: toIsoDate(payload?.date_created ?? payload?.dateCreated),
+      updatedDate: toIsoDate(payload?.date_updated ?? payload?.dateUpdated),
       parentId: typeof payload?.parent === "string" ? payload.parent : undefined,
       url,
       list: buildList(payload, resolution.record),

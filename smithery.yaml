@@ -1,4 +1,6 @@
 runtime: "container"
+# Task search/list tools include tasks in multiple lists by default (include_timl) and expose task creation timestamps.
+# Tag filters for search use ClickUp tag names and forward them as tags[] parameters.
 build:
   dockerfile: "Dockerfile"
   dockerBuildPath: "."
