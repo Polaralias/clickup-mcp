@@ -1,4 +1,9 @@
-import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import {
+  ResourceTemplate,
+  type McpServer,
+  type ReadResourceTemplateCallback,
+  type ReadResourceResult
+} from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { ApplicationConfig } from "../application/config/applicationConfig.js"
 import { ClickUpClient } from "../infrastructure/clickup/ClickUpClient.js"
 import { listWorkspaces } from "../application/usecases/hierarchy/ListWorkspaces.js"
@@ -45,7 +50,7 @@ function resolveName(entity: Identifiable, fallbacks: string[]) {
   return undefined
 }
 
-function formatResourceContent(uri: URL, payload: unknown) {
+function formatResourceContent(uri: URL, payload: unknown): ReadResourceResult {
   return {
     contents: [
       {
@@ -80,7 +85,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     nameConfig: ResourceNameConfig,
     template: ResourceTemplate,
     description: string,
-    handler: (uri: URL, variables: Record<string, unknown>) => Promise<unknown>
+    handler: ReadResourceTemplateCallback
   ) {
     const { canonical, legacy } = normaliseResourceName(nameConfig)
     server.registerResource(canonical, template, { description }, handler)
@@ -115,7 +120,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     { canonical: "workspace_hierarchy", legacy: ["clickup-workspace-hierarchy"] },
     workspaceTemplate,
     "Browse workspace structures (spaces, folders, lists) when you know the workspace ID.",
-    async (uri, variables) => {
+    async (uri, variables, _extra) => {
       const client = createClient()
       const workspaceId = (variables.workspaceId as string | undefined) ?? config.teamId
       const hierarchy = await getWorkspaceHierarchy(
@@ -184,7 +189,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     { canonical: "task_preview_for_list", legacy: ["clickup-lists"] },
     listsTemplate,
     "Preview the first tasks in a ClickUp list when you already know spaceId and listId.",
-    async (uri, variables) => {
+    async (uri, variables, _extra) => {
       const client = createClient()
       const spaceId = variables.spaceId as string
       const listId = variables.listId as string
@@ -281,7 +286,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     { canonical: "doc_preview", legacy: ["clickup-docs"] },
     docsTemplate,
     "Browse ClickUp docs and pages with previews using docId. Use doc tools for structured retrieval.",
-    async (uri, variables) => {
+    async (uri, variables, _extra) => {
       const client = createClient()
       const docId = variables.docId as string
       const searchParams = new URL(uri.toString()).searchParams

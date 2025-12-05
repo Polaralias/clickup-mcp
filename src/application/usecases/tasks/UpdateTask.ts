@@ -29,7 +29,7 @@ export async function updateTask(
   const shouldPreserveDescription =
     wantsDescriptionUpdate && typeof input.description === "string" && input.description.trim() !== ""
 
-  if (wantsDescriptionUpdate) {
+  if (input.description !== undefined) {
     if (shouldPreserveDescription && !input.dryRun) {
       const response = await client.getTask(input.taskId)
       const existing = extractExistingDescription(response?.task ?? response)
