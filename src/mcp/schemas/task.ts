@@ -212,7 +212,9 @@ export const UpdateTaskInput = SafetyInput.extend({
   name: z.string().describe("New task title.").optional(),
   description: z
     .string()
-    .describe("Replacement description body.")
+    .describe(
+      "New description text inserted above the existing description; previous content is preserved below with a standard separator."
+    )
     .optional(),
   parentTaskId: Id.describe("New parent task ID to move this task under; must be in the same list.").optional(),
   status: z
@@ -334,7 +336,9 @@ const UpdateFields = z.object({
   name: z.string().describe("Replacement title to set.").optional(),
   description: z
     .string()
-    .describe("Replacement description body.")
+    .describe(
+      "New description text inserted above the existing description; previous content is preserved below with a standard separator."
+    )
     .optional(),
   status: z
     .string()
