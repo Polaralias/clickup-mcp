@@ -14,6 +14,15 @@ function parseBooleanFlag(value: string | undefined): boolean | undefined {
   return undefined
 }
 
+function parseIdList(value: string | string[] | undefined): string[] | undefined {
+  const values = Array.isArray(value) ? value : value ? [value] : []
+  const parsed = values
+    .flatMap((entry) => entry.split(/[,\s]+/))
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+  return parsed.length ? parsed : undefined
+}
+
 export const sessionConfigJsonSchema = {
   $schema: "https://json-schema.org/draft-07/schema",
   $id: "https://clickup-mcp-server/.well-known/mcp-config",
@@ -38,6 +47,16 @@ export const sessionConfigJsonSchema = {
       type: "number",
       description: "Largest file attachment (MB) allowed for uploads"
     },
+    writeSpaces: {
+      type: "array",
+      items: { type: "string" },
+      description: "Space IDs where write operations are permitted; writes elsewhere are blocked"
+    },
+    writeLists: {
+      type: "array",
+      items: { type: "string" },
+      description: "List IDs where write operations are permitted; writes elsewhere are blocked"
+    },
     readOnly: {
       type: "boolean",
       description: "When true only read-only tools are enabled to prevent mutations"
@@ -50,7 +69,9 @@ export const sessionConfigJsonSchema = {
     apiKey: "pk_123",
     charLimit: 16000,
     maxAttachmentMb: 8,
-    readOnly: false
+    readOnly: false,
+    writeSpaces: [],
+    writeLists: []
   }
 }
 
@@ -74,17 +95,23 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   const charLimitRaw = lastString(q.charLimit)
   const maxAttachmentMbRaw = lastString(q.maxAttachmentMb)
   const readOnlyRaw = lastString(q.readOnly)
+  const writeSpacesRaw = q.writeSpaces
+  const writeListsRaw = q.writeLists
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined
   const readOnly = parseBooleanFlag(readOnlyRaw)
+  const writeSpaces = parseIdList(writeSpacesRaw)
+  const writeLists = parseIdList(writeListsRaw)
 
   const config: SessionConfigInput = {
     teamId,
     apiKey,
     ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
     ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {}),
-    ...(readOnly !== undefined ? { readOnly } : {})
+    ...(readOnly !== undefined ? { readOnly } : {}),
+    ...(writeSpaces ? { writeSpaces } : {}),
+    ...(writeLists ? { writeLists } : {})
   } as SessionConfigInput
 
   return config

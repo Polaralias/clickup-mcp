@@ -178,6 +178,21 @@ describe("extractSessionConfig", () => {
     expect(config).toBeDefined()
     expect(config?.readOnly).toBeUndefined()
   })
+
+  it("parses writeSpaces and writeLists when provided", async () => {
+    const req = createMockRequest({
+      teamId: "team_123",
+      apiKey: "pk_123",
+      writeSpaces: ["space_a", " space_b "],
+      writeLists: "list_1, list_2"
+    })
+    const res = createMockResponse()
+
+    const config = await extractSessionConfig(req, res)
+
+    expect(config?.writeSpaces).toEqual(["space_a", "space_b"])
+    expect(config?.writeLists).toEqual(["list_1", "list_2"])
+  })
 })
 
 describe("sessionConfigJsonSchema", () => {
@@ -200,6 +215,8 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.exampleConfig.charLimit).toBe(16000)
     expect(sessionConfigJsonSchema.exampleConfig.maxAttachmentMb).toBe(8)
     expect(sessionConfigJsonSchema.exampleConfig.readOnly).toBe(false)
+    expect(sessionConfigJsonSchema.exampleConfig.writeSpaces).toEqual([])
+    expect(sessionConfigJsonSchema.exampleConfig.writeLists).toEqual([])
   })
 
   it("preserves x-query-style", () => {

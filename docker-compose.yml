@@ -15,6 +15,8 @@ services:
       CHAR_LIMIT: "16000"
       MAX_ATTACHMENT_MB: "8"
       READ_ONLY_MODE: "false"
+      WRITE_ALLOWED_SPACES: ""
+      WRITE_ALLOWED_LISTS: ""
     ports:
       - "8081:8081"
     restart: unless-stopped

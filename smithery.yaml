@@ -25,6 +25,14 @@ startCommand:
       readOnly:
         type: boolean
         description: When true only read-only tools are enabled to prevent mutations
+      writeSpaces:
+        type: array
+        items: { type: string }
+        description: Space IDs where writes are allowed; writes in other spaces are blocked
+      writeLists:
+        type: array
+        items: { type: string }
+        description: List IDs where writes are allowed; writes in other lists are blocked
     required: [teamId, apiKey]
   exampleConfig:
     teamId: "team_123"
@@ -32,3 +40,5 @@ startCommand:
     charLimit: 16000
     maxAttachmentMb: 8
     readOnly: false
+    writeSpaces: []
+    writeLists: []
