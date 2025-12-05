@@ -1,9 +1,9 @@
 import {
   ResourceTemplate,
   type McpServer,
-  type ReadResourceTemplateCallback,
-  type ReadResourceResult
+  type ReadResourceTemplateCallback
 } from "@modelcontextprotocol/sdk/server/mcp.js"
+import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js"
 import type { ApplicationConfig } from "../application/config/applicationConfig.js"
 import { ClickUpClient } from "../infrastructure/clickup/ClickUpClient.js"
 import { listWorkspaces } from "../application/usecases/hierarchy/ListWorkspaces.js"
