@@ -82,6 +82,7 @@ import {
   ClearTaskCustomFieldValueInput
 } from "./schemas/index.js"
 import { withSafetyConfirmation } from "../application/safety/withSafetyConfirmation.js"
+import { ensureWriteAllowed } from "../application/safety/writeAccess.js"
 import { createTask } from "../application/usecases/tasks/CreateTask.js"
 import { updateTask } from "../application/usecases/tasks/UpdateTask.js"
 import { deleteTask } from "../application/usecases/tasks/DeleteTask.js"
@@ -386,7 +387,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     availability?: { requiresDocs?: boolean },
     meta?: Record<string, unknown>
   ) => {
-    if (config.readOnly) {
+    if (config.readOnly || config.writeAccess.mode === "read_only") {
       return
     }
     const { canonical, legacy } = normaliseToolName(nameConfig)
@@ -413,6 +414,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
         withSafetyConfirmation(async (rawInput: unknown) => {
           const client = createClient()
           const parsed = schema.parse(rawInput ?? {})
+          await ensureWriteAllowed(parsed as Record<string, unknown>, client, config)
           const result = await handler(parsed, client, config)
           return formatContent(result)
         })

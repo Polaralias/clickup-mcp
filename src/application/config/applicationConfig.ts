@@ -14,11 +14,18 @@ export type SessionConfigInput = {
   charLimit?: number
   maxAttachmentMb?: number
   readOnly?: boolean
+  writeSpaces?: string[]
+  writeLists?: string[]
   hierarchyCacheTtlMs?: number
   spaceConfigCacheTtlMs?: number
   reportingMaxTasks?: number
   defaultRiskWindowDays?: number
 }
+
+export type WriteAccess =
+  | { mode: "read_only"; allowedSpaces: Set<string>; allowedLists: Set<string> }
+  | { mode: "read_write"; allowedSpaces: Set<string>; allowedLists: Set<string> }
+  | { mode: "restricted"; allowedSpaces: Set<string>; allowedLists: Set<string> }
 
 export type ApplicationConfig = {
   teamId: string
@@ -26,6 +33,7 @@ export type ApplicationConfig = {
   charLimit: number
   maxAttachmentMb: number
   readOnly: boolean
+  writeAccess: WriteAccess
   hierarchyCacheTtlMs: number
   spaceConfigCacheTtlMs: number
   reportingMaxTasks: number
@@ -72,6 +80,23 @@ function parseBooleanFlag(value: unknown): boolean | undefined {
   return undefined
 }
 
+function parseIdList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => (typeof entry === "string" || typeof entry === "number" ? String(entry).trim() : ""))
+      .filter((entry) => entry.length > 0)
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    if (!trimmed) return []
+    return trimmed
+      .split(/[,\s]+/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+  }
+  return []
+}
+
 function resolveBoolean(keys: string[]): boolean | undefined {
   for (const key of keys) {
     const value = parseBooleanFlag(process.env[key])
@@ -91,6 +116,17 @@ function resolveEnvNumber(keys: string[]): number | undefined {
     }
   }
   return undefined
+}
+
+function resolveEnvIdList(keys: string[]): string[] {
+  for (const key of keys) {
+    const value = process.env[key]
+    const parsed = parseIdList(value)
+    if (parsed.length > 0) {
+      return parsed
+    }
+  }
+  return []
 }
 
 function resolveNonNegativeNumber(keys: string[]): number | undefined {
@@ -156,6 +192,17 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
   ) ?? DEFAULT_ATTACHMENT_LIMIT_MB
   const readOnly =
     parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY"]) ?? false
+  const writeSpacesInput = parseIdList(input.writeSpaces)
+  const writeSpacesEnv = resolveEnvIdList(["WRITE_ALLOWED_SPACES", "writeAllowedSpaces", "WRITE_SPACES"])
+  const writeSpaces = writeSpacesInput.length ? writeSpacesInput : writeSpacesEnv
+  const writeListsInput = parseIdList(input.writeLists)
+  const writeListsEnv = resolveEnvIdList(["WRITE_ALLOWED_LISTS", "writeAllowedLists", "WRITE_LISTS"])
+  const writeLists = writeListsInput.length ? writeListsInput : writeListsEnv
+  const writeAccess: WriteAccess = readOnly
+    ? { mode: "read_only", allowedSpaces: new Set(writeSpaces), allowedLists: new Set(writeLists) }
+    : writeSpaces.length || writeLists.length
+      ? { mode: "restricted", allowedSpaces: new Set(writeSpaces), allowedLists: new Set(writeLists) }
+      : { mode: "read_write", allowedSpaces: new Set(), allowedLists: new Set() }
   const hierarchyCacheTtlMs = (input.hierarchyCacheTtlMs ?? resolveNonNegativeNumber(["HIERARCHY_CACHE_TTL_MS"])) ??
     (resolveNonNegativeNumber(["HIERARCHY_CACHE_TTL_SECONDS"]) ?? DEFAULT_CACHE_TTL_MS / 1000) * 1000
   const spaceConfigCacheTtlMs =
@@ -173,6 +220,7 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
     charLimit,
     maxAttachmentMb,
     readOnly,
+    writeAccess,
     hierarchyCacheTtlMs,
     spaceConfigCacheTtlMs,
     reportingMaxTasks,
