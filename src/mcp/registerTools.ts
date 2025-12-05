@@ -700,23 +700,45 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerDestructive(
     "clickup_update_task",
-    "Update a task. PUT /task/{task_id}",
+    "Update a task. PUT /task/{task_id}. Description changes prepend new text and preserve the previous description below a separator to avoid loss.",
     UpdateTaskInput,
     async (input, client) => updateTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "update task", { scope: "task", input: "taskId", dry: true, idempotent: true }),
     undefined,
     {
       input_examples: [
+        {
+          taskId: "123456",
+          description:
+            "Latest summary for the team. Previous description content will remain below this section automatically.",
+          confirm: "yes"
+        },
         { taskId: "123456", status: "In Progress", priority: 3, confirm: "yes" }
       ]
     }
   )
   registerDestructive(
     "clickup_update_tasks_bulk",
-    "Bulk update tasks. PUT /task/bulk",
+    "Bulk update tasks. PUT /task/bulk. Description updates prepend new text and retain the prior description beneath a separator for each task.",
     UpdateTasksBulkInput,
     async (input, client, config) => updateTasksBulk(input, client, config, sessionTaskCatalogue),
-    destructiveAnnotation("task", "bulk update", { scope: "task", input: "tasks[]", dry: true, idempotent: true })
+    destructiveAnnotation("task", "bulk update", { scope: "task", input: "tasks[]", dry: true, idempotent: true }),
+    undefined,
+    {
+      input_examples: [
+        {
+          defaults: { status: "In Progress" },
+          tasks: [
+            {
+              taskId: "123456",
+              description: "Sprint kickoff notes for this week (older description will be preserved underneath)."
+            },
+            { taskId: "789012", status: "Review" }
+          ],
+          confirm: "yes"
+        }
+      ]
+    }
   )
   registerDestructive(
     "clickup_delete_task",
