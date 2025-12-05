@@ -75,7 +75,7 @@ describe("schema ID coercion", () => {
     const timer = StartTimerInput.parse({ taskId: 888 })
     expect(timer.taskId).toBe("888")
 
-    const report = ReportTimeForContainerInput.parse({ containerId: 999 })
+    const report = ReportTimeForContainerInput.parse({ containerId: 999, containerType: "list" })
     expect(report.containerId).toBe("999")
   })
 })
