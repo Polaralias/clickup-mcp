@@ -46,6 +46,7 @@ import {
   ListTimeEntriesInput,
   ReportTimeForTagInput,
   ReportTimeForContainerInput,
+  ReportTimeForContextInput,
   ReportTimeForSpaceTagInput,
   GetTaskTimeEntriesInput,
   GetCurrentTimeEntryInput,
@@ -120,6 +121,7 @@ import { deleteTimeEntry } from "../application/usecases/time/DeleteTimeEntry.js
 import { listTimeEntries } from "../application/usecases/time/ListTimeEntries.js"
 import { reportTimeForTag } from "../application/usecases/time/ReportTimeForTag.js"
 import { reportTimeForContainer } from "../application/usecases/time/ReportTimeForContainer.js"
+import { reportTimeForContext } from "../application/usecases/time/ReportTimeForContext.js"
 import { reportTimeForSpaceTag } from "../application/usecases/time/ReportTimeForSpaceTag.js"
 import { getTaskTimeEntries } from "../application/usecases/time/GetTaskTimeEntries.js"
 import { getCurrentTimeEntry } from "../application/usecases/time/GetCurrentTimeEntry.js"
@@ -1181,7 +1183,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   registerReadOnly(
     { canonical: "time_entry_list", legacy: ["clickup_list_time_entries"] },
-    "List time entries with filters. Accepts ISO 8601 or epoch boundaries.",
+    "List time entries with filters. Accepts ISO 8601 or epoch boundaries; include taskId when focusing on a single task.",
     ListTimeEntriesInput,
     async (input, client, config) => {
       const result = await listTimeEntries(input, client, config)
@@ -1197,29 +1199,94 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerReadOnly(
     { canonical: "time_report_for_tag", legacy: ["clickup_report_time_for_tag"] },
-    "Aggregate logged time for a tag across the workspace.",
+    "Aggregate logged time for a tag across the workspace. Use list_tags_in_space to discover tags, and includeSubtasks to control whether child task time is counted.",
     ReportTimeForTagInput,
     reportTimeForTag,
-    readOnlyAnnotation("time", "tag report", { scope: "workspace", input: "tag", window: "from|to" })
+    readOnlyAnnotation("time", "tag report", { scope: "workspace", input: "tag", window: "from|to" }),
+    undefined,
+    {
+      input_examples: [
+        { tag: "billing", includeSubtasks: true, from: "2024-05-01T00:00:00Z", to: "2024-05-07T00:00:00Z" }
+      ]
+    }
   )
   registerReadOnly(
     { canonical: "time_report_for_container", legacy: ["clickup_report_time_for_container"] },
-    "Aggregate time for a workspace, space, folder or list using containerId.",
+    "Aggregate time for a workspace, space, folder or list using containerId + containerType. Resolve IDs with resolve_path_to_ids, list_workspaces/spaces/folders/lists, and set includeSubtasks to clarify hierarchy handling.",
     ReportTimeForContainerInput,
     reportTimeForContainer,
     readOnlyAnnotation("time", "container report", { scope: "space|folder|list", input: "containerId", window: "from|to" }),
     undefined,
     {
       input_examples: [
-        { containerId: "list-123", from: "2024-04-01T00:00:00Z", to: "2024-04-08T00:00:00Z" }
+        {
+          containerType: "list",
+          containerId: "list-123",
+          includeSubtasks: false,
+          from: "2024-04-01T00:00:00Z",
+          to: "2024-04-08T00:00:00Z"
+        }
+      ]
+    }
+  )
+  registerReadOnly(
+    { canonical: "time_report_for_context" },
+    "Aggregate time for a task, list (including filtered views), space or workspace. Use search_tasks or task_list_for_list to source listId/taskId before calling. Subtask handling is explicit via includeSubtasks.",
+    ReportTimeForContextInput,
+    reportTimeForContext,
+    readOnlyAnnotation("time", "context report", { scope: "task|list|space|workspace", window: "from|to" }),
+    undefined,
+    {
+      input_examples: [
+        {
+          _example: "Time per task in a list",
+          listId: "12345",
+          includeSubtasks: true,
+          from: "2024-05-01T00:00:00Z",
+          to: "2024-05-07T00:00:00Z"
+        },
+        {
+          _example: "Time spent on tasks in this space last week",
+          spaceId: "space-1",
+          from: "2024-05-01T00:00:00Z",
+          to: "2024-05-07T00:00:00Z"
+        },
+        {
+          _example: "Filtered list view",
+          listId: "list-123",
+          filterQuery: "priority:high",
+          statuses: ["active", "in progress"],
+          includeSubtasks: false
+        }
+      ],
+      prompt_examples: [
+        {
+          prompt: "How much time has been spent on tasks in this filtered list?",
+          input: {
+            listId: "list-123",
+            viewId: "view-321",
+            filterQuery: "assignee:me status:active",
+            includeSubtasks: true
+          }
+        },
+        {
+          prompt: "Show time tracked on this task and its subtasks",
+          input: { taskId: "task-1", includeSubtasks: true }
+        }
       ]
     }
   )
   registerReadOnly(
     { canonical: "time_report_for_space_tag", legacy: ["clickup_report_time_for_space_tag"] },
-    "Aggregate time for a tag within a space using spaceId.",
+    "Aggregate time for a tag within a space using spaceId. Use list_tags_in_space to pick the tag and includeSubtasks to control hierarchy.",
     ReportTimeForSpaceTagInput,
     reportTimeForSpaceTag,
-    readOnlyAnnotation("time", "space tag report", { scope: "space", input: "spaceId+tag", window: "from|to" })
+    readOnlyAnnotation("time", "space tag report", { scope: "space", input: "spaceId+tag", window: "from|to" }),
+    undefined,
+    {
+      input_examples: [
+        { spaceId: "space-1", tag: "expedite", includeSubtasks: true, from: "2024-04-01", to: "2024-04-30" }
+      ]
+    }
   )
 }
