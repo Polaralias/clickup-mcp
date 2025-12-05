@@ -57,6 +57,15 @@ function formatResourceContent(uri: URL, payload: unknown) {
   }
 }
 
+type ResourceNameConfig = string | { canonical: string; legacy?: string[] }
+
+function normaliseResourceName(config: ResourceNameConfig): { canonical: string; legacy: string[] } {
+  if (typeof config === "string") {
+    return { canonical: config, legacy: [] }
+  }
+  return { canonical: config.canonical, legacy: config.legacy ?? [] }
+}
+
 export function registerResources(server: McpServer, config: ApplicationConfig, sessionCache: SessionCache) {
   const createClient = () => new ClickUpClient(config.apiKey)
   const hierarchyDirectory = new HierarchyDirectory(
@@ -66,6 +75,19 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
   )
   const taskCatalogue = new TaskCatalogue()
   const capabilityTracker = new CapabilityTracker()
+
+  function registerResourceWithAliases(
+    nameConfig: ResourceNameConfig,
+    template: ResourceTemplate,
+    description: string,
+    handler: (uri: URL, variables: Record<string, unknown>) => Promise<unknown>
+  ) {
+    const { canonical, legacy } = normaliseResourceName(nameConfig)
+    server.registerResource(canonical, template, { description }, handler)
+    legacy.forEach((legacyName) =>
+      server.registerResource(legacyName, template, { description: `Deprecated - use ${canonical}. ${description}` }, handler)
+    )
+  }
 
   const workspaceTemplate = new ResourceTemplate("clickup://workspace/{workspaceId}/hierarchy", {
     list: async () => {
@@ -78,7 +100,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
           const workspaceName = resolveName(workspace, ["name", "team_name", "workspace_name"]) ?? workspaceId
           const uri = `clickup://workspace/${encodeURIComponent(workspaceId)}/hierarchy`
           return {
-            name: `workspace-${workspaceId}`,
+            name: `workspace_hierarchy_${workspaceId}`,
             uri,
             title: workspaceName,
             description: `Hierarchy for workspace ${workspaceName}`
@@ -89,10 +111,10 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     }
   })
 
-  server.registerResource(
-    "clickup-workspace-hierarchy",
+  registerResourceWithAliases(
+    { canonical: "workspace_hierarchy", legacy: ["clickup-workspace-hierarchy"] },
     workspaceTemplate,
-    { description: "Browse ClickUp workspaces and nested hierarchy." },
+    "Browse workspace structures (spaces, folders, lists) when you know the workspace ID.",
     async (uri, variables) => {
       const client = createClient()
       const workspaceId = (variables.workspaceId as string | undefined) ?? config.teamId
@@ -128,10 +150,10 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
             if (!listId) continue
             const listName = resolveName(list as Identifiable, ["name", "list_name", "title"]) ?? `List ${listId}`
             resources.push({
-              name: `space-${spaceId}-list-${listId}`,
+              name: `space_${spaceId}_list_${listId}_tasks`,
               uri: `clickup://space/${encodeURIComponent(spaceId)}/list/${encodeURIComponent(listId)}`,
               title: listName,
-              description: `${spaceName} (${listId})`
+              description: `${spaceName} list ${listId}`
             })
           }
 
@@ -145,7 +167,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
               if (!listId) continue
               const listName = resolveName(list as Identifiable, ["name", "list_name", "title"]) ?? `List ${listId}`
               resources.push({
-                name: `space-${spaceId}-folder-${folderId}-list-${listId}`,
+                name: `space_${spaceId}_folder_${folderId}_list_${listId}_tasks`,
                 uri: `clickup://space/${encodeURIComponent(spaceId)}/list/${encodeURIComponent(listId)}`,
                 title: listName,
                 description: `${spaceName} folder ${folderId}`
@@ -158,10 +180,10 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     }
   })
 
-  server.registerResource(
-    "clickup-lists",
+  registerResourceWithAliases(
+    { canonical: "task_preview_for_list", legacy: ["clickup-lists"] },
     listsTemplate,
-    { description: "List ClickUp lists and preview their tasks." },
+    "Preview the first tasks in a ClickUp list when you already know spaceId and listId.",
     async (uri, variables) => {
       const client = createClient()
       const spaceId = variables.spaceId as string
@@ -233,7 +255,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
         const docTitle = entry.summary.name ?? `Doc ${docId}`
         const docUri = `clickup://doc/${encodeURIComponent(docId)}`
         resources.push({
-          name: `doc-${docId}`,
+          name: `doc_${docId}`,
           uri: docUri,
           title: docTitle,
           description: entry.summary.hierarchy.path
@@ -243,7 +265,7 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
           const pageUri = `${docUri}?pageId=${encodeURIComponent(preview.pageId)}`
           const pageTitle = preview.title ?? `Page ${preview.pageId}`
           resources.push({
-            name: `doc-${docId}-page-${preview.pageId}`,
+            name: `doc_${docId}_page_${preview.pageId}`,
             uri: pageUri,
             title: `${docTitle} / ${pageTitle}`,
             description: preview.preview
@@ -255,10 +277,10 @@ export function registerResources(server: McpServer, config: ApplicationConfig, 
     }
   })
 
-  server.registerResource(
-    "clickup-docs",
+  registerResourceWithAliases(
+    { canonical: "doc_preview", legacy: ["clickup-docs"] },
     docsTemplate,
-    { description: "Browse ClickUp docs and pages with previews." },
+    "Browse ClickUp docs and pages with previews using docId. Use doc tools for structured retrieval.",
     async (uri, variables) => {
       const client = createClient()
       const docId = variables.docId as string

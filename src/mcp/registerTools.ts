@@ -170,6 +170,8 @@ import { toolCatalogue, type ToolCatalogueEntry } from "../application/usecases/
 
 type ToolHandler = (input: any, client: ClickUpClient, config: ApplicationConfig) => Promise<unknown>
 
+type ToolNameConfig = string | { canonical: string; legacy?: string[] }
+
 type CatalogueEntryConfig = {
   entry: ToolCatalogueEntry
   requiresDocs?: boolean
@@ -208,6 +210,13 @@ function formatContent(payload: unknown) {
   }
 }
 
+function normaliseToolName(config: ToolNameConfig): { canonical: string; legacy: string[] } {
+  if (typeof config === "string") {
+    return { canonical: config, legacy: [] }
+  }
+  return { canonical: config.canonical, legacy: config.legacy ?? [] }
+}
+
 export function registerTools(server: McpServer, config: ApplicationConfig, sessionCache: SessionCache) {
   const entries: CatalogueEntryConfig[] = []
 
@@ -232,31 +241,44 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     previousOnClose?.()
   }
 
-  function registerClientTool(name: string, options: RegistrationOptions) {
+  function registerClientTool(nameConfig: ToolNameConfig, options: RegistrationOptions) {
+    const { canonical, legacy } = normaliseToolName(nameConfig)
     const jsonSchema = zodToJsonSchemaCompact(options.schema)
     const rawShape = toRawShape(options.schema)
     const entry: ToolCatalogueEntry = {
-      name,
+      name: canonical,
       description: options.description,
       annotations: options.annotations,
       inputSchema: jsonSchema
     }
     entries.push({ entry, requiresDocs: options.requiresDocs })
-    server.registerTool(
-      name,
-      {
-        description: options.description,
-        ...(rawShape ? { inputSchema: rawShape } : {}),
-        annotations: options.annotations,
-        _meta: options.meta
-      },
-      async (rawInput: unknown) => {
-        const client = createClient()
-        const parsed = options.schema ? options.schema.parse(rawInput ?? {}) : {}
-        const result = await options.handler(parsed, client, config)
-        return formatContent(result)
-      }
-    )
+
+    const register = (name: string, description: string, meta?: Record<string, unknown>) => {
+      server.registerTool(
+        name,
+        {
+          description,
+          ...(rawShape ? { inputSchema: rawShape } : {}),
+          annotations: options.annotations,
+          _meta: meta ?? options.meta
+        },
+        async (rawInput: unknown) => {
+          const client = createClient()
+          const parsed = options.schema ? options.schema.parse(rawInput ?? {}) : {}
+          const result = await options.handler(parsed, client, config)
+          return formatContent(result)
+        }
+      )
+    }
+
+    register(canonical, options.description, options.meta)
+    legacy.forEach((legacyName) => {
+      register(
+        legacyName,
+        `Deprecated - use ${canonical}. ${options.description}`,
+        { ...(options.meta ?? {}), deprecated: true, replacement: canonical }
+      )
+    })
   }
 
   async function resolveCatalogue(client: ClickUpClient) {
@@ -343,24 +365,18 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
 
   const capabilityAnnotation = readOnlyAnnotation("system", "capability cache", { scope: "session" })
-  entries.push({
-    entry: {
-      name: "clickup_capabilities",
-      description: "Expose cached ClickUp capability probes for this session.",
-      annotations: capabilityAnnotation.annotations
-    }
-  })
-  server.registerTool(
-    "clickup_capabilities",
+  registerClientTool(
+    { canonical: "workspace_capability_snapshot", legacy: ["clickup_capabilities"] },
     {
       description: "Expose cached ClickUp capability probes for this session.",
-      ...capabilityAnnotation
-    },
-    async () => formatContent(sessionCapabilityTracker.snapshot())
+      schema: null,
+      annotations: capabilityAnnotation.annotations,
+      handler: async () => sessionCapabilityTracker.snapshot()
+    }
   )
 
   const registerDestructive = (
-    name: string,
+    nameConfig: ToolNameConfig,
     description: string,
     schema: z.ZodTypeAny,
     handler: ToolHandler,
@@ -371,36 +387,48 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     if (config.readOnly) {
       return
     }
+    const { canonical, legacy } = normaliseToolName(nameConfig)
     const jsonSchema = zodToJsonSchemaCompact(schema)
     const rawShape = toRawShape(schema)
     entries.push({
       entry: {
-        name,
+        name: canonical,
         description,
         annotations: annotation.annotations,
         inputSchema: jsonSchema
       },
       requiresDocs: availability?.requiresDocs
     })
-    server.registerTool(
-      name,
-      {
-        description,
-        ...(rawShape ? { inputSchema: rawShape } : {}),
-        ...annotation,
-        _meta: meta
-      },
-      withSafetyConfirmation(async (rawInput: unknown) => {
-        const client = createClient()
-        const parsed = schema.parse(rawInput ?? {})
-        const result = await handler(parsed, client, config)
-        return formatContent(result)
+    const register = (name: string, descriptionText: string, metaOverrides?: Record<string, unknown>) => {
+      server.registerTool(
+        name,
+        {
+          description: descriptionText,
+          ...(rawShape ? { inputSchema: rawShape } : {}),
+          ...annotation,
+          _meta: metaOverrides ?? meta
+        },
+        withSafetyConfirmation(async (rawInput: unknown) => {
+          const client = createClient()
+          const parsed = schema.parse(rawInput ?? {})
+          const result = await handler(parsed, client, config)
+          return formatContent(result)
+        })
+      )
+    }
+
+    register(canonical, description, meta)
+    legacy.forEach((legacyName) =>
+      register(legacyName, `Deprecated - use ${canonical}. ${description}`, {
+        ...(meta ?? {}),
+        deprecated: true,
+        replacement: canonical
       })
     )
   }
 
   const registerReadOnly = (
-    name: string,
+    name: ToolNameConfig,
     description: string,
     schema: z.ZodTypeAny | null,
     handler: ToolHandler,
@@ -420,16 +448,16 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   // Hierarchy tools
   registerReadOnly(
-    "clickup_list_workspaces",
-    "List accessible workspaces. GET /team",
+    { canonical: "workspace_list", legacy: ["clickup_list_workspaces"] },
+    "List accessible ClickUp workspaces (teams). Use when you need workspace IDs before exploring spaces.",
     ListWorkspacesInput,
     async (input = {}, client) =>
       listWorkspaces(client, sessionHierarchyDirectory, { forceRefresh: input?.forceRefresh }),
     readOnlyAnnotation("hierarchy", "workspace list", { scope: "workspace", cache: "session|forceRefresh" })
   )
   registerReadOnly(
-    "clickup_list_spaces",
-    "List spaces in a workspace. GET /team/{team_id}/space",
+    { canonical: "space_list_for_workspace", legacy: ["clickup_list_spaces"] },
+    "List spaces for a workspace by workspaceId. Use search when you only know workspace names.",
     ListSpacesInput,
     (input, client) => listSpaces(input, client, sessionHierarchyDirectory),
     readOnlyAnnotation("hierarchy", "space list", { scope: "workspace", input: "workspaceId", cache: "session" }),
@@ -439,13 +467,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_list_folders",
-    "List folders in a space. GET /space/{space_id}/folder",
+    { canonical: "folder_list_for_space", legacy: ["clickup_list_folders"] },
+    "List folders within a ClickUp space. Use when you already know spaceId.",
     ListFoldersInput,
     (input, client) => listFolders(input, client, sessionHierarchyDirectory),
     readOnlyAnnotation("hierarchy", "folder list", { scope: "space", input: "spaceId", cache: "session" })
   )
-  registerReadOnly("clickup_list_lists", "List lists in a space or folder. GET /space/{space_id}/list or GET /folder/{folder_id}/list", ListListsInput, async (input, client) => {
+  registerReadOnly({ canonical: "list_list_for_space_or_folder", legacy: ["clickup_list_lists"] }, "List lists inside a space or folder by ID. If you only know names, resolve them first with resolve_path_to_ids.", ListListsInput, async (input, client) => {
     if (!input.spaceId && !input.folderId) {
       throw new Error("Provide spaceId or folderId")
     }
@@ -454,15 +482,15 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     input_examples: [{ spaceId: "23456" }]
   })
   registerReadOnly(
-    "clickup_get_workspace_overview",
-    "Return workspace metrics and recent structures. GET /team/{team_id}",
+    { canonical: "workspace_overview", legacy: ["clickup_get_workspace_overview"] },
+    "Summarise workspace metrics and recent spaces/folders/lists when you have a workspaceId.",
     GetWorkspaceOverviewInput,
     (input, client) => getWorkspaceOverview(input, client, sessionHierarchyDirectory),
     readOnlyAnnotation("hierarchy", "workspace overview", { scope: "workspace", input: "workspaceId" })
   )
   registerReadOnly(
-    "clickup_get_workspace_hierarchy",
-    "Fetch nested workspace hierarchy with depth control. GET /team",
+    { canonical: "workspace_hierarchy", legacy: ["clickup_get_workspace_hierarchy"] },
+    "Fetch nested hierarchy (spaces, folders, lists) for one or more workspaces. Use this to browse structure without task data.",
     GetWorkspaceHierarchyInput,
     (input, client, config) => getWorkspaceHierarchy(input, client, config, sessionHierarchyDirectory),
     readOnlyAnnotation("hierarchy", "workspace tree", { scope: "workspace", input: "workspaceIds|names" }),
@@ -478,8 +506,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_resolve_path_to_ids",
-    "Resolve hierarchical path names to IDs.",
+    { canonical: "hierarchy_resolve_path", legacy: ["clickup_resolve_path_to_ids"] },
+    "Resolve workspace/space/folder/list names into IDs. Use before tools that require IDs.",
     ResolvePathToIdsInput,
     (input, client) => resolvePathToIds(input, client, sessionHierarchyDirectory),
     readOnlyAnnotation("hierarchy", "path resolve", { scope: "workspace", input: "names", cache: "session|forceRefresh" }),
@@ -493,58 +521,58 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_list_members",
-    "List workspace members. GET /team/{team_id}/member",
+    { canonical: "member_list_for_workspace", legacy: ["clickup_list_members"] },
+    "List members in a workspace by teamId. Use when you already know the workspaceId.",
     ListMembersInput,
     (input, client, config) => listMembers(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("member", "member list", { scope: "workspace", input: "teamId?" })
   )
   registerReadOnly(
-    "clickup_resolve_members",
-    "Resolve member identifiers to records. GET /team/{team_id}/member",
+    { canonical: "member_resolve", legacy: ["clickup_resolve_members"] },
+    "Resolve member identifiers (id, email, username) into member records for a workspace.",
     ResolveMembersInput,
     (input, client, config) => resolveMembers(input, client, config, sessionMemberDirectory),
     readOnlyAnnotation("member", "member resolve", { scope: "workspace", input: "identifiers", cache: "session|forceRefresh" })
   )
   registerReadOnly(
-    "clickup_find_member_by_name",
-    "Fuzzy search member names.",
+    { canonical: "member_search_by_name", legacy: ["clickup_find_member_by_name"] },
+    "Fuzzy search member names to find member IDs.",
     FindMemberByNameInput,
     (input, client, config) => findMemberByName(input, client, config, sessionMemberDirectory),
     readOnlyAnnotation("member", "member search", { scope: "workspace", input: "query", cache: "session|refresh" })
   )
   registerReadOnly(
-    "clickup_resolve_assignees",
-    "Translate assignee references into member suggestions.",
+    { canonical: "task_assignee_resolve", legacy: ["clickup_resolve_assignees"] },
+    "Translate assignee references into suggested member IDs for tasks.",
     ResolveAssigneesInput,
     (input, client, config) => resolveAssignees(input, client, config, sessionMemberDirectory),
     readOnlyAnnotation("member", "assignee resolve", { scope: "workspace", input: "references" })
   )
   registerReadOnly(
-    "clickup_list_tags_for_space",
-    "List tags in a space. GET /space/{space_id}/tag",
+    { canonical: "space_tag_list", legacy: ["clickup_list_tags_for_space"] },
+    "List tags configured for a space using spaceId.",
     ListTagsForSpaceInput,
     (input, client) => listTagsForSpace(input, client, sessionSpaceTagCache),
     readOnlyAnnotation("tag", "space tags", { scope: "space", input: "spaceId", cache: "session|forceRefresh" })
   )
 
   registerDestructive(
-    "clickup_create_space_tag",
-    "Create a space tag. POST /space/{space_id}/tag",
+    { canonical: "space_tag_create", legacy: ["clickup_create_space_tag"] },
+    "Create a space tag by spaceId. Use space_tag_update to rename or recolor existing tags.",
     CreateSpaceTagInput,
     async (input, client) => createSpaceTag(input, client, sessionSpaceTagCache),
     destructiveAnnotation("tag", "create space tag", { scope: "space", input: "spaceId", dry: true })
   )
   registerDestructive(
-    "clickup_update_space_tag",
-    "Update a space tag. PUT /space/{space_id}/tag/{tag_name}",
+    { canonical: "space_tag_update", legacy: ["clickup_update_space_tag"] },
+    "Update a space tag name or color. Requires spaceId and currentName.",
     UpdateSpaceTagInput,
     async (input, client) => updateSpaceTag(input, client, sessionSpaceTagCache),
     destructiveAnnotation("tag", "update space tag", { scope: "space", input: "spaceId+currentName", dry: true, idempotent: true })
   )
   registerDestructive(
-    "clickup_delete_space_tag",
-    "Delete a space tag. DELETE /space/{space_id}/tag/{tag_name}",
+    { canonical: "space_tag_delete", legacy: ["clickup_delete_space_tag"] },
+    "Delete a space tag from a space. Prefer dryRun first.",
     DeleteSpaceTagInput,
     async (input, client) => deleteSpaceTag(input, client, sessionSpaceTagCache),
     destructiveAnnotation("tag", "delete space tag", { scope: "space", input: "spaceId+tagName", dry: true })
@@ -552,71 +580,71 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   // Hierarchy management
   registerDestructive(
-    "clickup_create_folder",
-    "Create a folder in a space. POST /space/{space_id}/folder",
+    { canonical: "folder_create_in_space", legacy: ["clickup_create_folder"] },
+    "Create a folder inside a space by spaceId or path.",
     CreateFolderInput,
     async (input, client) => createFolder(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("hierarchy", "create folder", { scope: "space", input: "spaceId|path", dry: true })
   )
   registerDestructive(
-    "clickup_update_folder",
-    "Update a folder. PUT /folder/{folder_id}",
+    { canonical: "folder_update", legacy: ["clickup_update_folder"] },
+    "Update folder properties using folderId or path.",
     UpdateFolderInput,
     async (input, client) => updateFolder(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("hierarchy", "update folder", { scope: "space", input: "folderId|path", dry: true, idempotent: true })
   )
   registerDestructive(
-    "clickup_delete_folder",
-    "Delete a folder. DELETE /folder/{folder_id}",
+    { canonical: "folder_delete", legacy: ["clickup_delete_folder"] },
+    "Delete a folder by folderId or path.",
     DeleteFolderInput,
     async (input, client) => deleteFolder(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("hierarchy", "delete folder", { scope: "space", input: "folderId|path", dry: true })
   )
   registerDestructive(
-    "clickup_create_list",
-    "Create a list in a space or folder. POST /space/{space_id}/list or POST /folder/{folder_id}/list",
+    { canonical: "list_create_for_container", legacy: ["clickup_create_list"] },
+    "Create a list in a space or folder by ID or path.",
     CreateListInput,
     async (input, client) => createList(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("hierarchy", "create list", { scope: "space|folder", input: "spaceId|folderId|path", dry: true })
   )
   registerDestructive(
-    "clickup_update_list",
-    "Update a list. PUT /list/{list_id}",
+    { canonical: "list_update", legacy: ["clickup_update_list"] },
+    "Update a list by listId or path.",
     UpdateListInput,
     async (input, client) => updateList(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("hierarchy", "update list", { scope: "space|folder", input: "listId|path", dry: true, idempotent: true })
   )
   registerDestructive(
-    "clickup_delete_list",
-    "Delete a list. DELETE /list/{list_id}",
+    { canonical: "list_delete", legacy: ["clickup_delete_list"] },
+    "Delete a list by listId or path.",
     DeleteListInput,
     async (input, client) => deleteList(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("hierarchy", "delete list", { scope: "space|folder", input: "listId|path", dry: true })
   )
   registerDestructive(
-    "clickup_create_list_view",
-    "Create a list view. POST /list/{list_id}/view",
+    { canonical: "list_view_create", legacy: ["clickup_create_list_view"] },
+    "Create a view on a list by listId.",
     CreateListViewInput,
     async (input, client) => createListView(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("view", "create list view", { scope: "list", input: "listId|path", dry: true })
   )
   registerDestructive(
-    "clickup_create_space_view",
-    "Create a space view. POST /space/{space_id}/view",
+    { canonical: "space_view_create", legacy: ["clickup_create_space_view"] },
+    "Create a view at space level by spaceId.",
     CreateSpaceViewInput,
     async (input, client) => createSpaceView(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("view", "create space view", { scope: "space", input: "spaceId|path", dry: true })
   )
   registerDestructive(
-    "clickup_update_view",
-    "Update a view. PUT /view/{view_id}",
+    { canonical: "view_update", legacy: ["clickup_update_view"] },
+    "Update a view by viewId.",
     UpdateViewInput,
     async (input, client) => updateView(input, client),
     destructiveAnnotation("view", "update view", { scope: "view", input: "viewId", dry: true, idempotent: true })
   )
   registerDestructive(
-    "clickup_delete_view",
-    "Delete a view. DELETE /view/{view_id}",
+    { canonical: "view_delete", legacy: ["clickup_delete_view"] },
+    "Delete a view by viewId.",
     DeleteViewInput,
     async (input, client) => deleteView(input, client),
     destructiveAnnotation("view", "delete view", { scope: "view", input: "viewId", dry: true })
@@ -624,15 +652,15 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   // Reference
   registerReadOnly(
-    "clickup_list_reference_links",
-    "List public ClickUp API reference links.",
+    { canonical: "reference_link_list", legacy: ["clickup_list_reference_links"] },
+    "List public ClickUp API reference links for Smithery grounding.",
     ListReferenceLinksInput,
     async (input) => listReferenceLinks(input),
     readOnlyAnnotation("reference", "doc link list", { scope: "public", input: "limit" })
   )
   registerReadOnly(
-    "clickup_fetch_reference_page",
-    "Fetch a public ClickUp API reference page.",
+    { canonical: "reference_page_fetch", legacy: ["clickup_fetch_reference_page"] },
+    "Fetch a public ClickUp API reference page from a link returned by reference_link_list.",
     FetchReferencePageInput,
     async (input, _client, config) => fetchReferencePage(input, config),
     readOnlyAnnotation("reference", "doc fetch", { scope: "public", input: "url", limit: "maxCharacters" })
@@ -640,8 +668,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   // Task tools
   registerDestructive(
-    "clickup_create_task",
-    "Create a task in a list. POST /list/{list_id}/task",
+    { canonical: "task_create", legacy: ["clickup_create_task"] },
+    "Create a task in a list by listId.",
     CreateTaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "create task", { scope: "list", input: "listId", dry: true }),
@@ -659,8 +687,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_create_subtask",
-    "Create a subtask in a list. Requires parentTaskId to place the new task under its parent. POST /list/{list_id}/task with parent parameter.",
+    { canonical: "subtask_create", legacy: ["clickup_create_subtask"] },
+    "Create a subtask in a list linked to parentTaskId.",
     CreateSubtaskInput,
     async (input, client) => createTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "create subtask", { scope: "list", input: "listId+parentTaskId", dry: true }),
@@ -673,8 +701,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_create_subtasks_bulk",
-    "Bulk create subtasks across one or many parents. Provide parentTaskId per entry or via defaults; each subtask is created with the parent field. POST /task/bulk via sequential calls.",
+    { canonical: "subtask_create_bulk", legacy: ["clickup_create_subtasks_bulk"] },
+    "Bulk create subtasks across one or many parents. Provide parentTaskId per entry or via defaults; each subtask is created with the parent field.",
     CreateSubtasksBulkInput,
     async (input, client, config) => createSubtasksBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk create subtasks", { scope: "task", input: "subtasks[]", dry: true }),
@@ -692,15 +720,15 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_create_tasks_bulk",
-    "Bulk create tasks. POST /task/bulk",
+    { canonical: "task_create_bulk", legacy: ["clickup_create_tasks_bulk"] },
+    "Bulk create tasks in lists using listId per task or defaults.",
     CreateTasksBulkInput,
     async (input, client, config) => createTasksBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk create", { scope: "list", input: "tasks[]", dry: true })
   )
   registerDestructive(
-    "clickup_update_task",
-    "Update a task. PUT /task/{task_id}. Description changes prepend new text and preserve the previous description below a separator to avoid loss.",
+    { canonical: "task_update", legacy: ["clickup_update_task"] },
+    "Update a task by taskId or lookup; description updates keep previous content appended.",
     UpdateTaskInput,
     async (input, client) => updateTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "update task", { scope: "task", input: "taskId", dry: true, idempotent: true }),
@@ -718,8 +746,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_update_tasks_bulk",
-    "Bulk update tasks. PUT /task/bulk. Description updates prepend new text and retain the prior description beneath a separator for each task.",
+    { canonical: "task_update_bulk", legacy: ["clickup_update_tasks_bulk"] },
+    "Bulk update multiple tasks by taskIds; description updates keep previous content appended.",
     UpdateTasksBulkInput,
     async (input, client, config) => updateTasksBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk update", { scope: "task", input: "tasks[]", dry: true, idempotent: true }),
@@ -741,29 +769,29 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_delete_task",
-    "Delete a task. DELETE /task/{task_id}",
+    { canonical: "task_delete", legacy: ["clickup_delete_task"] },
+    "Delete a task by taskId.",
     DeleteTaskInput,
     async (input, client) => deleteTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "delete task", { scope: "task", input: "taskId", dry: true })
   )
   registerDestructive(
-    "clickup_delete_tasks_bulk",
-    "Bulk delete tasks. DELETE /task/bulk",
+    { canonical: "task_delete_bulk", legacy: ["clickup_delete_tasks_bulk"] },
+    "Bulk delete tasks by taskIds.",
     DeleteTasksBulkInput,
     async (input, client, config) => deleteTasksBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk delete", { scope: "task", input: "taskIds", dry: true })
   )
   registerDestructive(
-    "clickup_duplicate_task",
-    "Duplicate a task. POST /task/{task_id}/duplicate",
+    { canonical: "task_duplicate", legacy: ["clickup_duplicate_task"] },
+    "Duplicate a task by taskId.",
     DuplicateTaskInput,
     duplicateTask,
     destructiveAnnotation("task", "duplicate task", { scope: "task", input: "taskId", dry: true })
   )
   registerDestructive(
-    "clickup_comment_task",
-    "Post a comment on a task. POST /task/{task_id}/comment",
+    { canonical: "task_comment_add", legacy: ["clickup_comment_task"] },
+    "Post a comment on a task by taskId.",
     CommentTaskInput,
     commentTask,
     destructiveAnnotation("task", "comment", { scope: "task", input: "taskId", dry: true }),
@@ -775,37 +803,37 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_attach_file_to_task",
-    "Attach a file to a task. POST /task/{task_id}/attachment",
+    { canonical: "task_attachment_add", legacy: ["clickup_attach_file_to_task"] },
+    "Attach a file to a task by taskId.",
     AttachFileInput,
     attachFileToTask,
     destructiveAnnotation("task", "attach file", { scope: "task", input: "taskId+file", dry: true })
   )
   registerDestructive(
-    "clickup_add_tags_to_task",
-    "Add tags to a task. POST /task/{task_id}/tag/{tag_name}",
+    { canonical: "task_tag_add", legacy: ["clickup_add_tags_to_task"] },
+    "Add tags to a task by taskId.",
     AddTagsInput,
     async (input, client) => addTagsToTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "add tags", { scope: "task", input: "taskId+tags", dry: true })
   )
   registerDestructive(
-    "clickup_add_tags_bulk",
-    "Bulk add tags to tasks. POST /task/tag/bulk",
+    { canonical: "task_tag_add_bulk", legacy: ["clickup_add_tags_bulk"] },
+    "Bulk add tags across multiple tasks by taskIds.",
     AddTagsBulkInput,
     async (input, client, config) => addTagsBulk(input, client, config, sessionTaskCatalogue),
     destructiveAnnotation("task", "bulk add tags", { scope: "task", input: "tasks[]", dry: true })
   )
   registerDestructive(
-    "clickup_remove_tags_from_task",
-    "Remove tags from a task. DELETE /task/{task_id}/tag/{tag_name}",
+    { canonical: "task_tag_remove", legacy: ["clickup_remove_tags_from_task"] },
+    "Remove tags from a task by taskId.",
     RemoveTagsInput,
     async (input, client) => removeTagsFromTask(input, client, sessionTaskCatalogue),
     destructiveAnnotation("task", "remove tags", { scope: "task", input: "taskId+tags", dry: true })
   )
 
   registerReadOnly(
-    "clickup_search_tasks",
-    "Structured task search with filters. Includes tasks in multiple lists by default (include_timl) and supports tag name filters via tags[]. GET /team/{team_id}/task",
+    { canonical: "task_search", legacy: ["clickup_search_tasks"] },
+    "Structured task search with filters. Use when you have listIds/tagIds; returns tasks across lists.",
     SearchTasksInput,
     async (input, client, config) => {
       const result = await searchTasks(input, client, config, sessionTaskCatalogue)
@@ -821,8 +849,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_fuzzy_search",
-    "Fuzzy task search from natural language. GET /team/{team_id}/task",
+    { canonical: "task_search_fuzzy", legacy: ["clickup_fuzzy_search"] },
+    "Fuzzy task search from natural language when you do not have precise filters.",
     FuzzySearchInput,
     async (input, client, config) => {
       const result = await fuzzySearch(input, client, config, sessionTaskCatalogue)
@@ -835,8 +863,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_bulk_fuzzy_search",
-    "Batch fuzzy task searches. GET /team/{team_id}/task",
+    { canonical: "task_search_fuzzy_bulk", legacy: ["clickup_bulk_fuzzy_search"] },
+    "Batch fuzzy task searches for multiple natural language prompts.",
     BulkFuzzySearchInput,
     async (input, client, config) => {
       const result = await bulkFuzzySearch(input, client, config, sessionTaskCatalogue)
@@ -846,7 +874,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
 
   registerReadOnly(
-    "clickup_report_tasks_for_container",
+    { canonical: "task_status_report", legacy: ["clickup_report_tasks_for_container"] },
     "Summarise task status and priority for a workspace, space, folder or list without returning full task lists.",
     TaskStatusReportInput,
     async (input, client, config) =>
@@ -863,7 +891,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
 
   registerReadOnly(
-    "clickup_risk_summary_for_container",
+    { canonical: "task_risk_report", legacy: ["clickup_risk_summary_for_container"] },
     "Summarise overdue and at-risk tasks within a workspace, space, folder or list. Subtasks are included by default; use includeSubtasks to focus on parent tasks and inspect isSubtask/parentId in results to understand hierarchy.",
     TaskRiskReportInput,
     async (input, client, config) =>
@@ -884,7 +912,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
 
   registerReadOnly(
-    "clickup_get_task",
+    { canonical: "task_read", legacy: ["clickup_get_task"] },
     "Fetch task details including createdDate/updatedDate fields derived from ClickUp timestamps. Subtask cues (isSubtask, parentId, hasSubtasks, subtaskCount) are included; check them before claiming there are no subtasks. GET /task/{task_id}",
     GetTaskInput,
     (input, client, config) => getTask(input, client, config, sessionTaskCatalogue),
@@ -901,7 +929,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_list_tasks_in_list",
+    { canonical: "task_list_for_list", legacy: ["clickup_list_tasks_in_list"] },
     "List tasks in a list. Tasks linked from other lists are included by default (include_timl=true). Outputs include createdDate derived from ClickUp date_created and hierarchy cues (isSubtask, parentId, hasSubtasks, subtaskCount). Always review hasSubtasks/subtaskCount before asserting there are no subtasks. Results are paginated and may span multiple pages; iterate via the page input to retrieve additional pages. GET /list/{list_id}/task",
     ListTasksInListInput,
     async (input, client, config) => {
@@ -930,32 +958,32 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_get_task_comments",
-    "Retrieve task comments. GET /task/{task_id}/comment",
+    { canonical: "task_comment_list", legacy: ["clickup_get_task_comments"] },
+    "Retrieve task comments for a taskId.",
     GetTaskCommentsInput,
     (input, client, config) => getTaskComments(input, client, config, sessionTaskCatalogue),
     readOnlyAnnotation("task", "task comments", { scope: "task", input: "taskId", limit: "limit" })
   )
 
   registerReadOnly(
-    "clickup_list_custom_fields",
-    "List custom fields configured for a list. GET /list/{list_id}/field",
+    { canonical: "list_custom_field_list", legacy: ["clickup_list_custom_fields"] },
+    "List custom fields configured for a list by listId.",
     ListCustomFieldsInput,
     (input, client) => listCustomFields(input, client, sessionHierarchyDirectory),
     readOnlyAnnotation("custom-field", "list fields", { scope: "list", input: "listId|path" })
   )
 
   registerDestructive(
-    "clickup_set_task_custom_field_value",
-    "Set a custom field value on a task. POST /task/{task_id}/field/{field_id}",
+    { canonical: "task_custom_field_set_value", legacy: ["clickup_set_task_custom_field_value"] },
+    "Set a custom field value on a task by taskId and fieldId.",
     SetTaskCustomFieldValueInput,
     (input, client) => setTaskCustomFieldValue(input, client, sessionTaskCatalogue),
     destructiveAnnotation("custom-field", "set value", { scope: "task", input: "taskId+fieldId", dry: true })
   )
 
   registerDestructive(
-    "clickup_clear_task_custom_field_value",
-    "Clear a custom field value on a task. DELETE /task/{task_id}/field/{field_id}",
+    { canonical: "task_custom_field_clear_value", legacy: ["clickup_clear_task_custom_field_value"] },
+    "Clear a custom field value on a task by taskId and fieldId.",
     ClearTaskCustomFieldValueInput,
     (input, client) => clearTaskCustomFieldValue(input, client, sessionTaskCatalogue),
     destructiveAnnotation("custom-field", "clear value", {
@@ -968,48 +996,48 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   // Docs
   registerDestructive(
-    "clickup_create_doc",
-    "Create a document in a folder. POST /folder/{folder_id}/doc",
+    { canonical: "doc_create", legacy: ["clickup_create_doc"] },
+    "Create a document in a folder by folderId.",
     CreateDocInput,
     async (input, client, config) => createDoc(input, client, config, sessionCapabilityTracker),
     destructiveAnnotation("doc", "create doc", { scope: "folder", input: "folderId", dry: true }),
     { requiresDocs: true }
   )
   registerReadOnly(
-    "clickup_list_documents",
-    "List documents with filters. GET /team/{team_id}/doc",
+    { canonical: "doc_list", legacy: ["clickup_list_documents"] },
+    "List documents within a workspace using filters.",
     ListDocumentsInput,
     (input, client, config) => listDocuments(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("doc", "doc list", { scope: "workspace", input: "filters" }),
     { requiresDocs: true }
   )
   registerReadOnly(
-    "clickup_get_document",
-    "Fetch document metadata and pages. GET /team/{team_id}/doc/{doc_id}",
+    { canonical: "doc_read", legacy: ["clickup_get_document"] },
+    "Fetch document metadata and pages for a docId.",
     GetDocumentInput,
     (input, client, config) => getDocument(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("doc", "doc fetch", { scope: "doc", input: "docId", limit: "previewCharLimit" }),
     { requiresDocs: true }
   )
   registerReadOnly(
-    "clickup_get_document_pages",
-    "Fetch selected document pages. POST /doc/{doc_id}/page/bulk",
+    { canonical: "doc_pages_read", legacy: ["clickup_get_document_pages"] },
+    "Fetch selected document pages by docId and pageIds.",
     GetDocumentPagesInput,
     (input, client, config) => getDocumentPages(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("doc", "doc pages fetch", { scope: "doc", input: "docId+pageIds", limit: "previewCharLimit" }),
     { requiresDocs: true }
   )
   registerReadOnly(
-    "clickup_list_doc_pages",
-    "List page hierarchy for a document. GET /doc/{doc_id}/page",
+    { canonical: "doc_page_list", legacy: ["clickup_list_doc_pages"] },
+    "List page hierarchy for a document by docId.",
     ListDocPagesInput,
     (input, client, config) => listDocPages(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("doc", "doc page list", { scope: "doc", input: "docId" }),
     { requiresDocs: true }
   )
   registerReadOnly(
-    "clickup_get_doc_page",
-    "Fetch a single document page. GET /doc/{doc_id}/page/{page_id}",
+    { canonical: "doc_page_read", legacy: ["clickup_get_doc_page"] },
+    "Fetch a single document page by docId and pageId.",
     GetDocPageInput,
     (input, client, config) => getDocPage(input, client, config, sessionCapabilityTracker),
     readOnlyAnnotation("doc", "doc page fetch", { scope: "doc", input: "docId+pageId" }),
@@ -1019,8 +1047,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_create_document_page",
-    "Create a document page. POST /doc/{doc_id}/page",
+    { canonical: "doc_page_create", legacy: ["clickup_create_document_page"] },
+    "Create a document page under a docId.",
     CreateDocumentPageInput,
     (input, client, config) => createDocumentPage(input, client, config, sessionCapabilityTracker),
     destructiveAnnotation("doc", "create page", { scope: "doc", input: "docId", dry: true }),
@@ -1039,16 +1067,16 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerDestructive(
-    "clickup_update_doc_page",
-    "Update a document page. PUT /doc/{doc_id}/page/{page_id}",
+    { canonical: "doc_page_update", legacy: ["clickup_update_doc_page"] },
+    "Update a document page by docId and pageId.",
     UpdateDocPageInput,
     (input, client, config) => updateDocPage(input, client, config, sessionCapabilityTracker),
     destructiveAnnotation("doc", "update page", { scope: "doc", input: "docId+pageId", dry: true, idempotent: true }),
     { requiresDocs: true }
   )
   registerReadOnly(
-    "clickup_doc_search",
-    "Search document content. GET /team/{team_id}/doc",
+    { canonical: "doc_search", legacy: ["clickup_doc_search"] },
+    "Search document content across a workspace. Use doc_page_read for specific pages.",
     DocSearchInput,
     async (input, client, config) => {
       const result = await docSearch(input, client, config, sessionCapabilityTracker)
@@ -1066,8 +1094,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_bulk_doc_search",
-    "Batch document searches. GET /team/{team_id}/doc",
+    { canonical: "doc_search_bulk", legacy: ["clickup_bulk_doc_search"] },
+    "Batch document searches when you need several queries processed together.",
     BulkDocSearchInput,
     async (input, client, config) => {
       const result = await bulkDocSearch(input, client, config, sessionCapabilityTracker)
@@ -1082,44 +1110,44 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
 
   // Time tracking
   registerDestructive(
-    "clickup_start_timer",
-    "Start a timer on a task. POST /task/{task_id}/time",
+    { canonical: "task_timer_start", legacy: ["clickup_start_timer"] },
+    "Start a timer on a task by taskId.",
     StartTimerInput,
     startTimer,
     destructiveAnnotation("time", "start timer", { scope: "task", input: "taskId", dry: true })
   )
   registerDestructive(
-    "clickup_stop_timer",
-    "Stop the running timer for a task. POST /task/{task_id}/time",
+    { canonical: "task_timer_stop", legacy: ["clickup_stop_timer"] },
+    "Stop the running timer for a task by taskId.",
     StopTimerInput,
     stopTimer,
     destructiveAnnotation("time", "stop timer", { scope: "task", input: "taskId", dry: true })
   )
   registerDestructive(
-    "clickup_create_time_entry",
-    "Create a manual time entry. POST /task/{task_id}/time",
+    { canonical: "time_entry_create_for_task", legacy: ["clickup_create_time_entry"] },
+    "Create a manual time entry for a task by taskId.",
     CreateTimeEntryInput,
     createTimeEntry,
     destructiveAnnotation("time", "create entry", { scope: "task", input: "taskId", dry: true })
   )
   registerDestructive(
-    "clickup_update_time_entry",
-    "Update a time entry. PUT /team/{team_id}/time_entries/{timer_id}",
+    { canonical: "time_entry_update", legacy: ["clickup_update_time_entry"] },
+    "Update a time entry by entryId.",
     UpdateTimeEntryInput,
     (input, client, config) => updateTimeEntry(input, client, config),
     destructiveAnnotation("time", "update entry", { scope: "time", input: "entryId", dry: true, idempotent: true })
   )
   registerDestructive(
-    "clickup_delete_time_entry",
-    "Delete a time entry. DELETE /team/{team_id}/time_entries/{timer_id}",
+    { canonical: "time_entry_delete", legacy: ["clickup_delete_time_entry"] },
+    "Delete a time entry by entryId.",
     DeleteTimeEntryInput,
     (input, client, config) => deleteTimeEntry(input, client, config),
     destructiveAnnotation("time", "delete entry", { scope: "time", input: "entryId", dry: true })
   )
 
   registerReadOnly(
-    "clickup_get_task_time_entries",
-    "Fetch time entries for a task. GET /task/{task_id}/time",
+    { canonical: "task_time_entry_list", legacy: ["clickup_get_task_time_entries"] },
+    "Fetch time entries for a taskId, including total duration.",
     GetTaskTimeEntriesInput,
     async (input, client) => {
       const result = await getTaskTimeEntries(input, client)
@@ -1136,8 +1164,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
 
   registerReadOnly(
-    "clickup_get_current_time_entry",
-    "Retrieve the current running timer. GET /team/{team_id}/time_entries/current",
+    { canonical: "time_entry_current", legacy: ["clickup_get_current_time_entry"] },
+    "Retrieve the current running timer for the workspace.",
     GetCurrentTimeEntryInput,
     async (input, client, config) => {
       const result = await getCurrentTimeEntry(input, client, config)
@@ -1152,8 +1180,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
 
   registerReadOnly(
-    "clickup_list_time_entries",
-    "List time entries with filters. GET /team/{team_id}/time_entries. Accepts ISO 8601 or epoch (seconds/milliseconds) boundaries.",
+    { canonical: "time_entry_list", legacy: ["clickup_list_time_entries"] },
+    "List time entries with filters. Accepts ISO 8601 or epoch boundaries.",
     ListTimeEntriesInput,
     async (input, client, config) => {
       const result = await listTimeEntries(input, client, config)
@@ -1168,15 +1196,15 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_report_time_for_tag",
-    "Aggregate logged time for a tag.",
+    { canonical: "time_report_for_tag", legacy: ["clickup_report_time_for_tag"] },
+    "Aggregate logged time for a tag across the workspace.",
     ReportTimeForTagInput,
     reportTimeForTag,
     readOnlyAnnotation("time", "tag report", { scope: "workspace", input: "tag", window: "from|to" })
   )
   registerReadOnly(
-    "clickup_report_time_for_container",
-    "Aggregate time for a container.",
+    { canonical: "time_report_for_container", legacy: ["clickup_report_time_for_container"] },
+    "Aggregate time for a workspace, space, folder or list using containerId.",
     ReportTimeForContainerInput,
     reportTimeForContainer,
     readOnlyAnnotation("time", "container report", { scope: "space|folder|list", input: "containerId", window: "from|to" }),
@@ -1188,8 +1216,8 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    "clickup_report_time_for_space_tag",
-    "Aggregate time for a tag in a space.",
+    { canonical: "time_report_for_space_tag", legacy: ["clickup_report_time_for_space_tag"] },
+    "Aggregate time for a tag within a space using spaceId.",
     ReportTimeForSpaceTagInput,
     reportTimeForSpaceTag,
     readOnlyAnnotation("time", "space tag report", { scope: "space", input: "spaceId+tag", window: "from|to" })
