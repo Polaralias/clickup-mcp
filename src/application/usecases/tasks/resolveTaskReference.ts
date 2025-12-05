@@ -16,6 +16,7 @@ export type TaskResolutionRecord = {
   description?: string
   status?: string
   updatedAt?: number
+  parentId?: string
   listId?: string
   listName?: string
   listUrl?: string
@@ -66,6 +67,12 @@ export function normaliseTaskRecord(candidate: unknown): TaskResolutionRecord | 
       : typeof raw.status === "object" && raw.status && typeof (raw.status as any).status === "string"
         ? (raw.status as any).status
         : undefined
+  const parentId =
+    typeof raw.parentId === "string"
+      ? raw.parentId
+      : typeof (raw as any).parent === "string"
+        ? (raw as any).parent
+        : undefined
   const updatedAtCandidate =
     toNumber(raw.updatedAt) ?? toNumber(raw.date_updated) ?? toNumber((raw as any).dateUpdated)
   const list = typeof raw.list === "object" && raw.list ? (raw.list as Record<string, unknown>) : undefined
@@ -88,7 +95,7 @@ export function normaliseTaskRecord(candidate: unknown): TaskResolutionRecord | 
         ? list.url
         : undefined
   const url = typeof raw.url === "string" ? raw.url : undefined
-  return { id, name, description, status, updatedAt: updatedAtCandidate, listId, listName, listUrl, url }
+  return { id, name, description, status, updatedAt: updatedAtCandidate, parentId, listId, listName, listUrl, url }
 }
 
 function buildRecords(context?: TaskLookupContext) {

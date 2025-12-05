@@ -24,7 +24,12 @@ describe("task reporting include_timl defaults", () => {
     const searchTasksMock = vi.fn().mockResolvedValue({ tasks: [] })
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
-    await taskStatusReport({ workspaceId: "ws-1" }, client, config, directory)
+      await taskStatusReport(
+        { workspaceId: "ws-1", includeTasksInMultipleLists: true, includeSubtasks: true },
+        client,
+        config,
+        directory
+      )
 
     expect(searchTasksMock).toHaveBeenCalled()
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBe(true)
@@ -36,11 +41,11 @@ describe("task reporting include_timl defaults", () => {
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
     await taskStatusReport(
-      { workspaceId: "ws-1", includeTasksInMultipleLists: false },
-      client,
-      config,
-      directory
-    )
+        { workspaceId: "ws-1", includeTasksInMultipleLists: false, includeSubtasks: true },
+        client,
+        config,
+        directory
+      )
 
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBeUndefined()
     expect(searchTasksMock.mock.calls[0]?.[1]?.subtasks).toBe(true)
@@ -50,7 +55,12 @@ describe("task reporting include_timl defaults", () => {
     const searchTasksMock = vi.fn().mockResolvedValue({ tasks: [] })
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
-    await taskRiskReport({ workspaceId: "ws-1" }, client, config, directory)
+      await taskRiskReport(
+        { workspaceId: "ws-1", includeTasksInMultipleLists: true, includeSubtasks: true },
+        client,
+        config,
+        directory
+      )
 
     expect(searchTasksMock).toHaveBeenCalled()
     expect(searchTasksMock.mock.calls[0]?.[1]?.include_timl).toBe(true)

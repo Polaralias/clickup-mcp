@@ -127,8 +127,8 @@ function normaliseTask(entry: unknown) {
           if (typeof tagRecord.id === "string") return tagRecord.id
           return undefined
         })
-        .filter((name): name is string => Boolean(name))
-    : undefined
+          .filter((name: string | undefined): name is string => Boolean(name))
+      : undefined
 
   return {
     taskId: String(taskId),

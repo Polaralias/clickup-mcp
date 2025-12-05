@@ -12,7 +12,9 @@ import {
   type TimeReportError
 } from "./TimeReportUtils.js"
 
-const taskIdentityFromSearch = (candidate: unknown) => {
+const taskIdentityFromSearch = (
+  candidate: unknown
+): { id: string; name: string | undefined } | undefined => {
   if (!candidate || typeof candidate !== "object") {
     return undefined
   }
@@ -115,7 +117,10 @@ export async function reportTimeForContext(
 ): Promise<Result> {
   const teamId = requireTeamId(config, "teamId is required for time reporting")
   const context = resolveContext(input, teamId)
-  const timeRange = { from: input.from, to: input.to }
+  const timeRange = {
+    from: typeof input.from === "number" ? String(input.from) : input.from,
+    to: typeof input.to === "number" ? String(input.to) : input.to
+  }
 
   const statuses = normaliseStatuses(input)
   const filtersTruncated: string[] = []
@@ -137,10 +142,10 @@ export async function reportTimeForContext(
       config,
       catalogue
     )
-    const taskIds = (taskSearch.results ?? [])
-      .map((task) => taskIdentityFromSearch(task))
-      .filter((task): task is { id: string; name?: string } => Boolean(task))
-      .map((task) => task.id)
+      const taskIds = (taskSearch.results ?? [])
+        .map((task) => taskIdentityFromSearch(task))
+        .filter((task): task is { id: string; name: string | undefined } => Boolean(task))
+        .map((task) => task.id)
     allowedTaskIds = new Set(taskIds)
     if (taskSearch.truncated) {
       filtersTruncated.push(

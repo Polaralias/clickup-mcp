@@ -34,7 +34,7 @@ describe("getTask date mapping", () => {
 
     const client = { getTask: getTaskMock } as unknown as ClickUpClient
 
-    const result = await getTask({ taskId: "task-1" }, client, config)
+    const result = await getTask({ taskId: "task-1", detailLimit: 10 }, client, config)
 
     expect(result.task.createdDate).toBe(new Date(created).toISOString())
     expect(result.task.updatedDate).toBe(new Date(updated).toISOString())

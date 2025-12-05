@@ -20,7 +20,11 @@ describe("searchTasks tag filters", () => {
     const searchTasksMock = vi.fn().mockResolvedValue({ tasks: [] })
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
-    await searchTasks({ page: 0, pageSize: 10, tagIds: ["one", "two"] }, client, config)
+      await searchTasks(
+        { page: 0, pageSize: 10, tagIds: ["one", "two"], includeTasksInMultipleLists: true, includeSubtasks: true },
+        client,
+        config
+      )
 
     expect(searchTasksMock).toHaveBeenCalledWith(
       "team-1",
@@ -33,10 +37,16 @@ describe("searchTasks tag filters", () => {
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
     await searchTasks(
-      { page: 0, pageSize: 10, tagIds: ["alpha"], includeTasksInMultipleLists: false },
-      client,
-      config
-    )
+        {
+          page: 0,
+          pageSize: 10,
+          tagIds: ["alpha"],
+          includeTasksInMultipleLists: false,
+          includeSubtasks: true
+        },
+        client,
+        config
+      )
 
     expect(searchTasksMock).toHaveBeenCalledWith(
       "team-1",

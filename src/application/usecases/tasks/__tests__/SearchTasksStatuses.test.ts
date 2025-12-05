@@ -20,7 +20,11 @@ describe("searchTasks status normalisation", () => {
     const searchTasksMock = vi.fn().mockResolvedValue({ tasks: [] })
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
-    await searchTasks({ page: 0, pageSize: 20, status: "Open" }, client, config)
+      await searchTasks(
+        { page: 0, pageSize: 20, status: "Open", includeTasksInMultipleLists: true, includeSubtasks: true },
+        client,
+        config
+      )
 
     expect(searchTasksMock).toHaveBeenCalledWith(
       "team-1",
@@ -33,10 +37,16 @@ describe("searchTasks status normalisation", () => {
     const client = { searchTasks: searchTasksMock } as unknown as ClickUpClient
 
     await searchTasks(
-      { page: 0, pageSize: 20, statuses: ["Open", "Closed"] },
-      client,
-      config
-    )
+        {
+          page: 0,
+          pageSize: 20,
+          statuses: ["Open", "Closed"],
+          includeTasksInMultipleLists: true,
+          includeSubtasks: true
+        },
+        client,
+        config
+      )
 
     expect(searchTasksMock).toHaveBeenCalledWith(
       "team-1",

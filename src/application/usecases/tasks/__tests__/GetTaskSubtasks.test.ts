@@ -32,7 +32,7 @@ describe("getTask subtasks", () => {
 
     const client = { getTask: getTaskMock } as unknown as ClickUpClient
 
-    const result = await getTask({ taskId: "task-1" }, client, config)
+      const result = await getTask({ taskId: "task-1", detailLimit: 10 }, client, config)
 
     expect(getTaskMock).toHaveBeenCalledWith("task-1", { subtasks: true })
     expect(result.task.parentId).toBe("parent-1")
@@ -55,7 +55,7 @@ describe("getTask subtasks", () => {
 
     const client = { getTask: getTaskMock } as unknown as ClickUpClient
 
-    const result = await getTask({ taskId: "task-2" }, client, config)
+      const result = await getTask({ taskId: "task-2", detailLimit: 10 }, client, config)
 
     expect(result.task.parentId).toBeUndefined()
     expect(result.task.isSubtask).toBe(false)
