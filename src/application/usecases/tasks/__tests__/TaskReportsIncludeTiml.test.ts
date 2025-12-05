@@ -11,6 +11,7 @@ const config: ApplicationConfig = {
   charLimit: 10000,
   maxAttachmentMb: 8,
   readOnly: false,
+  writeAccess: { mode: "read_write", allowedSpaces: new Set(), allowedLists: new Set() },
   hierarchyCacheTtlMs: 300000,
   spaceConfigCacheTtlMs: 300000,
   reportingMaxTasks: 10,
