@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest"
 
+import type { ApplicationConfig } from "../../../config/applicationConfig.js"
 import { listMembers } from "../ListMembers.js"
 import { CapabilityTracker } from "../../../services/CapabilityTracker.js"
 import { ClickUpMembersFallbackError } from "../../../../infrastructure/clickup/ClickUpClient.js"
 
-const config = {
+const config: ApplicationConfig = {
   teamId: "123",
   apiKey: "token",
   charLimit: 16000,
   maxAttachmentMb: 8,
   readOnly: false,
-  writeAccess: { mode: "read_write", allowedSpaces: new Set(), allowedLists: new Set() },
+  writeAccess: { mode: "read_write", allowedSpaces: new Set<string>(), allowedLists: new Set<string>() },
   hierarchyCacheTtlMs: 300000,
   spaceConfigCacheTtlMs: 300000,
   reportingMaxTasks: 200,

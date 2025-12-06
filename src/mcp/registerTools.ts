@@ -1207,7 +1207,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     }
   )
   registerReadOnly(
-    { canonical: "time_report_for_context" },
+    "time_report_for_context",
     "Aggregate time for a task, list (including filtered views), space or workspace. Use search_tasks or task_list_for_list to source listId/taskId before calling. Subtask handling is explicit via includeSubtasks.",
     ReportTimeForContextInput,
     reportTimeForContext,
