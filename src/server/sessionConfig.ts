@@ -23,10 +23,45 @@ function parseWriteMode(value: string | undefined): "write" | "read" | "selectiv
   return undefined
 }
 
-function parseIdList(value: string | string[] | undefined): string[] | undefined {
-  const values = Array.isArray(value) ? value : value ? [value] : []
+function parseIdList(value: unknown): string[] | undefined {
+  let values: unknown[] = []
+
+  if (Array.isArray(value)) {
+    values = value
+  } else if (typeof value === "string") {
+    const trimmed = value.trim()
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          values = parsed
+        } else {
+          values = [value]
+        }
+      } catch {
+        values = [value]
+      }
+    } else {
+      values = [value]
+    }
+  } else if (value && typeof value === "object") {
+    values = Object.values(value)
+  } else if (value !== undefined && value !== null) {
+    values = [value]
+  } else {
+    return undefined
+  }
+
   const parsed = values
-    .flatMap((entry) => entry.split(/[,\s]+/))
+    .flatMap((entry) => {
+      if (typeof entry === "string") {
+        return entry.split(/[,\s]+/)
+      }
+      if (typeof entry === "number") {
+        return String(entry)
+      }
+      return ""
+    })
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0)
   return parsed.length ? parsed : undefined
@@ -106,8 +141,8 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   const maxAttachmentMbRaw = lastString(q.maxAttachmentMb)
   const readOnlyRaw = lastString(q.readOnly)
   const writeModeRaw = lastString(q.writeMode)
-  const writeSpacesRaw = q.writeSpaces
-  const writeListsRaw = q.writeLists
+  const writeSpacesRaw = q.writeSpaces ?? q.writeAllowedSpaces ?? q.write_spaces
+  const writeListsRaw = q.writeLists ?? q.writeAllowedLists ?? q.write_lists
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined

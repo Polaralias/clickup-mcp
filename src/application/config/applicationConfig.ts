@@ -184,7 +184,7 @@ function resolveApiKey(candidate?: string, fallbackCandidate?: string) {
   if (fallback) {
     return fallback
   }
-  const envValue = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken
+  const envValue = process.env.CLICKUP_API_TOKEN ?? process.env.clickupApiToken ?? process.env.apiKey ?? process.env.API_KEY
   const trimmed = envValue?.trim()
   return trimmed || undefined
 }
@@ -210,12 +210,12 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
   ) ?? DEFAULT_ATTACHMENT_LIMIT_MB
   const configuredWriteMode =
     parseWriteMode(input.writeMode) ?? parseWriteMode(process.env.WRITE_MODE ?? process.env.writeMode)
-  const legacyReadOnly = parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY"])
+  const legacyReadOnly = parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY", "readOnly"])
   const writeSpacesInput = parseIdList(input.writeSpaces)
-  const writeSpacesEnv = resolveEnvIdList(["WRITE_ALLOWED_SPACES", "writeAllowedSpaces", "WRITE_SPACES"])
+  const writeSpacesEnv = resolveEnvIdList(["WRITE_ALLOWED_SPACES", "writeAllowedSpaces", "WRITE_SPACES", "writeSpaces"])
   const writeSpaces = writeSpacesInput.length ? writeSpacesInput : writeSpacesEnv
   const writeListsInput = parseIdList(input.writeLists)
-  const writeListsEnv = resolveEnvIdList(["WRITE_ALLOWED_LISTS", "writeAllowedLists", "WRITE_LISTS"])
+  const writeListsEnv = resolveEnvIdList(["WRITE_ALLOWED_LISTS", "writeAllowedLists", "WRITE_LISTS", "writeLists"])
   const writeLists = writeListsInput.length ? writeListsInput : writeListsEnv
   const defaultWriteMode: WriteMode = writeSpaces.length || writeLists.length ? "selective" : "write"
   const writeMode: WriteMode = configuredWriteMode ?? (legacyReadOnly ? "read" : defaultWriteMode)
