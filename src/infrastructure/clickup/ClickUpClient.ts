@@ -434,6 +434,10 @@ export class ClickUpClient {
     })
   }
 
+  getList(listId: string) {
+    return this.request(`list/${listId}`)
+  }
+
   getListCustomFields(listId: string) {
     return this.request(`list/${listId}/field`)
   }

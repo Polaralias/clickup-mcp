@@ -6,6 +6,8 @@ const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000
 const DEFAULT_REPORTING_MAX_TASKS = 200
 const DEFAULT_RISK_WINDOW_DAYS = 5
 
+export type WriteMode = "write" | "read" | "selective"
+
 const NumberSchema = z.number().finite().positive()
 
 export type SessionConfigInput = {
@@ -14,6 +16,7 @@ export type SessionConfigInput = {
   charLimit?: number
   maxAttachmentMb?: number
   readOnly?: boolean
+  writeMode?: WriteMode
   writeSpaces?: string[]
   writeLists?: string[]
   hierarchyCacheTtlMs?: number
@@ -22,17 +25,18 @@ export type SessionConfigInput = {
   defaultRiskWindowDays?: number
 }
 
-export type WriteAccess =
-  | { mode: "read_only"; allowedSpaces: Set<string>; allowedLists: Set<string> }
-  | { mode: "read_write"; allowedSpaces: Set<string>; allowedLists: Set<string> }
-  | { mode: "restricted"; allowedSpaces: Set<string>; allowedLists: Set<string> }
+export type WriteAccess = {
+  mode: WriteMode
+  allowedSpaces: Set<string>
+  allowedLists: Set<string>
+}
 
 export type ApplicationConfig = {
   teamId: string
   apiKey: string
   charLimit: number
   maxAttachmentMb: number
-  readOnly: boolean
+  writeMode: WriteMode
   writeAccess: WriteAccess
   hierarchyCacheTtlMs: number
   spaceConfigCacheTtlMs: number
@@ -76,6 +80,20 @@ function parseBooleanFlag(value: unknown): boolean | undefined {
     if (normalised === "") return undefined
     if (["1", "true", "yes", "y", "on"].includes(normalised)) return true
     if (["0", "false", "no", "n", "off"].includes(normalised)) return false
+  }
+  return undefined
+}
+
+function parseWriteMode(value: unknown): WriteMode | undefined {
+  if (typeof value !== "string") {
+    return undefined
+  }
+  const normalised = value.trim().toLowerCase()
+  if (!normalised) {
+    return undefined
+  }
+  if (["write", "read", "selective"].includes(normalised)) {
+    return normalised as WriteMode
   }
   return undefined
 }
@@ -190,19 +208,22 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
     () => resolveEnvNumber(["MAX_ATTACHMENT_MB", "maxAttachmentMb"]),
     () => DEFAULT_ATTACHMENT_LIMIT_MB
   ) ?? DEFAULT_ATTACHMENT_LIMIT_MB
-  const readOnly =
-    parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY"]) ?? false
+  const configuredWriteMode =
+    parseWriteMode(input.writeMode) ?? parseWriteMode(process.env.WRITE_MODE ?? process.env.writeMode)
+  const legacyReadOnly = parseBooleanFlag(input.readOnly) ?? resolveBoolean(["READ_ONLY_MODE", "readOnlyMode", "READ_ONLY"])
   const writeSpacesInput = parseIdList(input.writeSpaces)
   const writeSpacesEnv = resolveEnvIdList(["WRITE_ALLOWED_SPACES", "writeAllowedSpaces", "WRITE_SPACES"])
   const writeSpaces = writeSpacesInput.length ? writeSpacesInput : writeSpacesEnv
   const writeListsInput = parseIdList(input.writeLists)
   const writeListsEnv = resolveEnvIdList(["WRITE_ALLOWED_LISTS", "writeAllowedLists", "WRITE_LISTS"])
   const writeLists = writeListsInput.length ? writeListsInput : writeListsEnv
-  const writeAccess: WriteAccess = readOnly
-    ? { mode: "read_only", allowedSpaces: new Set(writeSpaces), allowedLists: new Set(writeLists) }
-    : writeSpaces.length || writeLists.length
-      ? { mode: "restricted", allowedSpaces: new Set(writeSpaces), allowedLists: new Set(writeLists) }
-      : { mode: "read_write", allowedSpaces: new Set(), allowedLists: new Set() }
+  const defaultWriteMode: WriteMode = writeSpaces.length || writeLists.length ? "selective" : "write"
+  const writeMode: WriteMode = configuredWriteMode ?? (legacyReadOnly ? "read" : defaultWriteMode)
+  const writeAccess: WriteAccess = {
+    mode: writeMode,
+    allowedSpaces: new Set(writeSpaces),
+    allowedLists: new Set(writeLists)
+  }
   const hierarchyCacheTtlMs = (input.hierarchyCacheTtlMs ?? resolveNonNegativeNumber(["HIERARCHY_CACHE_TTL_MS"])) ??
     (resolveNonNegativeNumber(["HIERARCHY_CACHE_TTL_SECONDS"]) ?? DEFAULT_CACHE_TTL_MS / 1000) * 1000
   const spaceConfigCacheTtlMs =
@@ -219,7 +240,7 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
     apiKey,
     charLimit,
     maxAttachmentMb,
-    readOnly,
+    writeMode,
     writeAccess,
     hierarchyCacheTtlMs,
     spaceConfigCacheTtlMs,

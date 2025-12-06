@@ -14,7 +14,7 @@ services:
       CLICKUP_API_TOKEN: "pk_123"
       CHAR_LIMIT: "16000"
       MAX_ATTACHMENT_MB: "8"
-      READ_ONLY_MODE: "false"
+      WRITE_MODE: "write"
       WRITE_ALLOWED_SPACES: ""
       WRITE_ALLOWED_LISTS: ""
     ports:

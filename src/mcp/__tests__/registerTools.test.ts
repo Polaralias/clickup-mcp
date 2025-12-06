@@ -9,8 +9,8 @@ const baseConfig: ApplicationConfig = {
   apiKey: "test-api-key",
   charLimit: 16000,
   maxAttachmentMb: 8,
-  readOnly: false,
-  writeAccess: { mode: "read_write", allowedSpaces: new Set(), allowedLists: new Set() },
+  writeMode: "write",
+  writeAccess: { mode: "write", allowedSpaces: new Set(), allowedLists: new Set() },
   hierarchyCacheTtlMs: 300000,
   spaceConfigCacheTtlMs: 300000,
   reportingMaxTasks: 200,
@@ -88,11 +88,11 @@ describe("registerTools", () => {
     expect(tool.inputSchema.required ?? []).not.toContain("forceRefresh")
   })
 
-  it("omits destructive tools when readOnly mode is enabled", async () => {
+  it("omits destructive tools when write mode is read", async () => {
     const config: ApplicationConfig = {
       ...baseConfig,
-      readOnly: true,
-      writeAccess: { mode: "read_only", allowedSpaces: new Set(), allowedLists: new Set() }
+      writeMode: "read",
+      writeAccess: { mode: "read", allowedSpaces: new Set(), allowedLists: new Set() }
     }
     const sessionCache = new SessionCache()
 
