@@ -370,7 +370,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     availability?: { requiresDocs?: boolean },
     meta?: Record<string, unknown>
   ) => {
-    if (config.readOnly || config.writeAccess.mode === "read_only") {
+    if (config.writeAccess.mode === "read") {
       return
     }
     const jsonSchema = zodToJsonSchemaCompact(schema)

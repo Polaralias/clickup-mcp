@@ -14,6 +14,15 @@ function parseBooleanFlag(value: string | undefined): boolean | undefined {
   return undefined
 }
 
+function parseWriteMode(value: string | undefined): "write" | "read" | "selective" | undefined {
+  if (value === undefined || value === "") return undefined
+  const normalised = value.trim().toLowerCase()
+  if (["write", "read", "selective"].includes(normalised)) {
+    return normalised as "write" | "read" | "selective"
+  }
+  return undefined
+}
+
 function parseIdList(value: string | string[] | undefined): string[] | undefined {
   const values = Array.isArray(value) ? value : value ? [value] : []
   const parsed = values
@@ -47,6 +56,11 @@ export const sessionConfigJsonSchema = {
       type: "number",
       description: "Largest file attachment (MB) allowed for uploads"
     },
+    writeMode: {
+      type: "string",
+      enum: ["write", "read", "selective"],
+      description: "Write access mode: full write, read-only, or selective by scope"
+    },
     writeSpaces: {
       type: "array",
       items: { type: "string" },
@@ -56,10 +70,6 @@ export const sessionConfigJsonSchema = {
       type: "array",
       items: { type: "string" },
       description: "List IDs where write operations are permitted; writes elsewhere are blocked"
-    },
-    readOnly: {
-      type: "boolean",
-      description: "When true only read-only tools are enabled to prevent mutations"
     }
   },
   required: ["teamId", "apiKey"],
@@ -69,7 +79,7 @@ export const sessionConfigJsonSchema = {
     apiKey: "pk_123",
     charLimit: 16000,
     maxAttachmentMb: 8,
-    readOnly: false,
+    writeMode: "write",
     writeSpaces: [],
     writeLists: []
   }
@@ -95,12 +105,14 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   const charLimitRaw = lastString(q.charLimit)
   const maxAttachmentMbRaw = lastString(q.maxAttachmentMb)
   const readOnlyRaw = lastString(q.readOnly)
+  const writeModeRaw = lastString(q.writeMode)
   const writeSpacesRaw = q.writeSpaces
   const writeListsRaw = q.writeLists
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined
   const readOnly = parseBooleanFlag(readOnlyRaw)
+  const writeMode = parseWriteMode(writeModeRaw)
   const writeSpaces = parseIdList(writeSpacesRaw)
   const writeLists = parseIdList(writeListsRaw)
 
@@ -110,6 +122,7 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
     ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
     ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {}),
     ...(readOnly !== undefined ? { readOnly } : {}),
+    ...(writeMode ? { writeMode } : {}),
     ...(writeSpaces ? { writeSpaces } : {}),
     ...(writeLists ? { writeLists } : {})
   } as SessionConfigInput
