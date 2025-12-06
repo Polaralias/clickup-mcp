@@ -22,6 +22,10 @@ startCommand:
       maxAttachmentMb:
         type: number
         description: Largest file attachment (MB) allowed for uploads
+      writeMode:
+        type: string
+        enum: [write, read, selective]
+        description: Write access mode; use selective to scope writes to configured spaces/lists
       readOnly:
         type: boolean
         description: When true only read-only tools are enabled to prevent mutations
@@ -39,6 +43,7 @@ startCommand:
     apiKey: "pk_123"
     charLimit: 16000
     maxAttachmentMb: 8
+    writeMode: "write"
     readOnly: false
     writeSpaces: []
     writeLists: []

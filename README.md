@@ -14,7 +14,7 @@ Populate the runtime values directly in [`docker-compose.yml`](./docker-compose.
 - `TRANSPORT`: transport protocol; keep as `http` for container runs.
 - `CHAR_LIMIT`: maximum characters returned before responses are truncated.
 - `MAX_ATTACHMENT_MB`: largest upload size allowed (in megabytes).
-- `READ_ONLY_MODE`: set to `true` to disable mutating tools.
+- `WRITE_MODE`: set to `write` (default), `read` to disable mutating tools, or `selective` to limit writes to configured spaces/lists.
 
 ## Running with Docker Compose
 1. Update the values in [`docker-compose.yml`](./docker-compose.yml) for your ClickUp workspace.

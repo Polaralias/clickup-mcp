@@ -151,32 +151,32 @@ describe("extractSessionConfig", () => {
     expect(config?.maxAttachmentMb).toBeUndefined()
   })
 
-  it("parses readOnly flag when provided", async () => {
+  it("parses writeMode when provided", async () => {
     const req = createMockRequest({
       teamId: "team_123",
       apiKey: "pk_123",
-      readOnly: "true"
+      writeMode: "selective"
     })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
 
     expect(config).toBeDefined()
-    expect(config?.readOnly).toBe(true)
+    expect(config?.writeMode).toBe("selective")
   })
 
-  it("omits readOnly when value cannot be parsed", async () => {
+  it("ignores writeMode when value cannot be parsed", async () => {
     const req = createMockRequest({
       teamId: "team_123",
       apiKey: "pk_123",
-      readOnly: "maybe"
+      writeMode: "sometimes"
     })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
 
     expect(config).toBeDefined()
-    expect(config?.readOnly).toBeUndefined()
+    expect(config?.writeMode).toBeUndefined()
   })
 
   it("parses writeSpaces and writeLists when provided", async () => {
@@ -214,7 +214,7 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.exampleConfig.apiKey).toBe("pk_123")
     expect(sessionConfigJsonSchema.exampleConfig.charLimit).toBe(16000)
     expect(sessionConfigJsonSchema.exampleConfig.maxAttachmentMb).toBe(8)
-    expect(sessionConfigJsonSchema.exampleConfig.readOnly).toBe(false)
+    expect(sessionConfigJsonSchema.exampleConfig.writeMode).toBe("write")
     expect(sessionConfigJsonSchema.exampleConfig.writeSpaces).toEqual([])
     expect(sessionConfigJsonSchema.exampleConfig.writeLists).toEqual([])
   })
