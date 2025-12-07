@@ -140,6 +140,13 @@ export async function ensureWriteAllowed(
   const allowedSpaces = [...access.allowedSpaces]
   const allowedLists = [...access.allowedLists]
 
+  console.log("Write access denied:", {
+    resolvedSpaceIds: [...spaceIds],
+    resolvedListIds: [...listIds],
+    allowedSpaces,
+    allowedLists
+  })
+
   if (!spaceIds.size && !listIds.size) {
     throw new Error(
       `Write operations are restricted to spaces (${allowedSpaces.join(", ")}) or lists (${allowedLists.join(", ")}). Include a spaceId or listId to proceed.`

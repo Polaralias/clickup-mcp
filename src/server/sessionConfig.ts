@@ -1,9 +1,12 @@
 import type { Request, Response } from "express"
 import type { SessionConfigInput } from "../application/config/applicationConfig.js"
 
-function lastString(v: string | string[] | undefined): string | undefined {
-  if (Array.isArray(v)) return v[v.length - 1]
-  return v
+function lastString(v: unknown): string | undefined {
+  if (Array.isArray(v)) {
+    const last = v[v.length - 1]
+    return typeof last === "string" ? last : undefined
+  }
+  return typeof v === "string" ? v : undefined
 }
 
 function parseBooleanFlag(value: string | undefined): boolean | undefined {
@@ -125,10 +128,36 @@ export const sessionConfigJsonSchema = {
 }
 
 export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
-  const q = req.query as Record<string, string | string[] | undefined>
+  const q = req.query as Record<string, unknown>
 
-  const teamId = lastString(q.teamId) || lastString(q.teamID) || lastString(q.workspaceId) || lastString(q.workspaceID)
-  const apiKey = lastString(q.apiKey)
+  // Log configuration request for debugging
+  const sanitizedQuery = { ...q }
+  // Redact sensitive keys
+  for (const key of Object.keys(sanitizedQuery)) {
+    if (key.toLowerCase().includes("api") || key.toLowerCase().includes("token") || key.toLowerCase().includes("key")) {
+      sanitizedQuery[key] = "***"
+    }
+  }
+  console.log("Session Config Request:", JSON.stringify(sanitizedQuery))
+
+  const findParam = (keys: string[]) => {
+    // Exact match
+    for (const key of keys) {
+      if (q[key] !== undefined) return q[key]
+    }
+    // Case insensitive match
+    const searchKeys = new Set(keys.map(k => k.toLowerCase()))
+    for (const key of Object.keys(q)) {
+      if (searchKeys.has(key.toLowerCase())) return q[key]
+    }
+    return undefined
+  }
+
+  const teamIdRaw = findParam(["teamId", "teamID", "workspaceId", "workspaceID"])
+  const apiKeyRaw = findParam(["apiKey", "clickupApiToken", "api_key"])
+
+  const teamId = lastString(teamIdRaw)
+  const apiKey = lastString(apiKeyRaw)
 
   const missing: string[] = []
   if (!teamId) missing.push("teamId")
@@ -141,13 +170,14 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
     return undefined
   }
 
-  const charLimitRaw = lastString(q.charLimit)
-  const maxAttachmentMbRaw = lastString(q.maxAttachmentMb)
-  const readOnlyRaw = lastString(q.readOnly)
-  const selectiveWriteRaw = lastString(q.selectiveWrite)
-  const writeModeRaw = lastString(q.writeMode)
-  const writeSpacesRaw = q.writeSpaces ?? q.writeAllowedSpaces ?? q.write_spaces
-  const writeListsRaw = q.writeLists ?? q.writeAllowedLists ?? q.write_lists
+  const charLimitRaw = lastString(findParam(["charLimit"]))
+  const maxAttachmentMbRaw = lastString(findParam(["maxAttachmentMb"]))
+  const readOnlyRaw = lastString(findParam(["readOnly"]))
+  const selectiveWriteRaw = lastString(findParam(["selectiveWrite"]))
+  const writeModeRaw = lastString(findParam(["writeMode"]))
+
+  const writeSpacesRaw = findParam(["writeSpaces", "writeAllowedSpaces", "write_spaces"])
+  const writeListsRaw = findParam(["writeLists", "writeAllowedLists", "write_lists"])
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined
