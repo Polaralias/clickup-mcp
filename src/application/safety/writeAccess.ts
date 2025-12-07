@@ -130,9 +130,8 @@ export async function ensureWriteAllowed(
     derived.spaceIds.forEach((id) => spaceIds.add(id))
   }
 
-  const allowedIds = new Set<string>([...access.allowedSpaces, ...access.allowedLists])
-  const hasAllowedSpace = [...spaceIds].some((id) => allowedIds.has(id))
-  const hasAllowedList = [...listIds].some((id) => allowedIds.has(id))
+  const hasAllowedSpace = [...spaceIds].some((id) => access.allowedSpaces.has(id))
+  const hasAllowedList = [...listIds].some((id) => access.allowedLists.has(id))
 
   if (hasAllowedSpace || hasAllowedList) {
     return
