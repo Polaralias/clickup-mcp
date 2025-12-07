@@ -77,7 +77,7 @@ describe("registerTools", () => {
 
     const response = await catalogueTool.callback({})
     const payload = JSON.parse(response.content[0].text) as { tools: any[] }
-    const tool = payload.tools.find((entry) => entry.name === "clickup_list_workspaces")
+    const tool = payload.tools.find((entry) => entry.name === "workspace_list")
 
     expect(tool).toBeDefined()
     expect(tool.inputSchema).toBeDefined()
@@ -103,8 +103,8 @@ describe("registerTools", () => {
 
     registerTools(server, config, sessionCache)
 
-    expect((server as any)._registeredTools["clickup_create_task"]).toBeUndefined()
-    expect((server as any)._registeredTools["clickup_get_task"]).toBeDefined()
+    expect((server as any)._registeredTools["task_create"]).toBeUndefined()
+    expect((server as any)._registeredTools["task_read"]).toBeDefined()
 
     const catalogueTool = (server as any)._registeredTools["tool_catalogue"]
     const response = await catalogueTool.callback({})
@@ -112,7 +112,7 @@ describe("registerTools", () => {
 
     const toolNames = payload.tools.map((entry) => entry.name)
 
-    expect(toolNames).not.toContain("clickup_create_task")
-    expect(toolNames).toContain("clickup_get_task")
+    expect(toolNames).not.toContain("task_create")
+    expect(toolNames).toContain("task_read")
   })
 })
