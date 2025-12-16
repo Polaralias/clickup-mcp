@@ -170,14 +170,14 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
     return undefined
   }
 
-  const charLimitRaw = lastString(findParam(["charLimit"]))
-  const maxAttachmentMbRaw = lastString(findParam(["maxAttachmentMb"]))
-  const readOnlyRaw = lastString(findParam(["readOnly"]))
-  const selectiveWriteRaw = lastString(findParam(["selectiveWrite"]))
-  const writeModeRaw = lastString(findParam(["writeMode"]))
+  const charLimitRaw = lastString(findParam(["charLimit", "char-limit"]))
+  const maxAttachmentMbRaw = lastString(findParam(["maxAttachmentMb", "max-attachment-mb"]))
+  const readOnlyRaw = lastString(findParam(["readOnly", "read-only"]))
+  const selectiveWriteRaw = lastString(findParam(["selectiveWrite", "selective-write"]))
+  const writeModeRaw = lastString(findParam(["writeMode", "write-mode"]))
 
-  const writeSpacesRaw = findParam(["writeSpaces", "writeAllowedSpaces", "write_spaces"])
-  const writeListsRaw = findParam(["writeLists", "writeAllowedLists", "write_lists"])
+  const writeSpacesRaw = findParam(["writeSpaces", "writeAllowedSpaces", "write_spaces", "write-spaces"])
+  const writeListsRaw = findParam(["writeLists", "writeAllowedLists", "write_lists", "write-lists"])
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined

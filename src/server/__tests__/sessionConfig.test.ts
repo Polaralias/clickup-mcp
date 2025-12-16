@@ -193,6 +193,39 @@ describe("extractSessionConfig", () => {
     expect(config?.writeSpaces).toEqual(["space_a", "space_b"])
     expect(config?.writeLists).toEqual(["list_1", "list_2"])
   })
+
+  it("parses kebab-case parameters", async () => {
+    const req = createMockRequest({
+      teamId: "team_123",
+      apiKey: "pk_123",
+      "char-limit": "5000",
+      "max-attachment-mb": "20",
+      "read-only": "true",
+      "selective-write": "true",
+      "write-spaces": "space_1",
+      "write-lists": "list_1"
+    })
+    const res = createMockResponse()
+
+    const config = await extractSessionConfig(req, res)
+
+    expect(config?.charLimit).toBe(5000)
+    expect(config?.maxAttachmentMb).toBe(20)
+    expect(config?.readOnly).toBe(true)
+    expect(config?.selectiveWrite).toBe(true)
+    expect(config?.writeSpaces).toEqual(["space_1"])
+    expect(config?.writeLists).toEqual(["list_1"])
+  })
+
+  it("handles writeLists as JSON string", async () => {
+    const req = createMockRequest({
+      teamId: "team", apiKey: "key",
+      writeLists: '["123", "456"]'
+    })
+    const res = createMockResponse()
+    const config = await extractSessionConfig(req, res)
+    expect(config?.writeLists).toEqual(["123", "456"])
+  })
 })
 
 describe("sessionConfigJsonSchema", () => {
