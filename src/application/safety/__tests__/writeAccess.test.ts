@@ -52,12 +52,12 @@ describe("ensureWriteAllowed", () => {
 
     it("blocks unpermitted space", async () => {
       const config = createConfig("selective", ["space_1"])
-      await expect(ensureWriteAllowed({ spaceId: "space_2" }, mockClient, config)).rejects.toThrow(/limited to spaces/)
+      await expect(ensureWriteAllowed({ spaceId: "space_2" }, mockClient, config)).rejects.toThrow(/limited to explicitly allowed spaces or lists/)
     })
 
     it("blocks unpermitted list", async () => {
       const config = createConfig("selective", [], ["list_1"])
-      await expect(ensureWriteAllowed({ listId: "list_2" }, mockClient, config)).rejects.toThrow(/limited to spaces/)
+      await expect(ensureWriteAllowed({ listId: "list_2" }, mockClient, config)).rejects.toThrow(/limited to explicitly allowed spaces or lists/)
     })
 
     it("allows list access if its space is allowed", async () => {
@@ -72,7 +72,7 @@ describe("ensureWriteAllowed", () => {
     it("does not mix up list and space IDs", async () => {
       // Allowed list "123", input spaceId "123" -> should fail
       const config = createConfig("selective", [], ["123"])
-      await expect(ensureWriteAllowed({ spaceId: "123" }, mockClient, config)).rejects.toThrow(/limited to spaces/)
+      await expect(ensureWriteAllowed({ spaceId: "123" }, mockClient, config)).rejects.toThrow(/limited to explicitly allowed spaces or lists/)
     })
 
      it("does not mix up space and list IDs", async () => {
@@ -80,7 +80,7 @@ describe("ensureWriteAllowed", () => {
       const config = createConfig("selective", ["123"], [])
       mockClient.getList = vi.fn().mockResolvedValue({ id: "123", space: { id: "999" } })
 
-      await expect(ensureWriteAllowed({ listId: "123" }, mockClient, config)).rejects.toThrow(/limited to spaces/)
+      await expect(ensureWriteAllowed({ listId: "123" }, mockClient, config)).rejects.toThrow(/limited to explicitly allowed spaces or lists/)
     })
   })
 })

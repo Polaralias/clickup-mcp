@@ -137,23 +137,18 @@ export async function ensureWriteAllowed(
     return
   }
 
-  const allowedSpaces = [...access.allowedSpaces]
-  const allowedLists = [...access.allowedLists]
-
   console.log("Write access denied:", {
     resolvedSpaceIds: [...spaceIds],
-    resolvedListIds: [...listIds],
-    allowedSpaces,
-    allowedLists
+    resolvedListIds: [...listIds]
   })
 
   if (!spaceIds.size && !listIds.size) {
     throw new Error(
-      `Write operations are restricted to spaces (${allowedSpaces.join(", ")}) or lists (${allowedLists.join(", ")}). Include a spaceId or listId to proceed.`
+      "Write operations are restricted to explicitly allowed spaces or lists. Include a spaceId or listId to proceed."
     )
   }
 
   throw new Error(
-    `Write operations are limited to spaces (${allowedSpaces.join(", ")}) or lists (${allowedLists.join(", ")}). Provided context was not permitted.`
+    "Write operations are limited to explicitly allowed spaces or lists. Provided context was not permitted."
   )
 }
