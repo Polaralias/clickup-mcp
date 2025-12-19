@@ -32,21 +32,7 @@ function parseIdList(value: unknown): string[] | undefined {
   if (Array.isArray(value)) {
     values = value
   } else if (typeof value === "string") {
-    const trimmed = value.trim()
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      try {
-        const parsed = JSON.parse(trimmed)
-        if (Array.isArray(parsed)) {
-          values = parsed
-        } else {
-          values = [value]
-        }
-      } catch {
-        values = [value]
-      }
-    } else {
-      values = [value]
-    }
+    values = [value]
   } else if (value && typeof value === "object") {
     values = Object.values(value)
   } else if (value !== undefined && value !== null) {
@@ -58,6 +44,17 @@ function parseIdList(value: unknown): string[] | undefined {
   const parsed = values
     .flatMap((entry) => {
       if (typeof entry === "string") {
+        const trimmed = entry.trim()
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          try {
+            const parsedJson = JSON.parse(trimmed)
+            if (Array.isArray(parsedJson)) {
+              return parsedJson.map(String)
+            }
+          } catch {
+            // Ignore JSON parse errors, treat as comma-separated string
+          }
+        }
         return entry.split(/[,\s]+/)
       }
       if (typeof entry === "number") {
@@ -67,7 +64,62 @@ function parseIdList(value: unknown): string[] | undefined {
     })
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0)
-  return parsed.length ? parsed : undefined
+
+  // Deduplicate
+  const unique = Array.from(new Set(parsed))
+  return unique.length ? unique : undefined
+}
+
+function extractArrayValues(q: Record<string, unknown>, targetKeys: string[]): unknown[] | undefined {
+  const values: unknown[] = []
+  const indexedEntries: { index: number; value: unknown }[] = []
+
+  const targets = new Set(targetKeys.map((k) => k.toLowerCase()))
+
+  for (const key of Object.keys(q)) {
+    const lowerKey = key.toLowerCase()
+
+    // Check for exact/case-insensitive base match
+    if (targets.has(lowerKey)) {
+      const val = q[key]
+      if (Array.isArray(val)) {
+        values.push(...val)
+      } else {
+        values.push(val)
+      }
+      continue
+    }
+
+    // Check for indexed variants
+    for (const target of targets) {
+      // Check for dot notation: target.N
+      if (lowerKey.startsWith(target + ".")) {
+        const rest = lowerKey.slice(target.length + 1)
+        if (/^\d+$/.test(rest)) {
+          const index = parseInt(rest, 10)
+          indexedEntries.push({ index, value: q[key] })
+          break
+        }
+      }
+      // Check for bracket notation: target[N]
+      else if (lowerKey.startsWith(target + "[") && lowerKey.endsWith("]")) {
+        const inner = lowerKey.slice(target.length + 1, -1)
+        if (/^\d+$/.test(inner)) {
+          const index = parseInt(inner, 10)
+          indexedEntries.push({ index, value: q[key] })
+          break
+        }
+      }
+    }
+  }
+
+  // Sort indexed entries and append
+  indexedEntries.sort((a, b) => a.index - b.index)
+  for (const entry of indexedEntries) {
+    values.push(entry.value)
+  }
+
+  return values.length > 0 ? values : undefined
 }
 
 export const sessionConfigJsonSchema = {
@@ -176,8 +228,8 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   const selectiveWriteRaw = lastString(findParam(["selectiveWrite", "selective-write"]))
   const writeModeRaw = lastString(findParam(["writeMode", "write-mode"]))
 
-  const writeSpacesRaw = findParam(["writeSpaces", "writeAllowedSpaces", "write_spaces", "write-spaces"])
-  const writeListsRaw = findParam(["writeLists", "writeAllowedLists", "write_lists", "write-lists"])
+  const writeSpacesRaw = extractArrayValues(q, ["writeSpaces", "writeAllowedSpaces", "write_spaces", "write-spaces"])
+  const writeListsRaw = extractArrayValues(q, ["writeLists", "writeAllowedLists", "write_lists", "write-lists"])
 
   const charLimit = charLimitRaw !== undefined && charLimitRaw !== "" ? Number(charLimitRaw) : undefined
   const maxAttachmentMb = maxAttachmentMbRaw !== undefined && maxAttachmentMbRaw !== "" ? Number(maxAttachmentMbRaw) : undefined
