@@ -25,7 +25,7 @@ export async function createListView(
 
   const statuses = normaliseStatuses(input.statuses)
   const statusFilters = statuses?.map((status) => status.status)
-  const filters = buildViewFilters(statusFilters, input.tags)
+  const filters = input.filters ?? buildViewFilters(statusFilters, input.tags)
 
   const nextSteps = [
     "Share the view URL with collaborators once created.",

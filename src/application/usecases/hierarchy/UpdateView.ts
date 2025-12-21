@@ -14,7 +14,7 @@ type Result = {
 export async function updateView(input: Input, client: ClickUpClient): Promise<Result> {
   const statuses = normaliseStatuses(input.statuses)
   const statusFilters = statuses?.map((status) => status.status)
-  const filters = buildViewFilters(statusFilters, input.tags)
+  const filters = input.filters ?? buildViewFilters(statusFilters, input.tags)
 
   const nextSteps = [
     "Open the view in ClickUp to confirm the updated configuration.",
@@ -43,6 +43,10 @@ export async function updateView(input: Input, client: ClickUpClient): Promise<R
     filters,
     settings: input.description ? { description: input.description } : undefined
   })
+
+  if (input.filters_remove) {
+    Object.assign(payload, { filters: null })
+  }
 
   const view = await client.updateView(input.viewId, payload)
   const viewUrl = readString(view, ["url", "view_url"])
