@@ -69,27 +69,31 @@ async function resolveTaskContext(taskId: unknown, client: ClickUpClient) {
 
 async function resolveListSpaces(listIds: Set<string>, client: ClickUpClient) {
   const spaceIds = new Set<string>()
+  const listToSpace = new Map<string, string>()
 
   for (const listId of listIds) {
     try {
       const response = await client.getList(listId)
-      const directSpace = normaliseId(
-        (response as Record<string, unknown>)?.space_id ??
-          (response as Record<string, unknown>)?.spaceId ??
-          (response as Record<string, unknown>)?.team_id
-      )
-      const nestedSpace = normaliseId((response as Record<string, unknown>)?.space && (response as any).space?.id)
-      const folderSpace = normaliseId((response as Record<string, unknown>)?.folder && (response as any).folder?.space_id)
+      const raw = response as any
+      const directSpace = normaliseId(raw.space_id ?? raw.spaceId ?? raw.team_id)
+      const nestedSpace = normaliseId(raw.space?.id)
+      const folderSpace = normaliseId(raw.folder?.space_id)
+
+      const spaceId = directSpace ?? nestedSpace ?? folderSpace
 
       if (directSpace) spaceIds.add(directSpace)
       if (nestedSpace) spaceIds.add(nestedSpace)
       if (folderSpace) spaceIds.add(folderSpace)
+
+      if (spaceId) {
+          listToSpace.set(listId, spaceId)
+      }
     } catch {
       continue
     }
   }
 
-  return { spaceIds }
+  return { spaceIds, listToSpace }
 }
 
 async function resolveDocContext(docId: unknown, workspaceId: string | undefined, client: ClickUpClient) {
@@ -129,7 +133,7 @@ export async function ensureWriteAllowed(
     throw new Error("Write operations are disabled in read mode.")
   }
 
-  const spaceIds = collectIds(input, ["spaceId", "workspaceId", "teamId", "spaceIds", "workspaceIds"]) // teamId fallback
+  const spaceIds = collectIds(input, ["spaceId", "workspaceId", "teamId", "spaceIds", "workspaceIds"])
   const listIds = collectIds(input, ["listId", "listIds"])
 
   if (!spaceIds.size && !listIds.size) {
@@ -149,11 +153,6 @@ export async function ensureWriteAllowed(
     }
   }
 
-  if (listIds.size && access.allowedSpaces.size) {
-    const derived = await resolveListSpaces(listIds, client)
-    derived.spaceIds.forEach((id) => spaceIds.add(id))
-  }
-
   if (!spaceIds.size && !listIds.size) {
     const docIds = collectIds(input, ["docId", "documentId"])
     if (docIds.size > 0) {
@@ -167,25 +166,49 @@ export async function ensureWriteAllowed(
     }
   }
 
-  const hasAllowedSpace = [...spaceIds].some((id) => access.allowedSpaces.has(id))
-  const hasAllowedList = [...listIds].some((id) => access.allowedLists.has(id))
-
-  if (hasAllowedSpace || hasAllowedList) {
-    return
-  }
-
-  console.log("Write access denied:", {
-    resolvedSpaceIds: [...spaceIds],
-    resolvedListIds: [...listIds]
-  })
-
   if (!spaceIds.size && !listIds.size) {
     throw new Error(
       "Write operations are restricted to explicitly allowed spaces or lists. Include a spaceId or listId to proceed."
     )
   }
 
-  throw new Error(
-    "Write operations are limited to explicitly allowed spaces or lists. Provided context was not permitted."
-  )
+  // Strict verification: ALL targets must be allowed.
+
+  // 1. Verify all spaces are allowed
+  const forbiddenSpaces: string[] = []
+  for (const id of spaceIds) {
+      if (!access.allowedSpaces.has(id)) {
+          forbiddenSpaces.push(id)
+      }
+  }
+
+  if (forbiddenSpaces.length > 0) {
+       console.log("Write access denied (forbidden spaces):", { forbiddenSpaces })
+       throw new Error(`Write operations are not allowed for the following spaces/teams: ${forbiddenSpaces.join(", ")}`)
+  }
+
+  // 2. Verify all lists are allowed (either directly or via space)
+  const listsToCheck = new Set<string>()
+  for (const id of listIds) {
+      if (!access.allowedLists.has(id)) {
+          listsToCheck.add(id)
+      }
+  }
+
+  if (listsToCheck.size > 0) {
+      const { listToSpace } = await resolveListSpaces(listsToCheck, client)
+      const forbiddenLists: string[] = []
+
+      for (const listId of listsToCheck) {
+          const spaceId = listToSpace.get(listId)
+          if (!spaceId || !access.allowedSpaces.has(spaceId)) {
+              forbiddenLists.push(listId)
+          }
+      }
+
+      if (forbiddenLists.length > 0) {
+           console.log("Write access denied (forbidden lists):", { forbiddenLists })
+           throw new Error(`Write operations are not allowed for the following lists: ${forbiddenLists.join(", ")}`)
+      }
+  }
 }
