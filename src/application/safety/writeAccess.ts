@@ -11,22 +11,42 @@ function normaliseId(value: unknown): string | undefined {
   return undefined
 }
 
-function collectIds(input: Record<string, unknown>, keys: string[]): Set<string> {
+function collectIds(input: unknown, keys: string[]): Set<string> {
   const results = new Set<string>()
+  if (!input || typeof input !== "object") return results
+
+  if (Array.isArray(input)) {
+    input.forEach((entry) => {
+      const nested = collectIds(entry, keys)
+      nested.forEach((id) => results.add(id))
+    })
+    return results
+  }
+
+  const record = input as Record<string, unknown>
   for (const key of keys) {
-    const value = input[key]
-    if (Array.isArray(value)) {
-      value.forEach((entry) => {
-        const id = normaliseId(entry)
+    if (key in record) {
+      const value = record[key]
+      if (Array.isArray(value)) {
+        value.forEach((entry) => {
+          const id = normaliseId(entry)
+          if (id) results.add(id)
+        })
+      } else {
+        const id = normaliseId(value)
         if (id) results.add(id)
-      })
-      continue
-    }
-    const id = normaliseId(value)
-    if (id) {
-      results.add(id)
+      }
     }
   }
+
+  const containers = ["tasks", "subtasks", "defaults", "operations"]
+  for (const container of containers) {
+    if (container in record) {
+       const nested = collectIds(record[container], keys)
+       nested.forEach((id) => results.add(id))
+    }
+  }
+
   return results
 }
 
@@ -112,10 +132,21 @@ export async function ensureWriteAllowed(
   const spaceIds = collectIds(input, ["spaceId", "workspaceId", "teamId", "spaceIds", "workspaceIds"]) // teamId fallback
   const listIds = collectIds(input, ["listId", "listIds"])
 
-  if (!spaceIds.size && !listIds.size && input.taskId !== undefined) {
-    const derived = await resolveTaskContext(input.taskId, client)
-    derived.listIds.forEach((id) => listIds.add(id))
-    derived.spaceIds.forEach((id) => spaceIds.add(id))
+  if (!spaceIds.size && !listIds.size) {
+    const taskIds = collectIds(input, ["taskId", "parentTaskId"])
+    if (taskIds.size > 0) {
+      // Limit to first 5 to avoid API flood
+      const idsToCheck = [...taskIds].slice(0, 5)
+      for (const id of idsToCheck) {
+        try {
+          const derived = await resolveTaskContext(id, client)
+          derived.listIds.forEach((id) => listIds.add(id))
+          derived.spaceIds.forEach((id) => spaceIds.add(id))
+        } catch {
+          // Ignore failures for individual tasks
+        }
+      }
+    }
   }
 
   if (listIds.size && access.allowedSpaces.size) {
@@ -123,11 +154,17 @@ export async function ensureWriteAllowed(
     derived.spaceIds.forEach((id) => spaceIds.add(id))
   }
 
-  if (!spaceIds.size && !listIds.size && (input.docId !== undefined || input.documentId !== undefined)) {
-    const docId = input.docId ?? input.documentId
-    const derived = await resolveDocContext(docId, config.teamId, client)
-    derived.listIds.forEach((id) => listIds.add(id))
-    derived.spaceIds.forEach((id) => spaceIds.add(id))
+  if (!spaceIds.size && !listIds.size) {
+    const docIds = collectIds(input, ["docId", "documentId"])
+    if (docIds.size > 0) {
+      // Limit resolution
+      const idsToCheck = [...docIds].slice(0, 5)
+      for (const id of idsToCheck) {
+         const derived = await resolveDocContext(id, config.teamId, client)
+         derived.listIds.forEach((id) => listIds.add(id))
+         derived.spaceIds.forEach((id) => spaceIds.add(id))
+      }
+    }
   }
 
   const hasAllowedSpace = [...spaceIds].some((id) => access.allowedSpaces.has(id))
