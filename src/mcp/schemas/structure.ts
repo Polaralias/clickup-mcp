@@ -44,6 +44,30 @@ const StatusArray = z
   .describe("Collection of statuses to set on the container.")
   .optional()
 
+const FilterOperator = z.enum(["AND", "OR"])
+const FieldOperator = z.enum(["EQ", "NOT", "GT", "LT", "GTE", "LTE", "ANY", "ALL", "NOT ANY", "NOT ALL"])
+
+const FilterValue = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.string()),
+  z.object({ op: z.string(), value: z.unknown().optional() })
+])
+
+const FilterField = z.object({
+  field: z.string().describe("Field name (e.g. status, assignee, priority, dueDate, cf_{id})."),
+  op: FieldOperator,
+  values: z.array(FilterValue)
+})
+
+const ViewFilters = z.object({
+  op: FilterOperator.default("AND"),
+  fields: z.array(FilterField),
+  search: z.string().optional(),
+  show_closed: z.boolean().optional()
+})
+
 function requireContainer<T extends { path?: z.infer<typeof HierarchyPath>; [key: string]: unknown }>(
   value: T,
   ctx: z.RefinementCtx,
@@ -127,6 +151,17 @@ export const CreateListInput = SafetyInput.extend({
   requireContainer(value, ctx, ["folderId", "spaceId"])
 })
 
+export const CreateListFromTemplateInput = SafetyInput.extend({
+  templateId: RequiredId.describe("Template ID to use."),
+  spaceId: RequiredId.describe("Space ID to host the new list.").optional(),
+  folderId: RequiredId.describe("Folder ID to host the new list.").optional(),
+  path: HierarchyPath.describe("Hierarchy path resolving to the parent container.").optional(),
+  name: z.string().describe("Name for the new list.").optional(),
+  useTemplateOptions: z.boolean().describe("Whether to use template options.").optional()
+}).superRefine((value, ctx) => {
+  requireContainer(value, ctx, ["folderId", "spaceId"])
+})
+
 export const UpdateListInput = SafetyInput.extend({
   listId: RequiredId.describe("List ID to update.").optional(),
   path: HierarchyPath.describe("Hierarchy path resolving to the list.").optional(),
@@ -162,7 +197,8 @@ export const CreateListViewInput = SafetyInput.extend({
     .describe("ClickUp view type identifier; omit for default.")
     .optional(),
   statuses: StatusArray.describe("Status filters to attach to the view."),
-  tags: z.array(z.string()).optional().describe("Array of tag names to filter by.")
+  tags: z.array(z.string()).optional().describe("Array of tag names to filter by."),
+  filters: ViewFilters.optional().describe("Advanced filters for the view.")
 }).superRefine((value, ctx) => {
   requireContainer(value, ctx, ["listId"])
 })
@@ -181,7 +217,8 @@ export const CreateSpaceViewInput = SafetyInput.extend({
     .describe("ClickUp view type identifier; omit for default.")
     .optional(),
   statuses: StatusArray.describe("Status filters to attach to the view."),
-  tags: z.array(z.string()).optional().describe("Array of tag names to filter by.")
+  tags: z.array(z.string()).optional().describe("Array of tag names to filter by."),
+  filters: ViewFilters.optional().describe("Advanced filters for the view.")
 }).superRefine((value, ctx) => {
   requireContainer(value, ctx, ["spaceId"])
 })
@@ -199,11 +236,15 @@ export const UpdateViewInput = SafetyInput.extend({
     .describe("Updated view type identifier.")
     .optional(),
   statuses: StatusArray.describe("Status filters to replace existing configuration."),
-  tags: z.array(z.string()).optional().describe("Array of tag names to filter by.")
+  tags: z.array(z.string()).optional().describe("Array of tag names to filter by."),
+  filters: ViewFilters.optional().describe("Advanced filters for the view."),
+  filters_remove: z.boolean().optional().describe("Clear existing filters.")
 }).superRefine((value, ctx) => {
   requireMutationFields(value, ctx, [
     { key: "viewType", present: Boolean(value.viewType) },
-    { key: "tags", present: Boolean(value.tags?.length) }
+    { key: "tags", present: Boolean(value.tags?.length) },
+    { key: "filters", present: Boolean(value.filters) },
+    { key: "filters_remove", present: Boolean(value.filters_remove) }
   ])
 })
 

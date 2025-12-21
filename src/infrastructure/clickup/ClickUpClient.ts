@@ -421,6 +421,22 @@ export class ClickUpClient {
     })
   }
 
+  createListFromTemplate(templateId: string, destination: { spaceId?: string; folderId?: string }, body: Record<string, unknown>) {
+    if (destination.folderId) {
+      return this.request(`folder/${destination.folderId}/list/template/${templateId}`, {
+        method: "POST",
+        body
+      })
+    }
+    if (destination.spaceId) {
+      return this.request(`space/${destination.spaceId}/list/template/${templateId}`, {
+        method: "POST",
+        body
+      })
+    }
+    throw new Error("Must provide spaceId or folderId")
+  }
+
   updateList(listId: string, body: Record<string, unknown>) {
     return this.request(`list/${listId}`, {
       method: "PUT",

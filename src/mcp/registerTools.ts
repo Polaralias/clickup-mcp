@@ -71,6 +71,7 @@ import {
   UpdateFolderInput,
   DeleteFolderInput,
   CreateListInput,
+  CreateListFromTemplateInput,
   UpdateListInput,
   DeleteListInput,
   CreateListViewInput,
@@ -161,6 +162,7 @@ import { createFolder } from "../application/usecases/hierarchy/CreateFolder.js"
 import { updateFolder } from "../application/usecases/hierarchy/UpdateFolder.js"
 import { deleteFolder } from "../application/usecases/hierarchy/DeleteFolder.js"
 import { createList } from "../application/usecases/hierarchy/CreateList.js"
+import { createListFromTemplate } from "../application/usecases/hierarchy/CreateListFromTemplate.js"
 import { updateList } from "../application/usecases/hierarchy/UpdateList.js"
 import { deleteList } from "../application/usecases/hierarchy/DeleteList.js"
 import { createListView } from "../application/usecases/hierarchy/CreateListView.js"
@@ -587,6 +589,13 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     destructiveAnnotation("hierarchy", "create list", { scope: "space|folder", input: "spaceId|folderId|path", dry: true })
   )
   registerDestructive(
+    "list_create_from_template",
+    "Create a list from a template in a space or folder.",
+    CreateListFromTemplateInput,
+    async (input, client) => createListFromTemplate(input, client, sessionHierarchyDirectory),
+    destructiveAnnotation("hierarchy", "create list from template", { scope: "space|folder", input: "templateId", dry: true })
+  )
+  registerDestructive(
     "list_update",
     "Update a list by listId or path.",
     UpdateListInput,
@@ -602,21 +611,21 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerDestructive(
     "list_view_create",
-    "Create a view on a list by listId.",
+    "Create a view on a list by listId. Supports advanced filtering via 'filters' object.",
     CreateListViewInput,
     async (input, client) => createListView(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("view", "create list view", { scope: "list", input: "listId|path", dry: true })
   )
   registerDestructive(
     "space_view_create",
-    "Create a view at space level by spaceId.",
+    "Create a view at space level by spaceId. Supports advanced filtering via 'filters' object.",
     CreateSpaceViewInput,
     async (input, client) => createSpaceView(input, client, sessionHierarchyDirectory),
     destructiveAnnotation("view", "create space view", { scope: "space", input: "spaceId|path", dry: true })
   )
   registerDestructive(
     "view_update",
-    "Update a view by viewId.",
+    "Update a view by viewId. Supports advanced filtering via 'filters' object.",
     UpdateViewInput,
     async (input, client) => updateView(input, client),
     destructiveAnnotation("view", "update view", { scope: "view", input: "viewId", dry: true, idempotent: true })
