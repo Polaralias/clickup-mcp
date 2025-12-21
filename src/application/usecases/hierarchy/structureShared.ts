@@ -73,3 +73,42 @@ export async function resolveIdsFromPath(
 }
 
 export { normaliseHierarchyPath }
+
+export function buildViewFilters(statuses?: string[], tags?: string[]) {
+  if ((!statuses || statuses.length === 0) && (!tags || tags.length === 0)) {
+    return undefined
+  }
+
+  if ((!tags || tags.length === 0) && statuses && statuses.length > 0) {
+    return { statuses }
+  }
+
+  const fields: Record<string, unknown>[] = []
+
+  if (statuses && statuses.length > 0) {
+    fields.push({
+      field: "status",
+      op: "EQ",
+      values: statuses
+    })
+  }
+
+  if (tags && tags.length > 0) {
+    fields.push({
+      field: "tag",
+      op: "ANY",
+      values: tags
+    })
+  }
+
+  if (fields.length === 0) {
+    return undefined
+  }
+
+  return {
+    op: "AND",
+    fields,
+    search: "",
+    show_closed: false
+  }
+}

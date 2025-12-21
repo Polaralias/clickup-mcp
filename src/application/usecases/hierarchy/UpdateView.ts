@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { UpdateViewInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
-import { compactRecord, normaliseStatuses, readString } from "./structureShared.js"
+import { compactRecord, normaliseStatuses, readString, buildViewFilters } from "./structureShared.js"
 
 type Input = z.infer<typeof UpdateViewInput>
 
@@ -14,6 +14,8 @@ type Result = {
 export async function updateView(input: Input, client: ClickUpClient): Promise<Result> {
   const statuses = normaliseStatuses(input.statuses)
   const statusFilters = statuses?.map((status) => status.status)
+  const filters = buildViewFilters(statusFilters, input.tags)
+
   const nextSteps = [
     "Open the view in ClickUp to confirm the updated configuration.",
     "Use clickup_create_task or adjust filters if more refinement is needed."
@@ -28,7 +30,7 @@ export async function updateView(input: Input, client: ClickUpClient): Promise<R
           name: input.name,
           viewType: input.viewType,
           description: input.description,
-          statusFilters: statusFilters ?? undefined
+          filters
         })
       },
       nextSteps
@@ -38,7 +40,7 @@ export async function updateView(input: Input, client: ClickUpClient): Promise<R
   const payload = compactRecord({
     name: input.name,
     type: input.viewType,
-    filters: statusFilters ? { statuses: statusFilters } : undefined,
+    filters,
     settings: input.description ? { description: input.description } : undefined
   })
 
