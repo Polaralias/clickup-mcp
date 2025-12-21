@@ -2,7 +2,7 @@ import { z } from "zod"
 import { CreateListViewInput } from "../../../mcp/schemas/structure.js"
 import { ClickUpClient } from "../../../infrastructure/clickup/ClickUpClient.js"
 import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
-import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath } from "./structureShared.js"
+import { compactRecord, normaliseStatuses, readString, resolveIdsFromPath, buildViewFilters } from "./structureShared.js"
 
 type Input = z.infer<typeof CreateListViewInput>
 
@@ -25,6 +25,8 @@ export async function createListView(
 
   const statuses = normaliseStatuses(input.statuses)
   const statusFilters = statuses?.map((status) => status.status)
+  const filters = buildViewFilters(statusFilters, input.tags)
+
   const nextSteps = [
     "Share the view URL with collaborators once created.",
     "Use clickup_update_view to refine filters or layout if needed.",
@@ -39,7 +41,7 @@ export async function createListView(
         name: input.name,
         viewType: input.viewType ?? "list",
         description: input.description,
-        statusFilters: statusFilters ?? []
+        filters
       },
       nextSteps
     }
@@ -48,7 +50,7 @@ export async function createListView(
   const payload = compactRecord({
     name: input.name,
     type: input.viewType ?? "list",
-    filters: statusFilters ? { statuses: statusFilters } : undefined,
+    filters,
     settings: input.description ? { description: input.description } : undefined
   })
 

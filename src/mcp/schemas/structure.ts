@@ -161,7 +161,8 @@ export const CreateListViewInput = SafetyInput.extend({
     .min(1)
     .describe("ClickUp view type identifier; omit for default.")
     .optional(),
-  statuses: StatusArray.describe("Status filters to attach to the view.")
+  statuses: StatusArray.describe("Status filters to attach to the view."),
+  tags: z.array(z.string()).optional().describe("Array of tag names to filter by.")
 }).superRefine((value, ctx) => {
   requireContainer(value, ctx, ["listId"])
 })
@@ -179,7 +180,8 @@ export const CreateSpaceViewInput = SafetyInput.extend({
     .min(1)
     .describe("ClickUp view type identifier; omit for default.")
     .optional(),
-  statuses: StatusArray.describe("Status filters to attach to the view.")
+  statuses: StatusArray.describe("Status filters to attach to the view."),
+  tags: z.array(z.string()).optional().describe("Array of tag names to filter by.")
 }).superRefine((value, ctx) => {
   requireContainer(value, ctx, ["spaceId"])
 })
@@ -196,10 +198,12 @@ export const UpdateViewInput = SafetyInput.extend({
     .min(1)
     .describe("Updated view type identifier.")
     .optional(),
-  statuses: StatusArray.describe("Status filters to replace existing configuration.")
+  statuses: StatusArray.describe("Status filters to replace existing configuration."),
+  tags: z.array(z.string()).optional().describe("Array of tag names to filter by.")
 }).superRefine((value, ctx) => {
   requireMutationFields(value, ctx, [
-    { key: "viewType", present: Boolean(value.viewType) }
+    { key: "viewType", present: Boolean(value.viewType) },
+    { key: "tags", present: Boolean(value.tags?.length) }
   ])
 })
 
