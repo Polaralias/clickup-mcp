@@ -1176,7 +1176,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerReadOnly(
     "time_report_for_tag",
-    "Aggregate logged time for a tag across the workspace. Use list_tags_in_space to discover tags, and includeSubtasks to control whether child task time is counted.",
+    "Aggregate logged time for a tag across the workspace. Use space_tag_list to discover tags, and includeSubtasks to control whether child task time is counted.",
     ReportTimeForTagInput,
     reportTimeForTag,
     readOnlyAnnotation("time", "tag report", { scope: "workspace", input: "tag", window: "from|to" }),
@@ -1255,7 +1255,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   )
   registerReadOnly(
     "time_report_for_space_tag",
-    "Aggregate time for a tag within a space using spaceId. Use list_tags_in_space to pick the tag and includeSubtasks to control hierarchy.",
+    "Aggregate time for a tag within a space using spaceId. Use space_tag_list to pick the tag and includeSubtasks to control hierarchy.",
     ReportTimeForSpaceTagInput,
     reportTimeForSpaceTag,
     readOnlyAnnotation("time", "space tag report", { scope: "space", input: "spaceId+tag", window: "from|to" }),

@@ -83,4 +83,29 @@ describe("ensureWriteAllowed", () => {
       await expect(ensureWriteAllowed({ listId: "123" }, mockClient, config)).rejects.toThrow(/limited to explicitly allowed spaces or lists/)
     })
   })
+
+  describe("bulk operations in selective mode", () => {
+    it("allows bulk task create in selective mode if list is allowed", async () => {
+      const config = createConfig("selective", [], ["allowed_list"])
+      const input = {
+          tasks: [
+              { name: "Task 1", listId: "allowed_list" },
+              { name: "Task 2", listId: "allowed_list" }
+          ]
+      }
+      await expect(ensureWriteAllowed(input, mockClient, config)).resolves.not.toThrow()
+    })
+
+    it("allows bulk task create using defaults in selective mode", async () => {
+      const config = createConfig("selective", [], ["allowed_list"])
+      const input = {
+          defaults: { listId: "allowed_list" },
+          tasks: [
+              { name: "Task 1" },
+              { name: "Task 2" }
+          ]
+      }
+      await expect(ensureWriteAllowed(input, mockClient, config)).resolves.not.toThrow()
+    })
+  })
 })

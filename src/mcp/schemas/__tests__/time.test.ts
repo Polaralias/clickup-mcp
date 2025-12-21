@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ListTimeEntriesInput } from "../time.js"
+import { ListTimeEntriesInput, ReportTimeForTagInput } from "../time.js"
 
 describe("ListTimeEntriesInput time boundaries", () => {
   const base = { page: 0, pageSize: 20 }
@@ -68,6 +68,20 @@ describe("ListTimeEntriesInput time boundaries", () => {
       const messages = result.error.issues.map((issue) => issue.message)
       expect(messages).toContain("From numeric timestamps must be passed as numbers, not strings.")
       expect(messages).toContain("To numeric timestamps must be passed as numbers, not strings.")
+    }
+  })
+})
+
+describe("ReportTimeForTagInput", () => {
+  it("allows teamId", () => {
+    const input = {
+      tag: "test-tag",
+      teamId: "12345"
+    }
+    const result = ReportTimeForTagInput.safeParse(input)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect((result.data as any).teamId).toBe("12345")
     }
   })
 })

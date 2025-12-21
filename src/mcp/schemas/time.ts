@@ -99,6 +99,7 @@ export const ListTimeEntriesInput = z.object({
 })
 
 export const ReportTimeForTagInput = z.object({
+  teamId: Id.describe("Workspace/team scope for the report.").optional(),
   tag: z.string().describe("Tag name to summarise."),
   includeSubtasks: z
     .boolean()

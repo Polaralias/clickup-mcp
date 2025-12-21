@@ -14,7 +14,7 @@ function resolveTeamId(config: ApplicationConfig) {
 }
 
 export async function reportTimeForTag(input: Input, client: ClickUpClient, config: ApplicationConfig): Promise<Result> {
-  const teamId = resolveTeamId(config)
+  const teamId = input.teamId ?? resolveTeamId(config)
   return buildTimeReport({
     client,
     teamId,
