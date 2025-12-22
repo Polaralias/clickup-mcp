@@ -80,7 +80,11 @@ import {
   DeleteViewInput,
   ListCustomFieldsInput,
   SetTaskCustomFieldValueInput,
-  ClearTaskCustomFieldValueInput
+  ClearTaskCustomFieldValueInput,
+  PingInput,
+  HealthInput,
+  ToolCatalogueInput,
+  WorkspaceCapabilitySnapshotInput
 } from "./schemas/index.js"
 import { withSafetyConfirmation } from "../application/safety/withSafetyConfirmation.js"
 import { ensureWriteAllowed } from "../application/safety/writeAccess.js"
@@ -289,10 +293,9 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
   }
 
   // System tools (no client)
-  const pingSchema = z.object({ message: z.string().optional() })
   const pingAnnotation = readOnlyAnnotation("system", "echo", { scope: "connectivity", idempotent: true })
-  const pingJsonSchema = zodToJsonSchemaCompact(pingSchema)
-  const pingShape = toRawShape(pingSchema)
+  const pingJsonSchema = zodToJsonSchemaCompact(PingInput)
+  const pingShape = toRawShape(PingInput)
   entries.push({
     entry: {
       name: "ping",
@@ -309,43 +312,57 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
       ...pingAnnotation
     },
     async (rawInput: unknown) => {
-      const parsed = pingSchema.parse(rawInput ?? {})
+      const parsed = PingInput.parse(rawInput ?? {})
       return formatContent(await ping(parsed.message))
     }
   )
 
   const healthAnnotation = readOnlyAnnotation("system", "status", { scope: "server" })
+  const healthJsonSchema = zodToJsonSchemaCompact(HealthInput)
+  const healthShape = toRawShape(HealthInput)
   entries.push({
     entry: {
       name: "health",
       description: "Report server readiness and enforced safety limits.",
-      annotations: healthAnnotation.annotations
+      annotations: healthAnnotation.annotations,
+      inputSchema: healthJsonSchema
     }
   })
   server.registerTool(
     "health",
     {
       description: "Report server readiness and enforced safety limits.",
+      ...(healthShape ? { inputSchema: healthShape } : {}),
       ...healthAnnotation
     },
-    async () => formatContent(await health(config))
+    async (rawInput: unknown) => {
+      const _parsed = HealthInput.parse(rawInput ?? {})
+      // ignoring verbose flag for now as health() doesn't support it yet
+      return formatContent(await health(config))
+    }
   )
 
   const catalogueAnnotation = readOnlyAnnotation("system", "tool manifest", { scope: "server" })
+  const catalogueJsonSchema = zodToJsonSchemaCompact(ToolCatalogueInput)
+  const catalogueShape = toRawShape(ToolCatalogueInput)
   entries.push({
     entry: {
       name: "tool_catalogue",
       description: "Enumerate all available tools with their annotations.",
-      annotations: catalogueAnnotation.annotations
+      annotations: catalogueAnnotation.annotations,
+      inputSchema: catalogueJsonSchema
     }
   })
   server.registerTool(
     "tool_catalogue",
     {
       description: "Enumerate all available tools with their annotations.",
+      ...(catalogueShape ? { inputSchema: catalogueShape } : {}),
       ...catalogueAnnotation
     },
-    async () => {
+    async (rawInput: unknown) => {
+      const _parsed = ToolCatalogueInput.parse(rawInput ?? {})
+      // ignoring verbose flag for now
       const client = createClient()
       const availableEntries = await resolveCatalogue(client)
       return formatContent(await toolCatalogue(availableEntries))
@@ -357,9 +374,16 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     "workspace_capability_snapshot",
     {
       description: "Expose cached ClickUp capability probes for this session.",
-      schema: null,
+      schema: WorkspaceCapabilitySnapshotInput,
       annotations: capabilityAnnotation.annotations,
-      handler: async () => sessionCapabilityTracker.snapshot()
+      handler: async (input) => {
+        if (input.forceRefresh) {
+          // No direct way to clear capability cache here, but we can rely on next usage to refresh if needed
+          // or just return snapshot.
+          // For now just return snapshot as this is a read tool.
+        }
+        return sessionCapabilityTracker.snapshot()
+      }
     }
   )
 
