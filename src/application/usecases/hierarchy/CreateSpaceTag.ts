@@ -66,7 +66,7 @@ export async function createSpaceTag(
     colors
   })
 
-  cache.invalidate(input.spaceId)
+  await cache.invalidate(input.spaceId)
 
   return {
     tag: summary,

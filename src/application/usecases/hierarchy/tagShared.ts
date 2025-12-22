@@ -98,7 +98,7 @@ export async function ensureSpaceTagCollection(
   options: LoadSpaceTagsOptions = {}
 ): Promise<unknown[]> {
   if (!options.forceRefresh) {
-    const cached = cache.read(spaceId)
+    const cached = await cache.read(spaceId)
     if (cached) {
       return cached
     }
@@ -106,7 +106,7 @@ export async function ensureSpaceTagCollection(
 
   const response = await client.listTagsForSpace(spaceId)
   const collection = extractTagCollection(response)
-  cache.store(spaceId, collection)
+  await cache.store(spaceId, collection)
   return [...collection]
 }
 

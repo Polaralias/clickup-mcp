@@ -69,10 +69,10 @@ export class HierarchyDirectory {
   private readonly folders = new Map<string, CacheEntry<Record<string, unknown>>>()
   private readonly lists = new Map<string, CacheEntry<Record<string, unknown>>>()
   private readonly ttlMs: number
+  private loaded = false
 
   constructor(ttlMs: number = DEFAULT_TTL_MS, private readonly sessionCache?: SessionCache, private readonly teamId?: string) {
     this.ttlMs = ttlMs ?? DEFAULT_TTL_MS
-    this.restoreFromSessionCache()
   }
 
   private toCacheEntry(
@@ -94,11 +94,12 @@ export class HierarchyDirectory {
     }
   }
 
-  private restoreFromSessionCache() {
-    if (!this.sessionCache || !this.teamId) {
+  private async loadIfNeeded() {
+    if (this.loaded || !this.sessionCache || !this.teamId) {
       return
     }
-    const cached = this.sessionCache.getHierarchy(this.teamId)
+    const cached = await this.sessionCache.getHierarchy(this.teamId)
+    this.loaded = true
     if (!cached) {
       return
     }
@@ -156,7 +157,7 @@ export class HierarchyDirectory {
     }
   }
 
-  private persist() {
+  private async persist() {
     this.purgeExpired()
     if (!this.sessionCache || !this.teamId || this.ttlMs <= 0) {
       return
@@ -178,13 +179,14 @@ export class HierarchyDirectory {
     for (const [key, entry] of this.lists.entries()) {
       hierarchy.lists[key] = this.toCachedHierarchyEntry(entry)
     }
-    this.sessionCache.setHierarchy(this.teamId, hierarchy)
+    await this.sessionCache.setHierarchy(this.teamId, hierarchy)
   }
 
   async ensureWorkspaces(
     fetchWorkspaces: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    await this.loadIfNeeded()
     this.purgeExpired()
     const now = Date.now()
     const expired = this.workspaces ? now > this.workspaces.expiresAt : true
@@ -201,7 +203,7 @@ export class HierarchyDirectory {
       }
     }
 
-    this.persist()
+    await this.persist()
     return {
       items: this.workspaces.items,
       cache: buildMetadata(this.workspaces, this.ttlMs)
@@ -213,6 +215,7 @@ export class HierarchyDirectory {
     fetchSpaces: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    await this.loadIfNeeded()
     this.purgeExpired()
     const key = workspaceId
     const existing = this.spaces.get(key)
@@ -237,7 +240,7 @@ export class HierarchyDirectory {
       }
     }
 
-    this.persist()
+    await this.persist()
     return {
       items: existing.items,
       cache: buildMetadata(existing, this.ttlMs)
@@ -249,6 +252,7 @@ export class HierarchyDirectory {
     fetchFolders: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    await this.loadIfNeeded()
     this.purgeExpired()
     const key = spaceId
     const existing = this.folders.get(key)
@@ -273,7 +277,7 @@ export class HierarchyDirectory {
       }
     }
 
-    this.persist()
+    await this.persist()
     return {
       items: existing.items,
       cache: buildMetadata(existing, this.ttlMs)
@@ -286,6 +290,7 @@ export class HierarchyDirectory {
     fetchLists: () => Promise<unknown>,
     options: HierarchyEnsureOptions = {}
   ): Promise<HierarchyDirectoryResult<Record<string, unknown>>> {
+    await this.loadIfNeeded()
     this.purgeExpired()
     const key = folderId ? `folder:${folderId}` : `space:${spaceId ?? ""}`
     const existing = this.lists.get(key)
@@ -313,35 +318,35 @@ export class HierarchyDirectory {
       }
     }
 
-    this.persist()
+    await this.persist()
     return {
       items: existing.items,
       cache: buildMetadata(existing, this.ttlMs)
     }
   }
 
-  invalidateWorkspaces() {
+  async invalidateWorkspaces() {
     this.workspaces = undefined
-    this.invalidateSpaces()
-    this.persist()
+    await this.invalidateSpaces()
+    await this.persist()
   }
 
-  invalidateSpaces(workspaceId?: string) {
+  async invalidateSpaces(workspaceId?: string) {
     if (!workspaceId) {
       this.spaces.clear()
-      this.invalidateFolders()
-      this.persist()
+      await this.invalidateFolders()
+      await this.persist()
       return
     }
     this.spaces.delete(workspaceId)
-    this.persist()
+    await this.persist()
   }
 
-  invalidateFolders(spaceId?: string) {
+  async invalidateFolders(spaceId?: string) {
     if (!spaceId) {
       this.folders.clear()
-      this.invalidateLists()
-      this.persist()
+      await this.invalidateLists()
+      await this.persist()
       return
     }
     for (const [key, entry] of this.folders.entries()) {
@@ -349,29 +354,29 @@ export class HierarchyDirectory {
         this.folders.delete(key)
       }
     }
-    this.persist()
+    await this.persist()
   }
 
-  invalidateListsForSpace(spaceId: string) {
+  async invalidateListsForSpace(spaceId: string) {
     for (const [key, entry] of this.lists.entries()) {
       if (entry.context?.spaceId === spaceId || key === `space:${spaceId}`) {
         this.lists.delete(key)
       }
     }
-    this.persist()
+    await this.persist()
   }
 
-  invalidateListsForFolder(folderId: string) {
+  async invalidateListsForFolder(folderId: string) {
     for (const [key, entry] of this.lists.entries()) {
       if (entry.context?.folderId === folderId || key === `folder:${folderId}`) {
         this.lists.delete(key)
       }
     }
-    this.persist()
+    await this.persist()
   }
 
-  private invalidateLists() {
+  private async invalidateLists() {
     this.lists.clear()
-    this.persist()
+    await this.persist()
   }
 }

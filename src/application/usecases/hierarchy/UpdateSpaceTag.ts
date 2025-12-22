@@ -95,7 +95,7 @@ export async function updateSpaceTag(
     )
   })
 
-  cache.invalidate(input.spaceId)
+  await cache.invalidate(input.spaceId)
 
   return {
     tag: summary,

@@ -32,11 +32,11 @@ export class SessionCache {
   private readonly spaceConfigEntries = new Map<string, TimedEntry<CachedSpaceConfig>>()
 
   constructor(
-    private readonly hierarchyTtlMs: number = DEFAULT_TTL_MS,
-    private readonly spaceConfigTtlMs: number = DEFAULT_TTL_MS
+    protected readonly hierarchyTtlMs: number = DEFAULT_TTL_MS,
+    protected readonly spaceConfigTtlMs: number = DEFAULT_TTL_MS
   ) {}
 
-  getHierarchy(teamId: string): CachedHierarchy | null {
+  async getHierarchy(teamId: string): Promise<CachedHierarchy | null> {
     const entry = this.hierarchyEntries.get(teamId)
     if (!entry) {
       return null
@@ -48,7 +48,7 @@ export class SessionCache {
     return entry.value
   }
 
-  setHierarchy(teamId: string, hierarchy: CachedHierarchy): void {
+  async setHierarchy(teamId: string, hierarchy: CachedHierarchy): Promise<void> {
     if (this.hierarchyTtlMs <= 0) {
       return
     }
@@ -56,11 +56,11 @@ export class SessionCache {
     this.hierarchyEntries.set(teamId, { value: hierarchy, storedAt })
   }
 
-  invalidateHierarchy(teamId: string): void {
+  async invalidateHierarchy(teamId: string): Promise<void> {
     this.hierarchyEntries.delete(teamId)
   }
 
-  getSpaceConfig(teamId: string): CachedSpaceConfig | null {
+  async getSpaceConfig(teamId: string): Promise<CachedSpaceConfig | null> {
     const entry = this.spaceConfigEntries.get(teamId)
     if (!entry) {
       return null
@@ -72,7 +72,7 @@ export class SessionCache {
     return entry.value
   }
 
-  setSpaceConfig(teamId: string, config: CachedSpaceConfig): void {
+  async setSpaceConfig(teamId: string, config: CachedSpaceConfig): Promise<void> {
     if (this.spaceConfigTtlMs <= 0) {
       return
     }
@@ -80,18 +80,18 @@ export class SessionCache {
     this.spaceConfigEntries.set(teamId, { value: config, storedAt })
   }
 
-  invalidateSpaceConfig(teamId: string): void {
+  async invalidateSpaceConfig(teamId: string): Promise<void> {
     this.spaceConfigEntries.delete(teamId)
   }
 
-  private isExpired(storedAt: number, ttlMs: number) {
+  protected isExpired(storedAt: number, ttlMs: number) {
     if (ttlMs <= 0) {
       return true
     }
     return Date.now() - storedAt > ttlMs
   }
 
-  private resolveHierarchyTimestamp(hierarchy: CachedHierarchy) {
+  protected resolveHierarchyTimestamp(hierarchy: CachedHierarchy) {
     const timestamps: number[] = []
     if (hierarchy.workspaces) {
       timestamps.push(hierarchy.workspaces.fetchedAt)
@@ -108,7 +108,7 @@ export class SessionCache {
     return timestamps.length ? Math.min(...timestamps) : Date.now()
   }
 
-  private resolveSpaceConfigTimestamp(config: CachedSpaceConfig) {
+  protected resolveSpaceConfigTimestamp(config: CachedSpaceConfig) {
     const timestamps = Object.values(config.tagsBySpaceId).map((entry) => entry.fetchedAt)
     return timestamps.length ? Math.min(...timestamps) : Date.now()
   }

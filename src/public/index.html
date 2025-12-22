@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClickUp MCP Server</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        .hidden { display: none; }
+        button { cursor: pointer; padding: 5px 10px; }
+        input { padding: 5px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        label { font-weight: bold; }
+        pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+        .revoked { color: #999; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+    <h1>ClickUp MCP Server Config</h1>
+
+    <div id="connection-list">
+        <h2>Connections</h2>
+        <button onclick="showCreate()">New Connection</button>
+        <div id="list-container"></div>
+    </div>
+
+    <div id="create-form" class="hidden">
+        <h2>New Connection</h2>
+        <label for="conn-name">Name</label>
+        <input type="text" id="conn-name" placeholder="My ClickUp">
+
+        <label for="conn-teamId">Team ID</label>
+        <input type="text" id="conn-teamId" placeholder="123456">
+
+        <label for="conn-apiKey">API Key</label>
+        <input type="password" id="conn-apiKey" placeholder="pk_...">
+
+        <button onclick="createConnection()">Save</button>
+        <button onclick="hideCreate()">Cancel</button>
+    </div>
+
+    <div id="connection-detail" class="hidden">
+        <h2>Connection Details</h2>
+        <button onclick="hideDetail()">Back</button>
+        <div id="detail-content"></div>
+
+        <h3>Connect</h3>
+        <button onclick="createSession()">Generate New Session Token</button>
+        <div id="session-output" class="hidden">
+            <p><strong>Session Token (Copy this):</strong></p>
+            <pre id="token-display"></pre>
+            <p>Use header: <code>Authorization: Bearer &lt;token&gt;</code></p>
+            <p><strong>MCP URL:</strong> <code id="mcp-url"></code></p>
+        </div>
+
+        <h3>Active Sessions</h3>
+        <button onclick="loadSessions()">Refresh Sessions</button>
+        <div id="session-list"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
