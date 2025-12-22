@@ -5,33 +5,33 @@ function baseAnnotation(mode: "ro" | "mut", cat: string, intent: string, extras:
   // m: mode
   // c: cat
   // i: intent
-  // ro: readOnly
-  // mut: destructive
+  // readOnlyHint: readOnly (standard)
+  // destructiveHint: destructive (standard)
+  // idempotentHint: idempotent (standard)
   // s: scope
   // ch: cache
   // in: input
   // d: dry
   // cf: confirm
-  // idm: idempotent
   // l: limit (was limit)
   // w: weight
   // win: window
 
   // Map long keys in extras to short keys if they exist
-  const shortExtras: AnnotationExtras = {}
+  const formattedExtras: AnnotationExtras = {}
   for (const [key, value] of Object.entries(extras)) {
-    if (key === "scope") shortExtras.s = value
-    else if (key === "cache") shortExtras.ch = value
-    else if (key === "input") shortExtras.in = value
-    else if (key === "dry") shortExtras.d = value
-    else if (key === "confirm") shortExtras.cf = value
-    else if (key === "idempotent") shortExtras.idm = value
-    else if (key === "readOnly") shortExtras.ro = value
-    else if (key === "destructive") shortExtras.mut = value
-    else if (key === "limit") shortExtras.l = value
-    else if (key === "weight") shortExtras.w = value
-    else if (key === "window") shortExtras.win = value
-    else shortExtras[key] = value
+    if (key === "scope") formattedExtras.s = value
+    else if (key === "cache") formattedExtras.ch = value
+    else if (key === "input") formattedExtras.in = value
+    else if (key === "dry") formattedExtras.d = value
+    else if (key === "confirm") formattedExtras.cf = value
+    else if (key === "idempotent") formattedExtras.idempotentHint = value
+    else if (key === "readOnly") formattedExtras.readOnlyHint = value
+    else if (key === "destructive") formattedExtras.destructiveHint = value
+    else if (key === "limit") formattedExtras.l = value
+    else if (key === "weight") formattedExtras.w = value
+    else if (key === "window") formattedExtras.win = value
+    else formattedExtras[key] = value
   }
 
   return {
@@ -39,7 +39,7 @@ function baseAnnotation(mode: "ro" | "mut", cat: string, intent: string, extras:
       m: mode,
       c: cat,
       i: intent,
-      ...shortExtras
+      ...formattedExtras
     }
   }
 }
