@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { createListFromTemplate } from "../CreateListFromTemplate.js"
 import { ClickUpClient } from "../../../../infrastructure/clickup/ClickUpClient.js"
-import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
+import { HierarchyDirectory } from "../../../services/HierarchyDirectory.js"
 
 describe("createListFromTemplate", () => {
   it("calls client with correct parameters", async () => {
