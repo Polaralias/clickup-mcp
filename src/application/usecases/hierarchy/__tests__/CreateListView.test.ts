@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { createListView } from "../CreateListView.js"
 import { ClickUpClient } from "../../../../infrastructure/clickup/ClickUpClient.js"
-import { HierarchyDirectory } from "../../services/HierarchyDirectory.js"
+import { HierarchyDirectory } from "../../../services/HierarchyDirectory.js"
 
 describe("createListView", () => {
   it("uses explicit filters when provided", async () => {
