@@ -7,6 +7,9 @@ import { createApplicationConfig } from "../application/config/applicationConfig
 import { extractSessionConfig } from "./sessionConfig.js"
 import { authenticationMiddleware, type SessionCredential } from "./authentication.js"
 import { SessionCache } from "../application/services/SessionCache.js"
+import { sessionManager } from "./api/router.js"
+import { PostgresSessionCache } from "../infrastructure/services/PostgresSessionCache.js"
+import { CacheRepository } from "../infrastructure/repositories/CacheRepository.js"
 
 type Session = {
   server: McpServer
@@ -35,13 +38,18 @@ export function registerHttpTransport(
     }
   }
 
-  function createSession(configInput: SessionConfigInput, credential: SessionCredential) {
+  function createSession(configInput: SessionConfigInput, credential: SessionCredential, forcedSessionId?: string) {
     const config = createApplicationConfig(configInput, credential.token)
-    const sessionCache = new SessionCache(config.hierarchyCacheTtlMs, config.spaceConfigCacheTtlMs)
+    let sessionCache: SessionCache
+    if (process.env.MASTER_KEY) {
+      sessionCache = new PostgresSessionCache(new CacheRepository(), config.hierarchyCacheTtlMs, config.spaceConfigCacheTtlMs)
+    } else {
+      sessionCache = new SessionCache(config.hierarchyCacheTtlMs, config.spaceConfigCacheTtlMs)
+    }
     const server = createServer(config, sessionCache)
     let session: Session
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
+      sessionIdGenerator: () => forcedSessionId || randomUUID(),
       onsessioninitialized: (sessionId) => {
         session.sessionId = sessionId
         sessions.set(sessionId, session)
@@ -104,6 +112,24 @@ export function registerHttpTransport(
       res.status(401).json({ error: "Authentication required" })
       return undefined
     }
+
+    if (sessionManager && credential.token) {
+      try {
+        const result = await sessionManager.validateSession(credential.token)
+        if (result) {
+          const sessionId = result.session.id
+          let existing = sessions.get(sessionId)
+          if (!existing) {
+            const configInput = result.config as SessionConfigInput
+            existing = createSession(configInput, credential, sessionId)
+          }
+          return existing
+        }
+      } catch (error) {
+        console.error("Error validating session:", error)
+      }
+    }
+
     const config = await extractSessionConfig(req, res)
     if (!config) {
       return undefined

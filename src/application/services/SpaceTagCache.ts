@@ -10,16 +10,17 @@ type CacheEntry = {
 
 export class SpaceTagCache {
   private readonly entries = new Map<string, CacheEntry>()
+  private loaded = false
 
   constructor(private readonly ttlMs: number = DEFAULT_TTL_MS, private readonly sessionCache?: SessionCache, private readonly teamId?: string) {
-    this.restoreFromSessionCache()
   }
 
-  private restoreFromSessionCache() {
-    if (!this.sessionCache || !this.teamId) {
+  private async loadIfNeeded() {
+    if (this.loaded || !this.sessionCache || !this.teamId) {
       return
     }
-    const cached = this.sessionCache.getSpaceConfig(this.teamId)
+    const cached = await this.sessionCache.getSpaceConfig(this.teamId)
+    this.loaded = true
     if (!cached) {
       return
     }
@@ -46,7 +47,7 @@ export class SpaceTagCache {
     }
   }
 
-  private persist() {
+  private async persist() {
     this.purgeExpired()
     if (!this.sessionCache || !this.teamId || this.ttlMs <= 0) {
       return
@@ -58,10 +59,11 @@ export class SpaceTagCache {
         fetchedAt: entry.fetchedAt
       }
     }
-    this.sessionCache.setSpaceConfig(this.teamId, config)
+    await this.sessionCache.setSpaceConfig(this.teamId, config)
   }
 
-  read(spaceId: string): unknown[] | undefined {
+  async read(spaceId: string): Promise<unknown[] | undefined> {
+    await this.loadIfNeeded()
     this.purgeExpired()
     const entry = this.entries.get(spaceId)
     if (!entry) {
@@ -70,29 +72,31 @@ export class SpaceTagCache {
     const now = Date.now()
     if (now > entry.expiresAt) {
       this.entries.delete(spaceId)
-      this.persist()
+      await this.persist()
       return undefined
     }
     return [...entry.tags]
   }
 
-  store(spaceId: string, tags: unknown[]): void {
+  async store(spaceId: string, tags: unknown[]): Promise<void> {
+    await this.loadIfNeeded()
     const now = Date.now()
     this.entries.set(spaceId, {
       tags: [...tags],
       fetchedAt: now,
       expiresAt: now + this.ttlMs
     })
-    this.persist()
+    await this.persist()
   }
 
-  invalidate(spaceId: string): void {
+  async invalidate(spaceId: string): Promise<void> {
+    await this.loadIfNeeded()
     this.entries.delete(spaceId)
-    this.persist()
+    await this.persist()
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     this.entries.clear()
-    this.persist()
+    await this.persist()
   }
 }

@@ -46,7 +46,7 @@ export async function deleteSpaceTag(
 
   await client.deleteSpaceTag(input.spaceId, current.name)
 
-  cache.invalidate(input.spaceId)
+  await cache.invalidate(input.spaceId)
 
   return {
     removedTag: current,

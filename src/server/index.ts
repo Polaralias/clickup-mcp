@@ -1,3 +1,5 @@
+import { fileURLToPath } from "url"
+import { dirname, join } from "path"
 import express from "express"
 import cors from "cors"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
@@ -10,6 +12,8 @@ import type { ApplicationConfig } from "../application/config/applicationConfig.
 import { SessionCache } from "../application/services/SessionCache.js"
 import { registerTools } from "../mcp/registerTools.js"
 import { registerResources } from "../mcp/registerResources.js"
+import apiRouter from "./api/router.js"
+import { runMigrations } from "../infrastructure/db/migrator.js"
 
 function createServer(config: ApplicationConfig, sessionCache: SessionCache) {
   const server = new McpServer({
@@ -22,11 +26,25 @@ function createServer(config: ApplicationConfig, sessionCache: SessionCache) {
 }
 
 async function start() {
+  if (process.env.MASTER_KEY) {
+      try {
+          await runMigrations()
+      } catch (e) {
+          console.error("Migration failed, but continuing:", e)
+      }
+  }
+
   const transport = process.env.TRANSPORT ?? "http"
   if (transport === "http") {
     const app = express()
     app.use(cors(createCorsOptions()))
     app.use(express.json({ limit: "2mb" }))
+
+    app.use("/api", apiRouter)
+
+    const __dirname = dirname(fileURLToPath(import.meta.url))
+    app.use(express.static(join(__dirname, "../public")))
+
     registerHealthEndpoint(app)
     app.get("/.well-known/mcp-config", (_req, res) => {
       res.json(sessionConfigJsonSchema)
