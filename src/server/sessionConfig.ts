@@ -140,32 +140,38 @@ export const sessionConfigJsonSchema = {
     },
     charLimit: {
       type: "number",
-      description: "Maximum characters returned before responses are truncated"
+      description: "Maximum characters returned before responses are truncated",
+      default: 16000
     },
     maxAttachmentMb: {
       type: "number",
-      description: "Largest file attachment (MB) allowed for uploads"
+      description: "Largest file attachment (MB) allowed for uploads",
+      default: 8
     },
     readOnly: {
       type: "boolean",
-      description: "When true, all write operations are disabled. Takes precedence over other write settings."
+      description: "When true, all write operations are disabled. Takes precedence over other write settings.",
+      default: false
     },
     selectiveWrite: {
       type: "boolean",
-      description: "When true, write access is restricted to specific lists or spaces defined in writeLists and writeSpaces. If false (and not readOnly), full write access is granted."
+      description: "When true, write access is restricted to specific lists or spaces defined in writeLists and writeSpaces. If false (and not readOnly), full write access is granted.",
+      default: false
     },
     writeSpaces: {
       type: "array",
       items: { type: "string" },
-      description: "Space IDs where write operations are permitted; writes elsewhere are blocked"
+      description: "Space IDs where write operations are permitted; writes elsewhere are blocked",
+      default: []
     },
     writeLists: {
       type: "array",
       items: { type: "string" },
-      description: "List IDs where write operations are permitted; writes elsewhere are blocked"
+      description: "List IDs where write operations are permitted; writes elsewhere are blocked",
+      default: []
     }
   },
-  required: ["teamId", "apiKey"],
+  required: ["teamId", "apiKey", "readOnly", "selectiveWrite", "writeSpaces", "writeLists"],
   additionalProperties: false,
   exampleConfig: {
     teamId: "team_123",
