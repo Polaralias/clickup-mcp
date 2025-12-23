@@ -19,24 +19,30 @@ startCommand:
       charLimit:
         type: number
         description: Maximum characters returned before responses are truncated
+        default: 16000
       maxAttachmentMb:
         type: number
         description: Largest file attachment (MB) allowed for uploads
+        default: 8
       readOnly:
         type: boolean
         description: When true, all write operations are disabled. Takes precedence over other write settings.
+        default: false
       selectiveWrite:
         type: boolean
         description: When true, write access is restricted to specific lists or spaces defined in writeLists and writeSpaces. If false (and not readOnly), full write access is granted.
+        default: false
       writeSpaces:
         type: array
         items: { type: string }
         description: Space IDs where writes are allowed; writes in other spaces are blocked
+        default: []
       writeLists:
         type: array
         items: { type: string }
         description: List IDs where writes are allowed; writes in other lists are blocked
-    required: [teamId, apiKey]
+        default: []
+    required: [teamId, apiKey, readOnly, selectiveWrite, writeSpaces, writeLists]
   exampleConfig:
     teamId: "team_123"
     apiKey: "pk_123"

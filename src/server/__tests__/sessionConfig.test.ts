@@ -237,8 +237,8 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.$id).toBe("https://clickup-mcp-server/.well-known/mcp-config")
   })
 
-  it("requires teamId and apiKey", () => {
-    expect(sessionConfigJsonSchema.required).toEqual(["teamId", "apiKey"])
+  it("requires teamId, apiKey and write access fields", () => {
+    expect(sessionConfigJsonSchema.required).toEqual(["teamId", "apiKey", "readOnly", "selectiveWrite", "writeSpaces", "writeLists"])
   })
 
   it("includes exampleConfig", () => {
