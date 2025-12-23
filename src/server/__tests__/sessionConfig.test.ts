@@ -238,7 +238,7 @@ describe("sessionConfigJsonSchema", () => {
   })
 
   it("requires teamId, apiKey and write access fields", () => {
-    expect(sessionConfigJsonSchema.required).toEqual(["teamId", "apiKey", "readOnly", "selectiveWrite", "writeSpaces", "writeLists"])
+    expect(sessionConfigJsonSchema.required).toEqual(["teamId", "apiKey", "readOnly", "selectiveWrite"])
   })
 
   it("includes exampleConfig", () => {
