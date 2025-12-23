@@ -171,7 +171,7 @@ export const sessionConfigJsonSchema = {
       default: []
     }
   },
-  required: ["teamId", "apiKey", "readOnly", "selectiveWrite", "writeSpaces", "writeLists"],
+  required: ["teamId", "apiKey", "readOnly", "selectiveWrite"],
   additionalProperties: false,
   exampleConfig: {
     teamId: "team_123",

@@ -42,7 +42,7 @@ startCommand:
         items: { type: string }
         description: List IDs where writes are allowed; writes in other lists are blocked
         default: []
-    required: [teamId, apiKey, readOnly, selectiveWrite, writeSpaces, writeLists]
+    required: [teamId, apiKey, readOnly, selectiveWrite]
   exampleConfig:
     teamId: "team_123"
     apiKey: "pk_123"
