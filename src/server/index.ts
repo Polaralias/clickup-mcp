@@ -8,22 +8,10 @@ import { registerHealthEndpoint } from "./health.js"
 import { registerHttpTransport } from "./httpTransport.js"
 import { startStdioTransport } from "./stdioTransport.js"
 import { sessionConfigJsonSchema } from "./sessionConfig.js"
-import type { ApplicationConfig } from "../application/config/applicationConfig.js"
 import { SessionCache } from "../application/services/SessionCache.js"
-import { registerTools } from "../mcp/registerTools.js"
-import { registerResources } from "../mcp/registerResources.js"
 import apiRouter from "./api/router.js"
 import { runMigrations } from "../infrastructure/db/migrator.js"
-
-function createServer(config: ApplicationConfig, sessionCache: SessionCache) {
-  const server = new McpServer({
-    name: "ClickUp MCP",
-    version: "1.0.0"
-  })
-  registerTools(server, config, sessionCache)
-  registerResources(server, config, sessionCache)
-  return server
-}
+import { createServer } from "./factory.js"
 
 async function start() {
   if (process.env.MASTER_KEY) {
