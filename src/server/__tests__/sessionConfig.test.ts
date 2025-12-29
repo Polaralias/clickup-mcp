@@ -245,6 +245,7 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.exampleConfig).toBeDefined()
     expect(sessionConfigJsonSchema.exampleConfig.teamId).toBe("team_123")
     expect(sessionConfigJsonSchema.exampleConfig.apiKey).toBe("pk_123")
+    expect(sessionConfigJsonSchema.exampleConfig.sessionId).toBe("session_123")
     expect(sessionConfigJsonSchema.exampleConfig.charLimit).toBe(16000)
     expect(sessionConfigJsonSchema.exampleConfig.maxAttachmentMb).toBe(8)
     expect(sessionConfigJsonSchema.exampleConfig.selectiveWrite).toBe(false)

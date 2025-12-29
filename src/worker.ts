@@ -16,9 +16,11 @@ class WorkerSSETransport implements Transport {
   onclose?: () => void;
   onerror?: (error: Error) => void;
   private writer: WritableStreamDefaultWriter<any>;
+  private pendingResponses: Map<string | number, (message: JSONRPCMessage) => void>;
 
-  constructor(writer: WritableStreamDefaultWriter<any>) {
+  constructor(writer: WritableStreamDefaultWriter<any>, pendingResponses: Map<string | number, (message: JSONRPCMessage) => void>) {
     this.writer = writer;
+    this.pendingResponses = pendingResponses;
   }
 
   async start(): Promise<void> {
@@ -27,6 +29,15 @@ class WorkerSSETransport implements Transport {
 
   async send(message: JSONRPCMessage): Promise<void> {
     try {
+        const messageId = (message as { id?: string | number }).id;
+        if (messageId !== undefined) {
+          const resolver = this.pendingResponses.get(messageId);
+          if (resolver) {
+            this.pendingResponses.delete(messageId);
+            resolver(message);
+            return;
+          }
+        }
         const event = `event: message\ndata: ${JSON.stringify(message)}\n\n`;
         await this.writer.write(new TextEncoder().encode(event));
     } catch (e) {
@@ -55,6 +66,7 @@ export class McpSession implements DurableObject {
   state: DurableObjectState;
   server?: McpServer;
   transport?: WorkerSSETransport;
+  private pendingResponses = new Map<string | number, (message: JSONRPCMessage) => void>();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -63,15 +75,47 @@ export class McpSession implements DurableObject {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/connect") {
-      return this.handleConnect(request);
-    }
-
-    if (url.pathname === "/message") {
-      return this.handleMessage(request);
+    if (url.pathname === "/mcp") {
+      if (request.method === "GET") {
+        return this.handleConnect(request);
+      }
+      if (request.method === "POST") {
+        return this.handleMessage(request);
+      }
     }
 
     return new Response("Not found", { status: 404 });
+  }
+
+  private async loadStoredConfig() {
+    return this.state.storage.get<Record<string, unknown>>("sessionConfig");
+  }
+
+  private async ensureServer(configInput: Record<string, unknown>) {
+    if (this.server && this.transport) {
+      return;
+    }
+
+    const { config, error } = parseSessionConfig(configInput);
+
+    if (!config) {
+      throw new Error(error || "Invalid config");
+    }
+
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    this.transport = new WorkerSSETransport(writer, this.pendingResponses);
+
+    const appConfig = createApplicationConfig(config, undefined);
+    const sessionCache = new SessionCache(appConfig.hierarchyCacheTtlMs, appConfig.spaceConfigCacheTtlMs);
+
+    this.server = createServer(appConfig, sessionCache);
+
+    await this.state.storage.put("sessionConfig", config);
+
+    await this.server.connect(this.transport);
+
+    return readable;
   }
 
   async handleConnect(request: Request): Promise<Response> {
@@ -83,25 +127,47 @@ export class McpSession implements DurableObject {
         queryObj[key] = value;
     }
 
-    // We might have serialized complex config in a single param or reconstruction
-    // For now, let's assume the query params forwarded are sufficient.
-    const { config, error } = parseSessionConfig(queryObj);
+    const storedConfig = await this.loadStoredConfig();
+    const configInput = storedConfig ?? queryObj;
 
-    if (!config) {
-        return new Response(JSON.stringify({ error: error || "Invalid config" }), { status: 400 });
+    if (!configInput) {
+        return new Response(JSON.stringify({ error: "Invalid config" }), { status: 400 });
     }
 
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
-    this.transport = new WorkerSSETransport(writer);
+    const sessionExisted = Boolean(this.server && this.transport);
+    let sessionCreated = false;
+    let readable: ReadableStream<any> | undefined;
+    try {
+      readable = await this.ensureServer(configInput);
+      sessionCreated = !sessionExisted;
+    } catch (error) {
+      console.log("MCP session request", {
+        path: url.pathname,
+        method: request.method,
+        sessionId: request.headers.get("mcp-session-id") || url.searchParams.get("sessionId"),
+        sessionExisted,
+        sessionCreated
+      });
+      return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Invalid config" }), { status: 400 });
+    }
 
-    const appConfig = createApplicationConfig(config, undefined);
-    const sessionCache = new SessionCache(appConfig.hierarchyCacheTtlMs, appConfig.spaceConfigCacheTtlMs);
+    if (!readable) {
+      console.log("MCP session request", {
+        path: url.pathname,
+        method: request.method,
+        sessionId: request.headers.get("mcp-session-id") || url.searchParams.get("sessionId"),
+        sessionExisted,
+        sessionCreated
+      });
+      return new Response("Session not initialized", { status: 400 });
+    }
 
-    this.server = createServer(appConfig, sessionCache);
-
-    this.server.connect(this.transport).catch(e => {
-        console.error("Server connect error", e);
+    console.log("MCP session request", {
+      path: url.pathname,
+      method: request.method,
+      sessionId: request.headers.get("mcp-session-id") || url.searchParams.get("sessionId"),
+      sessionExisted,
+      sessionCreated
     });
 
     // Handle client disconnect
@@ -120,17 +186,80 @@ export class McpSession implements DurableObject {
   }
 
   async handleMessage(request: Request): Promise<Response> {
-      if (!this.server || !this.transport) {
-          return new Response("Session not initialized", { status: 400 });
+    let body: JSONRPCMessage;
+    try {
+      body = await request.json() as JSONRPCMessage;
+    } catch (e) {
+      return new Response("Invalid JSON", { status: 400 });
+    }
+
+    const messageId = (body as { id?: string | number }).id;
+    const isInitialize = (body as { method?: string }).method === "initialize";
+    const storedConfig = await this.loadStoredConfig();
+    const url = new URL(request.url);
+    const queryObj: Record<string, any> = {};
+    for (const [key, value] of url.searchParams) {
+      queryObj[key] = value;
+    }
+
+    const sessionExisted = Boolean(this.server && this.transport);
+    let sessionCreated = false;
+
+    if (!this.server || !this.transport) {
+      if (!isInitialize) {
+        console.log("MCP session request", {
+          path: url.pathname,
+          method: request.method,
+          sessionId: request.headers.get("mcp-session-id") || url.searchParams.get("sessionId"),
+          sessionExisted,
+          sessionCreated
+        });
+        return new Response("Session not initialized", { status: 400 });
       }
 
+      const configInput = storedConfig ?? queryObj;
       try {
-          const body = await request.json() as JSONRPCMessage;
-          this.transport.handlePostMessage(body);
-          return new Response("Accepted", { status: 202 });
-      } catch (e) {
-          return new Response("Invalid JSON", { status: 400 });
+        await this.ensureServer(configInput);
+        sessionCreated = true;
+      } catch (error) {
+        console.log("MCP session request", {
+          path: url.pathname,
+          method: request.method,
+          sessionId: request.headers.get("mcp-session-id") || url.searchParams.get("sessionId"),
+          sessionExisted,
+          sessionCreated
+        });
+        return new Response(error instanceof Error ? error.message : "Invalid config", { status: 400 });
       }
+    }
+
+    const responsePromise = messageId !== undefined
+      ? new Promise<JSONRPCMessage>((resolve) => {
+        this.pendingResponses.set(messageId, resolve);
+      })
+      : undefined;
+
+    this.transport.handlePostMessage(body);
+
+    console.log("MCP session request", {
+      path: url.pathname,
+      method: request.method,
+      sessionId: request.headers.get("mcp-session-id") || url.searchParams.get("sessionId"),
+      sessionExisted,
+      sessionCreated
+    });
+
+    if (!responsePromise) {
+      return new Response("Accepted", { status: 202 });
+    }
+
+    const responseMessage = await responsePromise;
+    return new Response(JSON.stringify(responseMessage), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
   }
 }
 
@@ -147,43 +276,66 @@ export default {
     }
 
     if (url.pathname === "/mcp") {
-      const sessionId = url.searchParams.get("sessionId") || crypto.randomUUID();
+      const headerSessionId = request.headers.get("mcp-session-id");
+      const querySessionId = url.searchParams.get("sessionId");
+      const hasBody = request.method === "POST";
+      let bodyText: string | undefined;
+      let isInitialize = false;
+
+      if (hasBody) {
+        bodyText = await request.text();
+        try {
+          const parsed = JSON.parse(bodyText) as { method?: string };
+          isInitialize = parsed.method === "initialize";
+        } catch {
+          // keep false
+        }
+      }
+
+      let sessionId = headerSessionId || querySessionId;
+      let sessionCreated = false;
+
+      if (!sessionId) {
+        if (isInitialize) {
+          sessionId = crypto.randomUUID();
+          sessionCreated = true;
+        } else {
+          console.log("MCP session request", {
+            path: url.pathname,
+            method: request.method,
+            sessionId,
+            sessionExisted: false,
+            sessionCreated
+          });
+          return new Response("Missing sessionId parameter", { status: 400 });
+        }
+      }
+
       const id = env.MCP_SESSION.idFromName(sessionId);
       const stub = env.MCP_SESSION.get(id);
+      const newUrl = new URL(request.url);
+      newUrl.pathname = "/mcp";
 
-      if (request.method === "GET") {
-        // Forward the request to the DO's /connect endpoint
-        // Pass the session config query params along
-        const newUrl = new URL(request.url);
-        newUrl.pathname = "/connect";
-        // We ensure sessionId is in response header so client knows it
-        const response = await stub.fetch(new Request(newUrl.toString(), request));
+      const headers = new Headers(request.headers);
+      headers.set("mcp-session-id", sessionId);
 
-        // Wrap response to inject X-Session-ID header if successful
-        if (response.status === 200) {
-            const newHeaders = new Headers(response.headers);
-            newHeaders.set("X-Session-ID", sessionId);
-            return new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: newHeaders
-            });
-        }
-        return response;
+      const forwardedRequest = new Request(newUrl.toString(), {
+        method: request.method,
+        headers,
+        body: hasBody ? bodyText : undefined
+      });
+
+      const response = await stub.fetch(forwardedRequest);
+      const responseHeaders = new Headers(response.headers);
+      responseHeaders.set("mcp-session-id", sessionId);
+      if (sessionCreated) {
+        responseHeaders.set("mcp-session-created", "true");
       }
-      else if (request.method === "POST") {
-        const querySessionId = url.searchParams.get("sessionId");
-        if (!querySessionId) {
-            return new Response("Missing sessionId parameter", { status: 400 });
-        }
-        // Use the ID from the param to route to the correct DO
-        const targetId = env.MCP_SESSION.idFromName(querySessionId);
-        const targetStub = env.MCP_SESSION.get(targetId);
-
-        const newUrl = new URL(request.url);
-        newUrl.pathname = "/message";
-        return targetStub.fetch(new Request(newUrl.toString(), request));
-      }
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders
+      });
     }
 
     return new Response("Not Found", { status: 404 });
