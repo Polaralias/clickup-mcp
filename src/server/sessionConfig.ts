@@ -185,9 +185,7 @@ export const sessionConfigJsonSchema = {
   }
 }
 
-export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
-  const q = req.query as Record<string, unknown>
-
+export function parseSessionConfig(q: Record<string, unknown>): { config?: SessionConfigInput; error?: string; statusCode?: number } {
   // Log configuration request for debugging
   const sanitizedQuery = { ...q }
   // Redact sensitive keys
@@ -204,7 +202,7 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
       if (q[key] !== undefined) return q[key]
     }
     // Case insensitive match
-    const searchKeys = new Set(keys.map(k => k.toLowerCase()))
+    const searchKeys = new Set(keys.map((k) => k.toLowerCase()))
     for (const key of Object.keys(q)) {
       if (searchKeys.has(key.toLowerCase())) return q[key]
     }
@@ -222,10 +220,10 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   if (!apiKey) missing.push("apiKey")
 
   if (missing.length) {
-    res.status(400).json({
-      error: `Invalid configuration: missing ${missing.join(", ")}`
-    })
-    return undefined
+    return {
+      error: `Invalid configuration: missing ${missing.join(", ")}`,
+      statusCode: 400
+    }
   }
 
   const charLimitRaw = lastString(findParam(["charLimit", "char-limit"]))
@@ -246,8 +244,8 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
   const writeLists = parseIdList(writeListsRaw)
 
   const config: SessionConfigInput = {
-    teamId,
-    apiKey,
+    teamId: teamId!,
+    apiKey: apiKey!,
     ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
     ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {}),
     ...(readOnly !== undefined ? { readOnly } : {}),
@@ -256,6 +254,18 @@ export async function extractSessionConfig(req: Request, res: Response): Promise
     ...(writeSpaces ? { writeSpaces } : {}),
     ...(writeLists ? { writeLists } : {})
   } as SessionConfigInput
+
+  return { config }
+}
+
+export async function extractSessionConfig(req: Request, res: Response): Promise<SessionConfigInput | undefined> {
+  const q = req.query as Record<string, unknown>
+  const { config, error, statusCode } = parseSessionConfig(q)
+
+  if (error) {
+    res.status(statusCode || 500).json({ error })
+    return undefined
+  }
 
   return config
 }

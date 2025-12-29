@@ -50,5 +50,5 @@ export async function attachFileToTask(input: Input, client: ClickUpClient, conf
   const form = new FormData()
   form.append("attachment", blob, input.filename)
   const attachment = await client.attachFile(input.taskId, form)
-  return { attachment }
+  return { attachment: attachment as Record<string, unknown> }
 }
