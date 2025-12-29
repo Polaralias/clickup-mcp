@@ -138,6 +138,10 @@ export const sessionConfigJsonSchema = {
       type: "string",
       description: "ClickUp personal API token used for all API requests"
     },
+    sessionId: {
+      type: "string",
+      description: "Optional session identifier. Provide via mcp-session-id header or sessionId query param; if omitted on initialize, the server will generate one."
+    },
     charLimit: {
       type: "number",
       description: "Maximum characters returned before responses are truncated",
@@ -176,6 +180,7 @@ export const sessionConfigJsonSchema = {
   exampleConfig: {
     teamId: "team_123",
     apiKey: "pk_123",
+    sessionId: "session_123",
     charLimit: 16000,
     maxAttachmentMb: 8,
     selectiveWrite: false,
