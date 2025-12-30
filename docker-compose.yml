@@ -10,8 +10,11 @@ services:
       NODE_ENV: production
       PORT: "8081"
       TRANSPORT: "http"
-      TEAM_ID: "team_123"
-      CLICKUP_API_TOKEN: "pk_123"
+      MASTER_KEY: ${MASTER_KEY:-}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-clickup_mcp}
+      # Legacy/Optional config if not using DB
+      TEAM_ID: ${TEAM_ID:-}
+      CLICKUP_API_TOKEN: ${CLICKUP_API_TOKEN:-}
       CHAR_LIMIT: "16000"
       MAX_ATTACHMENT_MB: "8"
       WRITE_MODE: "write"
@@ -19,4 +22,19 @@ services:
       WRITE_ALLOWED_LISTS: ""
     ports:
       - "8081:8081"
+    depends_on:
+      - db
     restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-clickup_mcp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
