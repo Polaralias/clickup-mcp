@@ -10,6 +10,7 @@ import { SessionCache } from "../application/services/SessionCache.js"
 import { sessionManager } from "./api/router.js"
 import { PostgresSessionCache } from "../infrastructure/services/PostgresSessionCache.js"
 import { CacheRepository } from "../infrastructure/repositories/CacheRepository.js"
+import { resolveTeamIdFromApiKey } from "./teamResolution.js"
 
 type Session = {
   server: McpServer
@@ -135,6 +136,10 @@ export function registerHttpTransport(
       return undefined
     }
     try {
+      if (!config.teamId && config.apiKey) {
+        config.teamId = await resolveTeamIdFromApiKey(config.apiKey)
+      }
+
       return createSession(config, credential)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Error initializing server"

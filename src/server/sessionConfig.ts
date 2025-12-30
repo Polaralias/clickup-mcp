@@ -175,7 +175,7 @@ export const sessionConfigJsonSchema = {
       default: []
     }
   },
-  required: ["teamId", "apiKey", "readOnly", "selectiveWrite"],
+  required: ["apiKey", "readOnly", "selectiveWrite"],
   additionalProperties: false,
   exampleConfig: {
     teamId: "team_123",
@@ -221,7 +221,6 @@ export function parseSessionConfig(q: Record<string, unknown>): { config?: Sessi
   const apiKey = lastString(apiKeyRaw)
 
   const missing: string[] = []
-  if (!teamId) missing.push("teamId")
   if (!apiKey) missing.push("apiKey")
 
   if (missing.length) {
@@ -249,8 +248,8 @@ export function parseSessionConfig(q: Record<string, unknown>): { config?: Sessi
   const writeLists = parseIdList(writeListsRaw)
 
   const config: SessionConfigInput = {
-    teamId: teamId!,
     apiKey: apiKey!,
+    ...(teamId ? { teamId } : {}),
     ...(charLimit !== undefined && !Number.isNaN(charLimit) ? { charLimit } : {}),
     ...(maxAttachmentMb !== undefined && !Number.isNaN(maxAttachmentMb) ? { maxAttachmentMb } : {}),
     ...(readOnly !== undefined ? { readOnly } : {}),

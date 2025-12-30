@@ -82,7 +82,6 @@ async function handleSave(event) {
     btn.innerText = 'Saving...';
 
     const name = document.getElementById('conn-name').value || 'ClickUp Connection';
-    const teamId = document.getElementById('conn-teamId').value;
     const apiKey = document.getElementById('conn-apiKey').value;
     const readOnly = document.getElementById('conn-readOnly').checked;
     const selectiveWrite = document.getElementById('conn-selectiveWrite').checked;
@@ -90,7 +89,6 @@ async function handleSave(event) {
     const writeLists = document.getElementById('conn-writeLists').value;
 
     const config = {
-        teamId,
         apiKey,
         readOnly,
         selectiveWrite,
