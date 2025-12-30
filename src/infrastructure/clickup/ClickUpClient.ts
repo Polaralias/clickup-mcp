@@ -665,6 +665,11 @@ export class ClickUpClient {
     return matchers.some((value) => normaliseId(value) === teamId)
   }
 
+  async getTeams() {
+    const response = await this.request("team")
+    return this.extractTeams(response)
+  }
+
   resolveMembers(teamId: string) {
     return this.request(`team/${teamId}/member`)
   }

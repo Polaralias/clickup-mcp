@@ -7,6 +7,7 @@ import { PasswordService } from "../../application/security/PasswordService.js"
 import { ConnectionManager } from "../../application/services/ConnectionManager.js"
 import { SessionManager } from "../../application/services/SessionManager.js"
 import { AuthService } from "../../application/services/AuthService.js"
+import { resolveTeamIdFromApiKey } from "../teamResolution.js"
 
 const router = Router()
 router.use(json())
@@ -56,10 +57,20 @@ router.get("/connections", ensureServices, async (req, res) => {
 router.post("/connections", ensureServices, async (req, res) => {
   try {
     const input = req.body
-    if (!input.name || !input.config || !input.config.apiKey || !input.config.teamId) {
+    if (!input.name || !input.config || !input.config.apiKey) {
       res.status(400).json({ error: "Missing required fields" })
       return
     }
+
+    if (!input.config.teamId) {
+      try {
+        input.config.teamId = await resolveTeamIdFromApiKey(input.config.apiKey)
+      } catch (error) {
+        res.status(400).json({ error: "Failed to resolve team ID: " + (error instanceof Error ? error.message : String(error)) })
+        return
+      }
+    }
+
     const connection = await connectionManager.create(input)
     res.status(201).json({ ...connection, encryptedSecrets: undefined })
   } catch (err) {

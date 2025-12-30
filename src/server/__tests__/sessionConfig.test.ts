@@ -69,17 +69,15 @@ describe("extractSessionConfig", () => {
     expect(config?.teamId).toBe("team_3")
   })
 
-  it("returns HTTP 400 with plain error when teamId is missing", async () => {
+  it("returns config without teamId when teamId is missing", async () => {
     const req = createMockRequest({ apiKey: "pk_123" })
     const res = createMockResponse()
 
     const config = await extractSessionConfig(req, res)
 
-    expect(config).toBeUndefined()
-    expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Invalid configuration: missing teamId"
-    })
+    expect(config).toBeDefined()
+    expect(config?.apiKey).toBe("pk_123")
+    expect(config?.teamId).toBeUndefined()
   })
 
   it("returns HTTP 400 when apiKey is missing", async () => {
@@ -237,8 +235,8 @@ describe("sessionConfigJsonSchema", () => {
     expect(sessionConfigJsonSchema.$id).toBe("https://clickup-mcp-server/.well-known/mcp-config")
   })
 
-  it("requires teamId, apiKey and write access fields", () => {
-    expect(sessionConfigJsonSchema.required).toEqual(["teamId", "apiKey", "readOnly", "selectiveWrite"])
+  it("requires apiKey and write access fields", () => {
+    expect(sessionConfigJsonSchema.required).toEqual(["apiKey", "readOnly", "selectiveWrite"])
   })
 
   it("includes exampleConfig", () => {
