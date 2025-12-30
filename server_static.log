@@ -1,0 +1,2 @@
+127.0.0.1 - - [30/Dec/2025 09:44:14] "GET /?redirect_uri=http://app.com/callback&state=xyz123 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Dec/2025 09:44:14] "GET /app.js HTTP/1.1" 200 -

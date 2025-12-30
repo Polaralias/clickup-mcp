@@ -10,11 +10,12 @@ const state = urlParams.get('state');
 document.addEventListener('DOMContentLoaded', () => {
     if (redirectUri) {
         // OAuth Mode
-        showCreate();
-        document.getElementById('view-dashboard').classList.add('hidden');
-        document.getElementById('cancel-btn').classList.add('hidden'); // Cannot cancel in OAuth flow
         document.getElementById('save-btn').innerText = 'Authorize & Connect';
-        // Auto-fill form if needed or show empty
+        loadConnections();
+
+        // Update header
+        const header = document.querySelector('h1');
+        if (header) header.innerText = 'Select Connection to Authorize';
     } else {
         // Dashboard Mode
         loadConnections();
@@ -28,7 +29,6 @@ function showCreate() {
 }
 
 function hideCreate() {
-    if (redirectUri) return; // Cannot cancel in OAuth mode
     document.getElementById('view-create').classList.add('hidden');
     document.getElementById('view-dashboard').classList.remove('hidden');
     document.getElementById('config-form').reset();
@@ -56,6 +56,7 @@ async function loadConnections() {
             return;
         }
 
+        const isOAuth = !!redirectUri;
         container.innerHTML = data.map(conn => `
             <div class="bg-white border rounded p-4 flex justify-between items-center hover:bg-gray-50 transition">
                 <div>
@@ -63,8 +64,12 @@ async function loadConnections() {
                     <p class="text-xs text-gray-500">ID: ${conn.id}</p>
                 </div>
                 <div class="space-x-2">
-                    <button onclick="viewConnection('${conn.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Manage</button>
-                    <button onclick="deleteConnection('${conn.id}')" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                    ${isOAuth ?
+                        `<button onclick="selectConnection('${conn.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium">Select</button>` :
+                        ''
+                    }
+                    <button onclick="viewConnection('${conn.id}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium">${isOAuth ? 'Details' : 'Manage'}</button>
+                    ${!isOAuth ? `<button onclick="deleteConnection('${conn.id}')" class="text-red-500 hover:text-red-700 text-sm">Delete</button>` : ''}
                 </div>
             </div>
         `).join('');
@@ -235,6 +240,41 @@ async function revokeSession(sessionId) {
     if (!confirm('Revoke this session? Client will lose access immediately.')) return;
     await fetch(`${API_BASE}/sessions/${sessionId}/revoke`, { method: 'POST' });
     loadSessions();
+}
+
+async function selectConnection(id) {
+    await authorizeAndRedirect(id);
+}
+
+async function authorizeAndRedirect(connectionId) {
+    const btn = document.querySelector(`button[onclick="selectConnection('${connectionId}')"]`);
+    if (btn) {
+        btn.innerText = 'Authorizing...';
+        btn.disabled = true;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/auth/code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ connectionId, redirectUri })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const code = data.code;
+        const url = new URL(redirectUri);
+        url.searchParams.set('code', code);
+        if (state) url.searchParams.set('state', state);
+
+        window.location.href = url.toString();
+    } catch (e) {
+        alert(e.message);
+        if (btn) {
+            btn.innerText = 'Select';
+            btn.disabled = false;
+        }
+    }
 }
 
 function copyToken() {
