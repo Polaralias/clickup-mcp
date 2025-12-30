@@ -16,6 +16,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   revoked BOOLEAN DEFAULT FALSE
 );
 
+CREATE TABLE IF NOT EXISTS auth_codes (
+  code TEXT PRIMARY KEY,
+  connection_id UUID REFERENCES connections(id) ON DELETE CASCADE,
+  expires_at TIMESTAMP NOT NULL,
+  redirect_uri TEXT
+);
+
 CREATE TABLE IF NOT EXISTS cache (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL,

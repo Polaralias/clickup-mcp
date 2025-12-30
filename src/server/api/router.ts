@@ -1,16 +1,19 @@
 import { Router, json } from "express"
 import { ConnectionRepository } from "../../infrastructure/repositories/ConnectionRepository.js"
 import { SessionRepository } from "../../infrastructure/repositories/SessionRepository.js"
+import { AuthCodeRepository } from "../../infrastructure/repositories/AuthCodeRepository.js"
 import { EncryptionService } from "../../application/security/EncryptionService.js"
 import { PasswordService } from "../../application/security/PasswordService.js"
 import { ConnectionManager } from "../../application/services/ConnectionManager.js"
 import { SessionManager } from "../../application/services/SessionManager.js"
+import { AuthService } from "../../application/services/AuthService.js"
 
 const router = Router()
 router.use(json())
 
 let connectionManager: ConnectionManager
 let sessionManager: SessionManager
+let authService: AuthService
 
 try {
   if (process.env.MASTER_KEY) {
@@ -18,8 +21,10 @@ try {
       const passwordService = new PasswordService()
       const connectionRepository = new ConnectionRepository()
       const sessionRepository = new SessionRepository()
+      const authCodeRepository = new AuthCodeRepository()
       connectionManager = new ConnectionManager(connectionRepository, encryptionService)
       sessionManager = new SessionManager(sessionRepository, connectionManager, passwordService)
+      authService = new AuthService(authCodeRepository, sessionManager)
   } else {
     console.warn("MASTER_KEY not set. API endpoints will return 500.")
   }
@@ -31,7 +36,7 @@ export { sessionManager }
 
 // Middleware to ensure services are ready
 const ensureServices = (req: any, res: any, next: any) => {
-  if (!connectionManager || !sessionManager) {
+  if (!connectionManager || !sessionManager || !authService) {
     return res.status(500).json({ error: "Server not configured (Missing MASTER_KEY?)" })
   }
   next()
@@ -121,6 +126,35 @@ router.post("/sessions/:id/revoke", ensureServices, async (req, res) => {
     res.status(204).end()
   } catch (err) {
     res.status(500).json({ error: (err as Error).message })
+  }
+})
+
+// Auth
+router.post("/auth/code", ensureServices, async (req, res) => {
+  try {
+    const { connectionId, redirectUri } = req.body
+    if (!connectionId) {
+      res.status(400).json({ error: "connectionId is required" })
+      return
+    }
+    const code = await authService.generateCode(connectionId, redirectUri)
+    res.json({ code })
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message })
+  }
+})
+
+router.post("/auth/token", ensureServices, async (req, res) => {
+  try {
+    const { code } = req.body
+    if (!code) {
+      res.status(400).json({ error: "code is required" })
+      return
+    }
+    const accessToken = await authService.exchangeCode(code)
+    res.json({ accessToken })
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message })
   }
 })
 

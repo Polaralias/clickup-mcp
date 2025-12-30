@@ -110,19 +110,19 @@ async function handleSave(event) {
         if (connData.error) throw new Error(connData.error);
 
         if (redirectUri) {
-            // OAuth Mode: Create Session and Redirect
-            const sessRes = await fetch(`${API_BASE}/sessions`, {
+            // OAuth Mode: Request Auth Code and Redirect
+            const authRes = await fetch(`${API_BASE}/auth/code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ connectionId: connData.id })
+                body: JSON.stringify({ connectionId: connData.id, redirectUri })
             });
-            const sessData = await sessRes.json();
-            if (sessData.error) throw new Error(sessData.error);
+            const authData = await authRes.json();
+            if (authData.error) throw new Error(authData.error);
 
-            const token = sessData.accessToken;
+            const code = authData.code;
             // Construct redirect URL
             const url = new URL(redirectUri);
-            url.searchParams.set('token', token); // Using query param as requested "session data" usually implies compatibility
+            url.searchParams.set('code', code);
             if (state) url.searchParams.set('state', state);
 
             window.location.href = url.toString();
