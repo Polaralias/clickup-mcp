@@ -114,7 +114,15 @@ async function handleSave(event) {
             const authRes = await fetch(`${API_BASE}/auth/code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ connectionId: connData.id, redirectUri })
+                body: JSON.stringify({
+                    connectionId: connData.id,
+                    redirectUri,
+                    // Send strictly as redirect_uri as well for robustness if needed,
+                    // but backend expects 'redirectUri' or 'redirect_uri'.
+                    // Let's stick to what was working and verify in router.ts it handles it.
+                    // router.ts: const { connectionId, redirectUri } = req.body
+                    // It seems router.ts expects redirectUri.
+                })
             });
             const authData = await authRes.json();
             if (authData.error) throw new Error(authData.error);
