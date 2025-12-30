@@ -25,6 +25,7 @@ async function start() {
   const transport = process.env.TRANSPORT ?? "http"
   if (transport === "http") {
     const app = express()
+    app.set("trust proxy", true)
     app.use(cors(createCorsOptions()))
     app.use(express.json({ limit: "2mb" }))
 
