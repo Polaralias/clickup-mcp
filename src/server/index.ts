@@ -31,6 +31,7 @@ async function start() {
     app.use("/api", apiRouter)
 
     const __dirname = dirname(fileURLToPath(import.meta.url))
+    // Serve static UI files from public directory
     app.use(express.static(join(__dirname, "../public")))
 
     registerHealthEndpoint(app)

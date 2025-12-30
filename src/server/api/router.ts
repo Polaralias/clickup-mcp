@@ -151,7 +151,11 @@ router.post("/auth/token", ensureServices, async (req, res) => {
       res.status(400).json({ error: "code is required" })
       return
     }
-    const accessToken = await authService.exchangeCode(code)
+
+    // Support both snake_case (OAuth std) and camelCase
+    const redirectUri = req.body.redirect_uri || req.body.redirectUri
+
+    const accessToken = await authService.exchangeCode(code, redirectUri)
     res.json({ accessToken })
   } catch (err) {
     res.status(400).json({ error: (err as Error).message })

@@ -22,7 +22,7 @@ export class AuthService {
     return code
   }
 
-  async exchangeCode(code: string): Promise<string> {
+  async exchangeCode(code: string, redirectUri?: string): Promise<string> {
     const authCode = await this.authCodeRepo.get(code)
 
     if (!authCode) {
@@ -32,6 +32,16 @@ export class AuthService {
     if (authCode.expiresAt < new Date()) {
       await this.authCodeRepo.delete(code)
       throw new Error("Authorization code expired")
+    }
+
+    // Verify redirectUri if one was associated with the code
+    if (authCode.redirectUri) {
+        if (!redirectUri) {
+            throw new Error("Missing redirect_uri")
+        }
+        if (authCode.redirectUri !== redirectUri) {
+            throw new Error("Invalid redirect_uri")
+        }
     }
 
     // One-time use: delete immediately
