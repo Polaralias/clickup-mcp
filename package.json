@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "TRANSPORT=http tsx src/server/index.ts",
-    "build": "tsc && cp -r src/public dist/ && cp src/infrastructure/db/schema.sql dist/infrastructure/db/",
+    "build": "tsc -p tsconfig.build.json && cp -r src/public dist/ && cp src/infrastructure/db/schema.sql dist/infrastructure/db/",
     "start": "node dist/server/index.js",
     "start:http": "TRANSPORT=http node dist/server/index.js",
     "start:stdio": "node dist/server/index.js",
