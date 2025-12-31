@@ -1,0 +1,9 @@
+{
+  "domain": "clickup_mcp",
+  "name": "ClickUp MCP Server",
+  "documentation": "https://github.com/example/clickup-mcp-server",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": [],
+  "version": "1.0.0"
+}
