@@ -40,6 +40,35 @@ async function start() {
     app.use(express.static(join(__dirname, "../public")))
 
     registerHealthEndpoint(app)
+
+    // Helper to get base URL
+    const getBaseUrl = (req: express.Request) => {
+      if (process.env.BASE_URL) return process.env.BASE_URL.replace(/\/$/, "")
+      const protocol = req.protocol
+      const host = req.get("host")
+      return `${protocol}://${host}`
+    }
+
+    app.get("/.well-known/oauth-protected-resource", (req, res) => {
+      const baseUrl = getBaseUrl(req)
+      res.json({
+        resource: baseUrl,
+        authorization_servers: [baseUrl]
+      })
+    })
+
+    app.get("/.well-known/oauth-authorization-server", (req, res) => {
+      const baseUrl = getBaseUrl(req)
+      res.json({
+        issuer: baseUrl,
+        authorization_endpoint: `${baseUrl}/connect`,
+        token_endpoint: `${baseUrl}/token`,
+        response_types_supported: ["code"],
+        grant_types_supported: ["authorization_code"],
+        code_challenge_methods_supported: ["S256"]
+      })
+    })
+
     app.get("/.well-known/mcp-config", (_req, res) => {
       res.json(sessionConfigJsonSchema)
     })

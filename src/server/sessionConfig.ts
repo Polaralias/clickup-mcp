@@ -123,71 +123,84 @@ function extractArrayValues(q: Record<string, unknown>, targetKeys: string[]): u
 }
 
 export const sessionConfigJsonSchema = {
-  $schema: "https://json-schema.org/draft-07/schema",
-  $id: "https://clickup-mcp-server/.well-known/mcp-config",
-  title: "MCP Session Configuration",
-  description: "Schema for the /mcp endpoint configuration",
-  type: "object",
-  "x-query-style": "dot+bracket",
-  properties: {
-    teamId: {
+  id: "clickup",
+  name: "ClickUp MCP Server",
+  description: "MCP server for ClickUp integration",
+  version: "1.0.0",
+  fields: [
+    {
+      key: "apiKey",
+      label: "API key",
       type: "string",
-      description: "ClickUp workspace ID applied when tool inputs omit one"
+      required: true,
+      secret: true,
+      default: "",
+      help: "ClickUp personal API token used for all API requests"
     },
-    apiKey: {
+    {
+      key: "teamId",
+      label: "Team ID",
       type: "string",
-      description: "ClickUp personal API token used for all API requests"
+      required: false,
+      secret: false,
+      default: "",
+      help: "ClickUp workspace ID applied when tool inputs omit one"
     },
-    sessionId: {
-      type: "string",
-      description: "Optional session identifier. Provide via mcp-session-id header or sessionId query param; if omitted on initialize, the server will generate one."
-    },
-    charLimit: {
-      type: "number",
-      description: "Maximum characters returned before responses are truncated",
-      default: 16000
-    },
-    maxAttachmentMb: {
-      type: "number",
-      description: "Largest file attachment (MB) allowed for uploads",
-      default: 8
-    },
-    readOnly: {
+    {
+      key: "readOnly",
+      label: "Read only",
       type: "boolean",
-      description: "When true, all write operations are disabled. Takes precedence over other write settings.",
-      default: false
+      required: true,
+      secret: false,
+      default: false,
+      help: "When true, all write operations are disabled. Takes precedence over other write settings."
     },
-    selectiveWrite: {
+    {
+      key: "selectiveWrite",
+      label: "Selective write",
       type: "boolean",
-      description: "When true, write access is restricted to specific lists or spaces defined in writeLists and writeSpaces. If false (and not readOnly), full write access is granted.",
-      default: false
+      required: true,
+      secret: false,
+      default: false,
+      help: "When true, write access is restricted to specific lists or spaces defined in writeLists and writeSpaces. If false (and not readOnly), full write access is granted."
     },
-    writeSpaces: {
-      type: "array",
-      items: { type: "string" },
-      description: "Space IDs where write operations are permitted; writes elsewhere are blocked",
-      default: []
+    {
+      key: "writeSpaces",
+      label: "Write allowed spaces",
+      type: "string",
+      required: false,
+      secret: false,
+      default: "",
+      help: "Space IDs where write operations are permitted; writes elsewhere are blocked (comma-separated)"
     },
-    writeLists: {
-      type: "array",
-      items: { type: "string" },
-      description: "List IDs where write operations are permitted; writes elsewhere are blocked",
-      default: []
+    {
+      key: "writeLists",
+      label: "Write allowed lists",
+      type: "string",
+      required: false,
+      secret: false,
+      default: "",
+      help: "List IDs where write operations are permitted; writes elsewhere are blocked (comma-separated)"
+    },
+    {
+      key: "charLimit",
+      label: "Character limit",
+      type: "number",
+      required: false,
+      secret: false,
+      default: 16000,
+      help: "Maximum characters returned before responses are truncated"
+    },
+    {
+      key: "maxAttachmentMb",
+      label: "Max attachment size (MB)",
+      type: "number",
+      required: false,
+      secret: false,
+      default: 8,
+      help: "Largest file attachment (MB) allowed for uploads"
     }
-  },
-  required: ["apiKey", "readOnly", "selectiveWrite"],
-  additionalProperties: false,
-  exampleConfig: {
-    teamId: "team_123",
-    apiKey: "pk_123",
-    sessionId: "session_123",
-    charLimit: 16000,
-    maxAttachmentMb: 8,
-    selectiveWrite: false,
-    readOnly: false,
-    writeSpaces: [],
-    writeLists: []
-  }
+  ]
 }
 
 export function parseSessionConfig(q: Record<string, unknown>): { config?: SessionConfigInput; error?: string; statusCode?: number } {
