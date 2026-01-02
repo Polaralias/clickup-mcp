@@ -10,7 +10,10 @@ services:
       NODE_ENV: production
       PORT: "8081"
       TRANSPORT: "http"
-      MASTER_KEY: ${MASTER_KEY:-}
+      MASTER_KEY: ${MASTER_KEY:-change_me_to_a_32_byte_hex_string_usually_64_chars_long}
+      REDIRECT_URI_ALLOWLIST: ${REDIRECT_URI_ALLOWLIST:-http://localhost:3000/callback}
+      CODE_TTL_SECONDS: ${CODE_TTL_SECONDS:-90}
+      TOKEN_TTL_SECONDS: ${TOKEN_TTL_SECONDS:-3600}
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-clickup_mcp}
       # Legacy/Optional config if not using DB
       TEAM_ID: ${TEAM_ID:-}

@@ -5,13 +5,22 @@ export interface AuthCode {
   connectionId: string
   expiresAt: Date
   redirectUri?: string
+  codeChallenge?: string
+  codeChallengeMethod?: string
 }
 
 export class AuthCodeRepository {
   async create(authCode: AuthCode): Promise<void> {
     await pool.query(
-      "INSERT INTO auth_codes (code, connection_id, expires_at, redirect_uri) VALUES ($1, $2, $3, $4)",
-      [authCode.code, authCode.connectionId, authCode.expiresAt, authCode.redirectUri]
+      "INSERT INTO auth_codes (code, connection_id, expires_at, redirect_uri, code_challenge, code_challenge_method) VALUES ($1, $2, $3, $4, $5, $6)",
+      [
+        authCode.code,
+        authCode.connectionId,
+        authCode.expiresAt,
+        authCode.redirectUri,
+        authCode.codeChallenge,
+        authCode.codeChallengeMethod
+      ]
     )
   }
 
@@ -23,7 +32,9 @@ export class AuthCodeRepository {
       code: row.code,
       connectionId: row.connection_id,
       expiresAt: row.expires_at,
-      redirectUri: row.redirect_uri
+      redirectUri: row.redirect_uri,
+      codeChallenge: row.code_challenge,
+      codeChallengeMethod: row.code_challenge_method
     }
   }
 

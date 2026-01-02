@@ -10,13 +10,16 @@ import { startStdioTransport } from "./stdioTransport.js"
 import { sessionConfigJsonSchema } from "./sessionConfig.js"
 import { SessionCache } from "../application/services/SessionCache.js"
 import apiRouter from "./api/router.js"
+import authRouter from "./authRouter.js"
 import { runMigrations } from "../infrastructure/db/migrator.js"
 import { createServer } from "./factory.js"
+import { initializeServices } from "./services.js"
 
 async function start() {
   if (process.env.MASTER_KEY) {
       try {
           await runMigrations()
+          initializeServices()
       } catch (e) {
           console.error("Migration failed, but continuing:", e)
       }
@@ -30,6 +33,7 @@ async function start() {
     app.use(express.json({ limit: "2mb" }))
 
     app.use("/api", apiRouter)
+    app.use("/", authRouter)
 
     const __dirname = dirname(fileURLToPath(import.meta.url))
     // Serve static UI files from public directory

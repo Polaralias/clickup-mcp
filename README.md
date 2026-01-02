@@ -132,6 +132,15 @@ To run the ClickUp MCP server using [Smithery](https://smithery.ai):
 npx -y @smithery/cli run clickup-mcp-server --config "{\"teamId\":\"123456\",\"apiKey\":\"pk_...\"}"
 ```
 
+## Default docker-compose values
+
+The `docker-compose.yml` file contains example values for several environment variables. You **must** change these for any real deployment.
+
+*   `MASTER_KEY`: Set to `change_me_to_a_32_byte_hex_string_usually_64_chars_long`. You should generate a random 32-byte hex string (64 characters).
+*   `REDIRECT_URI_ALLOWLIST`: Set to `http://localhost:3000/callback`. Update this to match your actual client redirect URIs.
+*   `CODE_TTL_SECONDS`: Set to `90`.
+*   `TOKEN_TTL_SECONDS`: Set to `3600`.
+
 ## License
 
 MIT

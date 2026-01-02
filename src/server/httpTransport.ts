@@ -125,6 +125,9 @@ export function registerHttpTransport(
             existing = createSession(configInput, credential, sessionId)
           }
           return existing
+        } else if (credential.source === "bearer") {
+          res.status(401).json({ error: "Invalid session token" })
+          return undefined
         }
       } catch (error) {
         console.error("Error validating session:", error)

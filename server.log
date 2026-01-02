@@ -1,12 +1,12 @@
 
-> clickup-mcp-server@1.0.0 start
-> node dist/server/index.js
+> clickup-mcp-server@1.0.0 start:http
+> TRANSPORT=http node dist/server/index.js
 
 Migration failed, but continuing: AggregateError [ECONNREFUSED]:
     at /app/node_modules/pg-pool/index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
     at async runMigrations (file:///app/dist/infrastructure/db/migrator.js:9:20)
-    at async start (file:///app/dist/server/index.js:17:13) {
+    at async start (file:///app/dist/server/index.js:19:13) {
   code: 'ECONNREFUSED',
   [errors]: [
     Error: connect ECONNREFUSED ::1:5432
@@ -29,3 +29,4 @@ Migration failed, but continuing: AggregateError [ECONNREFUSED]:
     }
   ]
 }
+Terminated
