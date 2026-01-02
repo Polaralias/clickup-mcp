@@ -24,12 +24,13 @@ export class SessionManager {
     // Hash the secret
     const tokenHash = await this.passwordService.hash(secret)
 
+    const ttlSeconds = parseInt(process.env.TOKEN_TTL_SECONDS || "3600", 10)
     const session: Session = {
       id: sessionId,
       connectionId,
       tokenHash,
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
       revoked: false
     }
 

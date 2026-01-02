@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express"
 
 export type SessionCredential = {
   token: string
+  source: 'bearer' | 'apikey'
 }
 
 declare module "express-serve-static-core" {
@@ -48,13 +49,13 @@ export function authenticationMiddleware(req: Request, res: Response, next: Next
     const apiKey = lastQueryString((req.query as Record<string, unknown> | undefined)?.apiKey)
     const trimmedApiKey = apiKey?.trim()
     if (trimmedApiKey) {
-      req.sessionCredential = { token: trimmedApiKey }
+      req.sessionCredential = { token: trimmedApiKey, source: 'apikey' }
       next()
       return
     }
     res.status(401).json({ error: "Missing or invalid Authorization header" })
     return
   }
-  req.sessionCredential = { token }
+  req.sessionCredential = { token, source: 'bearer' }
   next()
 }

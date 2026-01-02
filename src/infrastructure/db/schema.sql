@@ -31,3 +31,7 @@ CREATE TABLE IF NOT EXISTS cache (
 
 CREATE INDEX IF NOT EXISTS idx_cache_expires_at ON cache(expires_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions(token_hash);
+
+-- Migrations for PKCE
+ALTER TABLE auth_codes ADD COLUMN IF NOT EXISTS code_challenge TEXT;
+ALTER TABLE auth_codes ADD COLUMN IF NOT EXISTS code_challenge_method TEXT;

@@ -1,47 +1,11 @@
 import { Router, json } from "express"
-import { ConnectionRepository } from "../../infrastructure/repositories/ConnectionRepository.js"
-import { SessionRepository } from "../../infrastructure/repositories/SessionRepository.js"
-import { AuthCodeRepository } from "../../infrastructure/repositories/AuthCodeRepository.js"
-import { EncryptionService } from "../../application/security/EncryptionService.js"
-import { PasswordService } from "../../application/security/PasswordService.js"
-import { ConnectionManager } from "../../application/services/ConnectionManager.js"
-import { SessionManager } from "../../application/services/SessionManager.js"
-import { AuthService } from "../../application/services/AuthService.js"
 import { resolveTeamIdFromApiKey } from "../teamResolution.js"
+import { connectionManager, sessionManager, authService, ensureServices } from "../services.js"
 
 const router = Router()
 router.use(json())
 
-let connectionManager: ConnectionManager
-let sessionManager: SessionManager
-let authService: AuthService
-
-try {
-  if (process.env.MASTER_KEY) {
-      const encryptionService = new EncryptionService()
-      const passwordService = new PasswordService()
-      const connectionRepository = new ConnectionRepository()
-      const sessionRepository = new SessionRepository()
-      const authCodeRepository = new AuthCodeRepository()
-      connectionManager = new ConnectionManager(connectionRepository, encryptionService)
-      sessionManager = new SessionManager(sessionRepository, connectionManager, passwordService)
-      authService = new AuthService(authCodeRepository, sessionManager)
-  } else {
-    console.warn("MASTER_KEY not set. API endpoints will return 500.")
-  }
-} catch (err) {
-  console.error("Service initialization failed:", err)
-}
-
 export { sessionManager }
-
-// Middleware to ensure services are ready
-const ensureServices = (req: any, res: any, next: any) => {
-  if (!connectionManager || !sessionManager || !authService) {
-    return res.status(500).json({ error: "Server not configured (Missing MASTER_KEY?)" })
-  }
-  next()
-}
 
 // Connections
 router.get("/connections", ensureServices, async (req, res) => {
@@ -165,8 +129,10 @@ router.post("/auth/token", ensureServices, async (req, res) => {
 
     // Support both snake_case (OAuth std) and camelCase
     const redirectUri = req.body.redirect_uri || req.body.redirectUri
+    // Also support code_verifier
+    const codeVerifier = req.body.code_verifier || req.body.codeVerifier
 
-    const accessToken = await authService.exchangeCode(code, redirectUri)
+    const accessToken = await authService.exchangeCode(code, redirectUri, codeVerifier)
     res.json({ accessToken })
   } catch (err) {
     res.status(400).json({ error: (err as Error).message })

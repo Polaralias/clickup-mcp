@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto"
+import { randomBytes, createHash } from "node:crypto"
 import { AuthCodeRepository } from "../../infrastructure/repositories/AuthCodeRepository.js"
 import { SessionManager } from "./SessionManager.js"
 
@@ -8,29 +8,34 @@ export class AuthService {
     private sessionManager: SessionManager
   ) {}
 
-  async generateCode(connectionId: string, redirectUri?: string): Promise<string> {
+  async generateCode(connectionId: string, redirectUri?: string, codeChallenge?: string, codeChallengeMethod?: string): Promise<string> {
     const code = randomBytes(16).toString("hex") // 32 chars
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+    const codeHash = createHash("sha256").update(code).digest("hex")
+    const ttl = parseInt(process.env.CODE_TTL_SECONDS || "90", 10)
+    const expiresAt = new Date(Date.now() + ttl * 1000)
 
     await this.authCodeRepo.create({
-      code,
+      code: codeHash,
       connectionId,
       expiresAt,
-      redirectUri
+      redirectUri,
+      codeChallenge,
+      codeChallengeMethod
     })
 
     return code
   }
 
-  async exchangeCode(code: string, redirectUri?: string): Promise<string> {
-    const authCode = await this.authCodeRepo.get(code)
+  async exchangeCode(code: string, redirectUri?: string, codeVerifier?: string): Promise<string> {
+    const codeHash = createHash("sha256").update(code).digest("hex")
+    const authCode = await this.authCodeRepo.get(codeHash)
 
     if (!authCode) {
       throw new Error("Invalid authorization code")
     }
 
     if (authCode.expiresAt < new Date()) {
-      await this.authCodeRepo.delete(code)
+      await this.authCodeRepo.delete(codeHash)
       throw new Error("Authorization code expired")
     }
 
@@ -44,8 +49,30 @@ export class AuthService {
         }
     }
 
+    // PKCE Verification
+    if (authCode.codeChallenge) {
+      if (!codeVerifier) {
+        throw new Error("Missing code_verifier")
+      }
+
+      if (authCode.codeChallengeMethod === "S256") {
+        const hash = createHash("sha256")
+          .update(codeVerifier)
+          .digest("base64url")
+
+        if (hash !== authCode.codeChallenge) {
+           throw new Error("Invalid code_verifier")
+        }
+      } else {
+        // Fallback for 'plain'
+        if (codeVerifier !== authCode.codeChallenge) {
+           throw new Error("Invalid code_verifier")
+        }
+      }
+    }
+
     // One-time use: delete immediately
-    await this.authCodeRepo.delete(code)
+    await this.authCodeRepo.delete(codeHash)
 
     // Create session
     const { accessToken } = await this.sessionManager.createSession(authCode.connectionId)
