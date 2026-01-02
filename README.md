@@ -91,7 +91,7 @@ This server supports a standard OAuth 2.0-style flow for creating secure session
 
 1.  **Initiation**:
     The client (e.g., an AI agent or a web dashboard) directs the user to the Configuration UI with a `redirect_uri` parameter:
-    `https://your-server.com/?redirect_uri=https://client-app.com/callback`
+    `https://your-server.com/connect?redirect_uri=https://client-app.com/callback`
 
 2.  **Configuration**:
     The user enters their ClickUp API Key and configures permissions (Read Only, Selective Write) in the UI.
@@ -105,9 +105,9 @@ This server supports a standard OAuth 2.0-style flow for creating secure session
 
 4.  **Token Exchange**:
     The client application blindly exchanges this code for a long-lived **Session Token**:
-    - **POST** `/api/auth/token`
+    - **POST** `/token`
     - **Body**: `{ "code": "generated_auth_code", "redirect_uri": "https://client-app.com/callback" }`
-    - **Response**: `{ "accessToken": "session_id:session_secret" }`
+    - **Response**: `{ "access_token": "session_id:session_secret" }`
 
 5.  **API Usage**:
     The client uses this token to make authenticated requests:
@@ -136,10 +136,23 @@ npx -y @smithery/cli run clickup-mcp-server --config "{\"teamId\":\"123456\",\"a
 
 The `docker-compose.yml` file contains example values for several environment variables. You **must** change these for any real deployment.
 
-*   `MASTER_KEY`: Set to `change_me_to_a_32_byte_hex_string_usually_64_chars_long`. You should generate a random 32-byte hex string (64 characters).
+*   `MASTER_KEY`: Set to `0000000000000000000000000000000000000000000000000000000000000000`. You should generate a random 32-byte hex string (64 characters).
 *   `REDIRECT_URI_ALLOWLIST`: Set to `http://localhost:3000/callback`. Update this to match your actual client redirect URIs.
+*   `REDIRECT_URI_ALLOWLIST_MODE`: Set to `exact` (default) or `prefix` for less strict matching.
 *   `CODE_TTL_SECONDS`: Set to `90`.
 *   `TOKEN_TTL_SECONDS`: Set to `3600`.
+
+## Smoke Test
+
+You can verify the authentication flow and MCP functionality using the provided PowerShell script.
+
+1.  **Start the connection**: Open your browser and navigate to `/connect` (e.g., `http://localhost:8081/connect`). Fill in the details and use a dummy redirect URI if testing manually (e.g., `http://localhost:3000/callback`).
+2.  **Get the code**: After clicking Connect, you will be redirected. Copy the `code` parameter from the URL.
+3.  **Run the script**:
+    ```powershell
+    ./scripts/smoke-test.ps1
+    ```
+4.  **Follow prompts**: Enter the Base URL, the Code you copied, and the Code Verifier (if you have it from your PKCE generation, otherwise this step requires a valid verifier to succeed).
 
 ## License
 

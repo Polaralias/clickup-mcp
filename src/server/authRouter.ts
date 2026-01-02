@@ -3,11 +3,29 @@ import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 import { readFileSync } from "fs"
 import { randomBytes } from "node:crypto"
+import rateLimit from "express-rate-limit"
 import { connectionManager, authService, ensureServices } from "./services.js"
 import { resolveTeamIdFromApiKey } from "./teamResolution.js"
 
 const router = Router()
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// Rate limiters
+const connectLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many connection requests, please try again later."
+})
+
+const tokenLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many token requests, please try again later."
+})
 
 // Middleware for parsing body
 router.use(json())
@@ -17,10 +35,34 @@ router.use(urlencoded({ extended: true }))
 router.get("/connect", (req, res) => {
     const { redirect_uri, state, code_challenge, code_challenge_method } = req.query
 
-    const allowlist = (process.env.REDIRECT_URI_ALLOWLIST || "").split(",").map(s => s.trim())
-    if (!redirect_uri || !allowlist.includes(redirect_uri as string)) {
+    if (!redirect_uri || typeof redirect_uri !== "string") {
          return res.status(400).send("Invalid or missing redirect_uri")
     }
+
+    // Validate URI format
+    try {
+        const url = new URL(redirect_uri)
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            return res.status(400).send("Redirect URI must use http or https")
+        }
+    } catch {
+        return res.status(400).send("Invalid redirect_uri format")
+    }
+
+    const allowlist = (process.env.REDIRECT_URI_ALLOWLIST || "").split(",").map(s => s.trim()).filter(s => s.length > 0)
+    const mode = process.env.REDIRECT_URI_ALLOWLIST_MODE === "prefix" ? "prefix" : "exact"
+
+    let allowed = false
+    if (mode === "exact") {
+        allowed = allowlist.includes(redirect_uri)
+    } else {
+        allowed = allowlist.some(allowedUri => redirect_uri.startsWith(allowedUri))
+    }
+
+    if (!allowed) {
+         return res.status(400).send("Redirect URI not allowed")
+    }
+
     if (!code_challenge || !code_challenge_method) {
          return res.status(400).send("Missing PKCE parameters")
     }
@@ -39,7 +81,7 @@ router.get("/connect", (req, res) => {
 })
 
 // POST /connect
-router.post("/connect", ensureServices, async (req, res) => {
+router.post("/connect", connectLimiter, ensureServices, async (req, res) => {
     try {
         const { name, config, redirect_uri, state, code_challenge, code_challenge_method, csrf_token } = req.body
 
@@ -84,7 +126,7 @@ router.post("/connect", ensureServices, async (req, res) => {
 })
 
 // POST /token
-router.post("/token", ensureServices, async (req, res) => {
+router.post("/token", tokenLimiter, ensureServices, async (req, res) => {
     try {
         const { grant_type, code, redirect_uri, code_verifier } = req.body
 

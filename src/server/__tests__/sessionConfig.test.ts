@@ -227,32 +227,25 @@ describe("extractSessionConfig", () => {
 })
 
 describe("sessionConfigJsonSchema", () => {
-  it("uses JSON Schema draft-07", () => {
-    expect(sessionConfigJsonSchema.$schema).toBe("https://json-schema.org/draft-07/schema")
+  it("matches standardised structure", () => {
+    expect(sessionConfigJsonSchema.id).toBe("clickup")
+    expect(sessionConfigJsonSchema.name).toBe("ClickUp MCP Server")
+    expect(sessionConfigJsonSchema.version).toBe("1.0.0")
+    expect(Array.isArray(sessionConfigJsonSchema.fields)).toBe(true)
   })
 
-  it("has an absolute $id", () => {
-    expect(sessionConfigJsonSchema.$id).toBe("https://clickup-mcp-server/.well-known/mcp-config")
+  it("contains required fields", () => {
+    const fields = sessionConfigJsonSchema.fields.map(f => f.key)
+    expect(fields).toContain("apiKey")
+    expect(fields).toContain("readOnly")
+    expect(fields).toContain("selectiveWrite")
   })
 
-  it("requires apiKey and write access fields", () => {
-    expect(sessionConfigJsonSchema.required).toEqual(["apiKey", "readOnly", "selectiveWrite"])
-  })
-
-  it("includes exampleConfig", () => {
-    expect(sessionConfigJsonSchema.exampleConfig).toBeDefined()
-    expect(sessionConfigJsonSchema.exampleConfig.teamId).toBe("team_123")
-    expect(sessionConfigJsonSchema.exampleConfig.apiKey).toBe("pk_123")
-    expect(sessionConfigJsonSchema.exampleConfig.sessionId).toBe("session_123")
-    expect(sessionConfigJsonSchema.exampleConfig.charLimit).toBe(16000)
-    expect(sessionConfigJsonSchema.exampleConfig.maxAttachmentMb).toBe(8)
-    expect(sessionConfigJsonSchema.exampleConfig.selectiveWrite).toBe(false)
-    expect(sessionConfigJsonSchema.exampleConfig.readOnly).toBe(false)
-    expect(sessionConfigJsonSchema.exampleConfig.writeSpaces).toEqual([])
-    expect(sessionConfigJsonSchema.exampleConfig.writeLists).toEqual([])
-  })
-
-  it("preserves x-query-style", () => {
-    expect(sessionConfigJsonSchema["x-query-style"]).toBe("dot+bracket")
+  it("defines apiKey correctly", () => {
+    const apiKey = sessionConfigJsonSchema.fields.find(f => f.key === "apiKey")
+    expect(apiKey).toBeDefined()
+    expect(apiKey?.required).toBe(true)
+    expect(apiKey?.secret).toBe(true)
+    expect(apiKey?.type).toBe("string")
   })
 })
