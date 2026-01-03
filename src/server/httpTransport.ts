@@ -122,6 +122,7 @@ export function registerHttpTransport(
           let existing = sessions.get(sessionId)
           if (!existing) {
             const configInput = result.config as SessionConfigInput
+            configInput.authSource = credential.source
             existing = createSession(configInput, credential, sessionId)
           }
           return existing
@@ -138,6 +139,7 @@ export function registerHttpTransport(
     if (!config) {
       return undefined
     }
+    config.authSource = credential.source
     try {
       if (!config.teamId && config.apiKey) {
         config.teamId = await resolveTeamIdFromApiKey(config.apiKey)

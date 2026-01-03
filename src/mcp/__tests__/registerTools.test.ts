@@ -115,4 +115,22 @@ describe("registerTools", () => {
     expect(toolNames).not.toContain("task_create")
     expect(toolNames).toContain("task_read")
   })
+
+  it("omits destructive tools when authSource is apikey", async () => {
+    const config: ApplicationConfig = {
+      ...baseConfig,
+      authSource: "apikey"
+    }
+    const sessionCache = new SessionCache()
+
+    const server = new McpServer({
+      name: "Test Server",
+      version: "1.0.0"
+    })
+
+    registerTools(server, config, sessionCache)
+
+    expect((server as any)._registeredTools["task_create"]).toBeUndefined()
+    expect((server as any)._registeredTools["task_read"]).toBeDefined()
+  })
 })

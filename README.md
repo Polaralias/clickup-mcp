@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server for the ClickUp API, enabling AI agents to
 - **Task Management**: Create, read, update, and delete tasks.
 - **Time Tracking**: Log time entries and view reports.
 - **Selective Permissions**: Configure read-only access or whitelist specific Spaces/Lists.
-- **Secure Authentication**: Supports API Key authentication and a persistent session flow with encrypted storage.
+- **Secure Authentication**: Supports both OAuth-style Bearer tokens and simple API Key authentication (`x-api-key` header or `?apiKey=` query param).
 - **Deployment Options**: Run locally via Docker, deploy to Cloudflare Workers, or use Smithery.
 
 ## Quick Start (Local Docker)
@@ -64,9 +64,33 @@ Deploying behind Nginx Proxy Manager (NPM) allows you to use HTTPS and custom do
 - **External Port**: `docker-compose.yml` maps port `3011` to the host. NPM should target `3011` if connecting via the host IP, or `3000` if connecting directly via the Docker network.
 - **Base URL**: If your UI redirects don't match your domain, set the `BASE_URL` environment variable to `https://clickup.yourdomain.com`.
 
-## Authentication Flow
+## Authentication Methods
 
-This server supports a standard OAuth 2.0-style flow for creating secure sessions, which is critical when running in a multi-user environment or behind a proxy.
+This server supports two methods of authentication:
+
+### 1. Simple API Key (Recommended for Smithery/direct use)
+For simple clients, you can provide an API key via a header or query parameter. The server must be configured with `MCP_API_KEY` or `MCP_API_KEYS`.
+
+- **Header**: `x-api-key: your-mcp-api-key`
+- **Query Param**: `?apiKey=your-mcp-api-key`
+
+> [!NOTE]
+> When using API Key authentication, all write/destructive operations are disabled by default for safety. Use the OAuth flow for full access.
+
+**Example (curl):**
+```bash
+curl "http://localhost:3011/mcp?apiKey=your-mcp-api-key" \
+  -H "Accept: application/json, text/event-stream"
+```
+
+**Example (PowerShell):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3011/mcp?apiKey=your-mcp-api-key" `
+  -Headers @{ "Accept" = "application/json, text/event-stream" }
+```
+
+### 2. OAuth-style Bearer Tokens
+A standard OAuth 2.0-style flow for creating secure, long-lived sessions. Critical for multi-user environments.
 
 ### How it Works
 
@@ -96,6 +120,30 @@ This server supports a standard OAuth 2.0-style flow for creating secure session
     - **Header**: `MCP-Session-ID: session_id` (Optional but recommended for stateful context)
 
 This flow ensures the sensitive API Key never leaves the server's secure storage after initial entry, and the Client Application never handles the raw API Credentials.
+
+## ChatGPT Compatibility (RFC 7591)
+
+This server supports **RFC 7591 Dynamic Client Registration (DCR)**, which is required by ChatGPT for OAuth integration.
+
+### OAuth Metadata
+You can find the OAuth metadata at:
+`GET /.well-known/oauth-authorization-server`
+
+It includes the `registration_endpoint` used for dynamic registration.
+
+### Verification
+To verify DCR is working:
+1. Register a client:
+   ```powershell
+   Invoke-RestMethod -Uri "$BASE_URL/register" -Method Post -Body @{
+       redirect_uris = @("https://oauth.pstmn.io/v1/callback")
+       client_name = "Test Client"
+   } | ConvertTo-Json
+   ```
+2. Use the returned `client_id` in the OAuth flow.
+
+### Smoke Test
+A full smoke test script is available at `scripts/dcr-smoke-test.ps1`.
 
 ## Deployment on Cloudflare Workers
 

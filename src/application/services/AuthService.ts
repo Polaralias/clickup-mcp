@@ -6,9 +6,9 @@ export class AuthService {
   constructor(
     private authCodeRepo: AuthCodeRepository,
     private sessionManager: SessionManager
-  ) {}
+  ) { }
 
-  async generateCode(connectionId: string, redirectUri?: string, codeChallenge?: string, codeChallengeMethod?: string): Promise<string> {
+  async generateCode(connectionId: string, redirectUri?: string, codeChallenge?: string, codeChallengeMethod?: string, clientId?: string): Promise<string> {
     const code = randomBytes(16).toString("hex") // 32 chars
     const codeHash = createHash("sha256").update(code).digest("hex")
     const ttl = parseInt(process.env.CODE_TTL_SECONDS || "90", 10)
@@ -20,13 +20,14 @@ export class AuthService {
       expiresAt,
       redirectUri,
       codeChallenge,
-      codeChallengeMethod
+      codeChallengeMethod,
+      clientId
     })
 
     return code
   }
 
-  async exchangeCode(code: string, redirectUri?: string, codeVerifier?: string): Promise<string> {
+  async exchangeCode(code: string, redirectUri?: string, codeVerifier?: string, clientId?: string): Promise<string> {
     const codeHash = createHash("sha256").update(code).digest("hex")
     const authCode = await this.authCodeRepo.get(codeHash)
 
@@ -39,14 +40,24 @@ export class AuthService {
       throw new Error("Authorization code expired")
     }
 
+    // Verify clientId if one was associated with the code
+    if (authCode.clientId) {
+      if (!clientId) {
+        throw new Error("Missing client_id")
+      }
+      if (authCode.clientId !== clientId) {
+        throw new Error("Invalid client_id")
+      }
+    }
+
     // Verify redirectUri if one was associated with the code
     if (authCode.redirectUri) {
-        if (!redirectUri) {
-            throw new Error("Missing redirect_uri")
-        }
-        if (authCode.redirectUri !== redirectUri) {
-            throw new Error("Invalid redirect_uri")
-        }
+      if (!redirectUri) {
+        throw new Error("Missing redirect_uri")
+      }
+      if (authCode.redirectUri !== redirectUri) {
+        throw new Error("Invalid redirect_uri")
+      }
     }
 
     // PKCE Verification
@@ -61,12 +72,12 @@ export class AuthService {
           .digest("base64url")
 
         if (hash !== authCode.codeChallenge) {
-           throw new Error("Invalid code_verifier")
+          throw new Error("Invalid code_verifier")
         }
       } else {
         // Fallback for 'plain'
         if (codeVerifier !== authCode.codeChallenge) {
-           throw new Error("Invalid code_verifier")
+          throw new Error("Invalid code_verifier")
         }
       }
     }

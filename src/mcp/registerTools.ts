@@ -396,7 +396,7 @@ export function registerTools(server: McpServer, config: ApplicationConfig, sess
     availability?: { requiresDocs?: boolean },
     meta?: Record<string, unknown>
   ) => {
-    if (config.writeAccess.mode === "read") {
+    if (config.writeAccess.mode === "read" || config.authSource === "apikey") {
       return
     }
     const jsonSchema = zodToJsonSchemaCompact(schema)

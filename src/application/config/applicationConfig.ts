@@ -24,6 +24,7 @@ export type SessionConfigInput = {
   spaceConfigCacheTtlMs?: number
   reportingMaxTasks?: number
   defaultRiskWindowDays?: number
+  authSource?: 'bearer' | 'apikey'
 }
 
 export type WriteAccess = {
@@ -43,6 +44,7 @@ export type ApplicationConfig = {
   spaceConfigCacheTtlMs: number
   reportingMaxTasks: number
   defaultRiskWindowDays: number
+  authSource?: 'bearer' | 'apikey'
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {
@@ -260,7 +262,8 @@ export function createApplicationConfig(input: SessionConfigInput, apiKeyCandida
     hierarchyCacheTtlMs,
     spaceConfigCacheTtlMs,
     reportingMaxTasks,
-    defaultRiskWindowDays
+    defaultRiskWindowDays,
+    authSource: input.authSource
   }
 }
 
