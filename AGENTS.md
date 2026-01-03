@@ -2,7 +2,7 @@
 
 This repository is designed to be friendly to LLM based agents that need to either:
 
-- Rebuild or extend the ClickUp MCP server
+- Rebuild or extend the ClickUp MCP Server
 - Understand how to use its tools safely and effectively
 
 If you are an LLM (or prompting one), use the documents in this folder as your primary context.
@@ -29,7 +29,7 @@ Treat these files as authoritative when making design decisions or resolving amb
 
 If you need to reconstruct or significantly modify the server, use a prompt similar to this:
 
-> You are rebuilding a ClickUp MCP server that exposes high quality, agent friendly tools over HTTP, containerised for Smithery and usable locally via Docker.
+> You are rebuilding a ClickUp MCP Server that exposes high quality, agent friendly tools over HTTP, containerised for Smithery and usable locally via Docker.
 >
 > 1. Read and internalise:
 >    - `01_product_brief_and_goals.md`
@@ -47,7 +47,7 @@ If you need to reconstruct or significantly modify the server, use a prompt simi
 
 ## How agents should use the tools
 
-When acting as an agent calling this MCP server:
+When acting as an agent calling this ClickUp MCP Server:
 
 - Prefer read and discovery tools (listing, searching, summarising) before making changes.
 - Use hierarchy tools to resolve paths and names to concrete IDs instead of guessing.
@@ -56,4 +56,4 @@ When acting as an agent calling this MCP server:
   - Ask the user for explicit confirmation and pass `confirm: "yes"` only when they agree.
 - Watch for truncation flags in responses and request narrower or paginated views when you need more detail.
 
-By following these principles and the four reference documents, an LLM can reliably rebuild, extend and safely drive this MCP server.
+By following these principles and the four reference documents, an LLM can reliably rebuild, extend and safely drive this ClickUp MCP Server.

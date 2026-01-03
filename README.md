@@ -1,4 +1,4 @@
-# ClickUp MCP Server
+# ClickUp MCP
 
 A Model Context Protocol (MCP) server for the ClickUp API, enabling AI agents to interact with your ClickUp workspace.
 
@@ -22,8 +22,8 @@ The fastest way to deploy the ClickUp MCP server is using Docker Compose. This p
 ### 2. Setup
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/clickup-mcp-server.git
-   cd clickup-mcp-server
+   git clone https://github.com/yourusername/clickup-mcp.git
+   cd clickup-mcp
    ```
 
 2. **Configure Environment:**
@@ -48,7 +48,7 @@ Deploying behind Nginx Proxy Manager (NPM) allows you to use HTTPS and custom do
    - **Scheme**: `http`
    - **Forward Hostname / IP**: 
      - Use `host.docker.internal` if NPM is on the same host but a different Docker network.
-     - Use the container name `clickup-mcp-server` if NPM is on the same Docker network.
+     - Use the container name `clickup-mcp` if NPM is on the same Docker network.
    - **Forward Port**: `3011` (The external port mapped in `docker-compose.yml`)
    - **Block Common Exploits**: Enabled
 
@@ -110,7 +110,7 @@ See `wrangler.jsonc` for configuration details.
 To run the ClickUp MCP server using [Smithery](https://smithery.ai):
 
 ```bash
-npx -y @smithery/cli run clickup-mcp-server --config "{\"teamId\":\"123456\",\"apiKey\":\"pk_...\"}"
+npx -y @smithery/cli run clickup-mcp --config "{\"teamId\":\"123456\",\"apiKey\":\"pk_...\"}"
 ```
 
 ## Default docker-compose values

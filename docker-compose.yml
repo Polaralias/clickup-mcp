@@ -1,11 +1,11 @@
 version: "3.8"
 
 services:
-  clickup-mcp-server:
+  clickup-mcp:
     build:
       context: .
       dockerfile: Dockerfile
-    image: clickup-mcp-server:latest
+    image: clickup-mcp:latest
     environment:
       NODE_ENV: production
       PORT: "3000"

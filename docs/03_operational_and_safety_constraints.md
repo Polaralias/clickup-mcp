@@ -1,6 +1,6 @@
 # Operational, Deployment and Safety Constraints
 
-This document describes how the ClickUp MCP server must behave in deployment, how configuration is handled, and what safety guarantees it provides. It complements the product brief and domain reference.
+This document describes how the ClickUp MCP Server must behave in deployment, how configuration is handled, and what safety guarantees it provides. It complements the product brief and domain reference.
 
 ## 1. Deployment environments
 
@@ -33,8 +33,8 @@ The server must work with this flow without additional manual configuration.
 The same Docker image must be usable locally. Typical workflow:
 
 ```bash
-docker build -t clickup-mcp-server .
-docker run -p 8080:8081 -e PORT=8081 -e CLICKUP_API_TOKEN=xxx clickup-mcp-server
+docker build -t clickup-mcp .
+docker run -p 8080:8081 -e PORT=8081 -e CLICKUP_API_TOKEN=xxx clickup-mcp
 ```
 
 Expectations:
