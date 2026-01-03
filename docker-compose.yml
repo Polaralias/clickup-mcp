@@ -8,7 +8,7 @@ services:
     image: clickup-mcp-server:latest
     environment:
       NODE_ENV: production
-      PORT: "8081"
+      PORT: "3000"
       TRANSPORT: "http"
       MASTER_KEY: ${MASTER_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
       REDIRECT_URI_ALLOWLIST: ${REDIRECT_URI_ALLOWLIST:-http://localhost:3000/callback}
@@ -25,7 +25,7 @@ services:
       WRITE_ALLOWED_SPACES: ""
       WRITE_ALLOWED_LISTS: ""
     ports:
-      - "8081:8081"
+      - "3011:3000"
     depends_on:
       - db
     restart: unless-stopped

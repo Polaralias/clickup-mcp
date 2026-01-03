@@ -4,7 +4,7 @@
 #
 # Usage:
 # 1. Run the server (e.g., via docker-compose up).
-# 2. Open a browser and go to http://localhost:8081/connect (or your server URL).
+# 2. Open a browser and go to http://localhost:3011/connect (or your server URL).
 # 3. Complete the connection form.
 #    - You will need a valid ClickUp API Key.
 #    - Use a redirect URI like http://localhost:3000/callback
@@ -29,19 +29,19 @@
 # To make this easier for testing without a real OAuth client, you can use a fixed verifier and challenge if you manually construct the URL.
 #
 # Example manual URL construction for testing:
-# http://localhost:8081/connect?redirect_uri=http://localhost:3000/callback&code_challenge=YOUR_CHALLENGE&code_challenge_method=S256
+# http://localhost:3011/connect?redirect_uri=http://localhost:3000/callback&code_challenge=YOUR_CHALLENGE&code_challenge_method=S256
 # Then you know the verifier corresponding to YOUR_CHALLENGE.
 
 param (
-    [string]$BaseUrl = "http://localhost:8081",
+    [string]$BaseUrl = "http://localhost:3011",
     [string]$RedirectUri = "http://localhost:3000/callback"
 )
 
 # Helper for PKCE (if we wanted to generate it, but we are prompting)
 # We will just prompt for inputs.
 
-$BaseUrl = Read-Host "Enter Base URL (default: http://localhost:8081)"
-if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $BaseUrl = "http://localhost:8081" }
+$BaseUrl = Read-Host "Enter Base URL (default: http://localhost:3011)"
+if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $BaseUrl = "http://localhost:3011" }
 
 $Code = Read-Host "Enter Authorization Code (from redirect URL)"
 $Verifier = Read-Host "Enter Code Verifier (PKCE verifier)"

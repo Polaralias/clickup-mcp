@@ -73,7 +73,7 @@ async function start() {
       res.json(sessionConfigJsonSchema)
     })
     registerHttpTransport(app, createServer)
-    const port = Number(process.env.PORT ?? 8081)
+    const port = Number(process.env.PORT ?? 3000)
     app.listen(port)
   } else {
     await startStdioTransport(createServer, (config) =>

@@ -15,5 +15,5 @@ RUN npm ci --omit=dev
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
 ENV TRANSPORT=http
-EXPOSE 8081
+EXPOSE 3000
 CMD ["node", "dist/server/index.js"]

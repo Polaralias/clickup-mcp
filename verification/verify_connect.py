@@ -7,7 +7,7 @@ def run():
         page = browser.new_page()
         # Navigate to /connect with valid params
         # We need to ensure REDIRECT_URI_ALLOWLIST includes our URI
-        url = "http://localhost:8082/connect?redirect_uri=http://localhost:3000/callback&state=test&code_challenge=challenge&code_challenge_method=S256"
+        url = "http://localhost:3011/connect?redirect_uri=http://localhost:3000/callback&state=test&code_challenge=challenge&code_challenge_method=S256"
         print(f"Navigating to {url}")
         try:
             page.goto(url)

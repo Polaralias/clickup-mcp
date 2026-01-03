@@ -50,13 +50,13 @@ The easiest way to run the server locally is using Docker Compose. This sets up 
     ```
 
 5.  **Access the Configuration UI:**
-    Open your browser to `http://localhost:8081`.
+    Open your browser to `http://localhost:3011`.
 
 ### Environment Variables
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `PORT` | The port the server listens on. | No | `8081` |
+| `PORT` | The port the server listens on. | No | `3000` |
 | `TRANSPORT` | Transport mode (`http` or `stdio`). Use `http` for Docker. | No | `http` |
 | `MASTER_KEY` | 32-byte hex key for encrypting secrets. | **Yes** | - |
 | `DATABASE_URL` | Postgres connection string. | **Yes** (or via specific PG vars) | - |
@@ -72,12 +72,12 @@ This server is designed to work behind a reverse proxy like Nginx Proxy Manager 
 
 ### Configuration Steps
 
-1.  **Deploy the Server:** Ensure the Docker container is running and accessible (e.g., on port `8081`).
+1.  **Deploy the Server:** Ensure the Docker container is running and accessible (e.g., on port `3011`).
 2.  **Add Proxy Host in NPM:**
     - **Domain Names**: `your-mcp-server.domain.com`
     - **Scheme**: `http`
     - **Forward Hostname / IP**: `host.docker.internal` (or the container name/IP if on the same network).
-    - **Forward Port**: `8081`
+    - **Forward Port**: `3011`
     - **Block Common Exploits**: Checked.
 3.  **SSL**: Request a Let's Encrypt certificate.
 4.  **Advanced**:
@@ -146,7 +146,7 @@ The `docker-compose.yml` file contains example values for several environment va
 
 You can verify the authentication flow and MCP functionality using the provided PowerShell script.
 
-1.  **Start the connection**: Open your browser and navigate to `/connect` (e.g., `http://localhost:8081/connect`). Fill in the details and use a dummy redirect URI if testing manually (e.g., `http://localhost:3000/callback`).
+1.  **Start the connection**: Open your browser and navigate to `/connect` (e.g., `http://localhost:3011/connect`). Fill in the details and use a dummy redirect URI if testing manually (e.g., `http://localhost:3000/callback`).
 2.  **Get the code**: After clicking Connect, you will be redirected. Copy the `code` parameter from the URL.
 3.  **Run the script**:
     ```powershell
