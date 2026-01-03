@@ -13,75 +13,56 @@ A Model Context Protocol (MCP) server for the ClickUp API, enabling AI agents to
 
 ## Quick Start (Local Docker)
 
-The easiest way to run the server locally is using Docker Compose. This sets up the MCP server along with a Postgres database for session storage.
+The fastest way to deploy the ClickUp MCP server is using Docker Compose. This package includes the MCP server and a PostgreSQL database for persistent session storage.
 
-### Prerequisites
-
+### 1. Prerequisites
 - [Docker](https://www.docker.com/) and Docker Compose installed.
 - A ClickUp API Key (Settings -> Apps -> Generate API Key).
 
-### Steps
+### 2. Setup
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/clickup-mcp-server.git
+   cd clickup-mcp-server
+   ```
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/clickup-mcp-server.git
-    cd clickup-mcp-server
-    ```
+2. **Configure Environment:**
+   Create a `.env` file or set these variables in your environment:
+   - `MASTER_KEY`: A 64-character hex string (e.g., `openssl rand -hex 32`) or a strong passphrase.
+   - `POSTGRES_PASSWORD`: A secure password for the database.
 
-2.  **Generate a Master Key:**
-    You need a 32-byte hex string for encryption. You can generate one using:
-    ```bash
-    openssl rand -hex 32
-    ```
+3. **Deploy:**
+   ```bash
+   docker-compose up -d --build
+   ```
+   The server will be available at `http://localhost:3011`.
 
-3.  **Update `docker-compose.yml` (Optional):**
-    The default `docker-compose.yml` is set up for production. For local testing, ensure the environment variables match your needs. You can pass variables directly or use an `.env` file.
+## Reverse Proxy (Nginx Proxy Manager)
 
-    **Required Environment Variables:**
-    - `MASTER_KEY`: The 64-character hex string generated above.
-    - `POSTGRES_USER`: Database user (default: postgres).
-    - `POSTGRES_PASSWORD`: Database password (default: postgres).
-    - `POSTGRES_DB`: Database name (default: clickup_mcp).
+Deploying behind Nginx Proxy Manager (NPM) allows you to use HTTPS and custom domains.
 
-4.  **Run with Docker Compose:**
-    ```bash
-    # Set the MASTER_KEY explicitly if not in .env
-    MASTER_KEY=your_generated_hex_key docker-compose up --build
-    ```
+### Nginx Proxy Manager Configuration
 
-5.  **Access the Configuration UI:**
-    Open your browser to `http://localhost:3011`.
+1. **Add Proxy Host**:
+   - **Domain Names**: `clickup.yourdomain.com`
+   - **Scheme**: `http`
+   - **Forward Hostname / IP**: 
+     - Use `host.docker.internal` if NPM is on the same host but a different Docker network.
+     - Use the container name `clickup-mcp-server` if NPM is on the same Docker network.
+   - **Forward Port**: `3011` (The external port mapped in `docker-compose.yml`)
+   - **Block Common Exploits**: Enabled
 
-### Environment Variables
+2. **SSL Tab**:
+   - Select **Request a new SSL Certificate**.
+   - Enable **Force SSL** and **HTTP/2 Support**.
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `PORT` | The port the server listens on. | No | `3000` |
-| `TRANSPORT` | Transport mode (`http` or `stdio`). Use `http` for Docker. | No | `http` |
-| `MASTER_KEY` | 32-byte hex key for encrypting secrets. | **Yes** | - |
-| `DATABASE_URL` | Postgres connection string. | **Yes** (or via specific PG vars) | - |
-| `POSTGRES_HOST` | Database host. | No | `db` |
-| `POSTGRES_PORT` | Database port. | No | `5432` |
-| `POSTGRES_USER` | Database user. | No | `postgres` |
-| `POSTGRES_PASSWORD` | Database password. | No | `postgres` |
-| `POSTGRES_DB` | Database name. | No | `clickup_mcp` |
+3. **Advanced (Optional)**:
+   The server is pre-configured with `app.set("trust proxy", true)`, so it correctly handles `X-Forwarded-*` headers from NPM without extra Nginx configuration.
 
-## Reverse Proxy Configuration (Nginx Proxy Manager)
-
-This server is designed to work behind a reverse proxy like Nginx Proxy Manager (NPM). This is useful for exposing the server securely over HTTPS.
-
-### Configuration Steps
-
-1.  **Deploy the Server:** Ensure the Docker container is running and accessible (e.g., on port `3011`).
-2.  **Add Proxy Host in NPM:**
-    - **Domain Names**: `your-mcp-server.domain.com`
-    - **Scheme**: `http`
-    - **Forward Hostname / IP**: `host.docker.internal` (or the container name/IP if on the same network).
-    - **Forward Port**: `3011`
-    - **Block Common Exploits**: Checked.
-3.  **SSL**: Request a Let's Encrypt certificate.
-4.  **Advanced**:
-    - The server is configured to trust headers from the proxy (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). No special "Custom Nginx Configuration" is typically required for basic operation.
+### Connectivity Troubleshooting
+- **Internal Port**: The container listens on port `3000` internally.
+- **External Port**: `docker-compose.yml` maps port `3011` to the host. NPM should target `3011` if connecting via the host IP, or `3000` if connecting directly via the Docker network.
+- **Base URL**: If your UI redirects don't match your domain, set the `BASE_URL` environment variable to `https://clickup.yourdomain.com`.
 
 ## Authentication Flow
 
@@ -136,7 +117,9 @@ npx -y @smithery/cli run clickup-mcp-server --config "{\"teamId\":\"123456\",\"a
 
 The `docker-compose.yml` file contains example values for several environment variables. You **must** change these for any real deployment.
 
-*   `MASTER_KEY`: Set to `0000000000000000000000000000000000000000000000000000000000000000`. You should generate a random 32-byte hex string (64 characters).
+*   `MASTER_KEY`: Set to `8ddec8ff377e8ea6f88d223594bca495f4e6629ec23719f96b343389475c755f` in `docker-compose.yml` for demonstration. You **must** change this for any real deployment.
+    - If you provide exactly 64 hex characters, they are decoded as 32 bytes of key material.
+    - Otherwise, the value is treated as a passphrase and hashed with SHA-256 to produce 32 bytes.
 *   `REDIRECT_URI_ALLOWLIST`: Set to `http://localhost:3000/callback`. Update this to match your actual client redirect URIs.
 *   `REDIRECT_URI_ALLOWLIST_MODE`: Set to `exact` (default) or `prefix` for less strict matching.
 *   `CODE_TTL_SECONDS`: Set to `90`.

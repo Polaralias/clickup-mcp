@@ -3,6 +3,7 @@ import { SessionRepository } from "../infrastructure/repositories/SessionReposit
 import { AuthCodeRepository } from "../infrastructure/repositories/AuthCodeRepository.js"
 import { EncryptionService } from "../application/security/EncryptionService.js"
 import { PasswordService } from "../application/security/PasswordService.js"
+import { getMasterKeyBytes } from "../application/security/masterKey.js"
 import { ConnectionManager } from "../application/services/ConnectionManager.js"
 import { SessionManager } from "../application/services/SessionManager.js"
 import { AuthService } from "../application/services/AuthService.js"
@@ -13,20 +14,17 @@ export let authService: AuthService
 
 export function initializeServices() {
   try {
-    if (process.env.MASTER_KEY) {
-        const encryptionService = new EncryptionService()
-        const passwordService = new PasswordService()
-        const connectionRepository = new ConnectionRepository()
-        const sessionRepository = new SessionRepository()
-        const authCodeRepository = new AuthCodeRepository()
-        connectionManager = new ConnectionManager(connectionRepository, encryptionService)
-        sessionManager = new SessionManager(sessionRepository, connectionManager, passwordService)
-        authService = new AuthService(authCodeRepository, sessionManager)
-    } else {
-      console.warn("MASTER_KEY not set. API endpoints will return 500.")
-    }
+    const encryptionService = new EncryptionService()
+    const passwordService = new PasswordService()
+    const connectionRepository = new ConnectionRepository()
+    const sessionRepository = new SessionRepository()
+    const authCodeRepository = new AuthCodeRepository()
+    connectionManager = new ConnectionManager(connectionRepository, encryptionService)
+    sessionManager = new SessionManager(sessionRepository, connectionManager, passwordService)
+    authService = new AuthService(authCodeRepository, sessionManager)
   } catch (err) {
     console.error("Service initialization failed:", err)
+    throw err // Ensure we fail fast during startup
   }
 }
 

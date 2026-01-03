@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto"
+import { getMasterKeyBytes } from "./masterKey.js"
 
 const ALGORITHM = "aes-256-gcm"
 const IV_LENGTH = 16
@@ -6,15 +7,8 @@ const IV_LENGTH = 16
 export class EncryptionService {
   private key: Buffer
 
-  constructor(masterKeyHex?: string) {
-    const keyString = masterKeyHex || process.env.MASTER_KEY
-    if (!keyString) {
-      throw new Error("MASTER_KEY is required for EncryptionService")
-    }
-    this.key = Buffer.from(keyString, "hex")
-    if (this.key.length !== 32) {
-      throw new Error("MASTER_KEY must be a 32-byte hex string (64 characters)")
-    }
+  constructor() {
+    this.key = getMasterKeyBytes()
   }
 
   encrypt(text: string): string {

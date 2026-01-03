@@ -16,13 +16,11 @@ import { createServer } from "./factory.js"
 import { initializeServices } from "./services.js"
 
 async function start() {
-  if (process.env.MASTER_KEY) {
-      try {
-          await runMigrations()
-          initializeServices()
-      } catch (e) {
-          console.error("Migration failed, but continuing:", e)
-      }
+  try {
+    await runMigrations()
+    initializeServices()
+  } catch (e) {
+    console.error("Migration failed, but continuing:", e)
   }
 
   const transport = process.env.TRANSPORT ?? "http"
