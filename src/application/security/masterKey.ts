@@ -9,10 +9,21 @@ import { createHash } from "node:crypto"
  * Fails fast if MASTER_KEY is missing or empty.
  */
 export function getMasterKeyBytes(): Buffer {
-    const value = (process.env.MASTER_KEY || "").trim()
+    let value = (process.env.MASTER_KEY || "").trim()
+    let isFallback = false
+
+    if (!value && process.env.MCP_MASTER_KEY) {
+        value = process.env.MCP_MASTER_KEY.trim()
+        isFallback = true
+    }
 
     if (!value) {
         throw new Error("MASTER_KEY environment variable is missing or empty. This is required for secure operation.")
+    }
+
+    if (isFallback) {
+        // Log warning once (using a simple static check or just log it since this is usually called once)
+        console.warn("Warning: Using MCP_MASTER_KEY as fallback for MASTER_KEY. Please update your configuration.")
     }
 
     // Check if it's 64 hex characters (32 bytes)
@@ -28,7 +39,14 @@ export function getMasterKeyBytes(): Buffer {
  * Get diagnostics about the master key without revealing the key itself.
  */
 export function getMasterKeyInfo() {
-    const value = (process.env.MASTER_KEY || "").trim()
+    let value = (process.env.MASTER_KEY || "").trim()
+    let isFallback = false
+
+    if (!value && process.env.MCP_MASTER_KEY) {
+        value = process.env.MCP_MASTER_KEY.trim()
+        isFallback = true
+    }
+
     if (!value) {
         return { status: "missing" }
     }
@@ -38,6 +56,7 @@ export function getMasterKeyInfo() {
 
     return {
         status: "present",
+        isFallback,
         format: isHex ? "64-hex" : "passphrase",
         length: bytes.length,
         // Add a small hint/checksum for debugging without exposing the key

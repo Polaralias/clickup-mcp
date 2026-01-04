@@ -31,9 +31,16 @@ export function initializeServices() {
   }
 }
 
+import { getMasterKeyInfo } from "../application/security/masterKey.js"
+
 export function ensureServices(req: any, res: any, next: any) {
   if (!connectionManager || !sessionManager || !authService) {
-    return res.status(500).json({ error: "Server not configured (Missing MASTER_KEY?)" })
+    const info = getMasterKeyInfo()
+    if (info.status === 'missing') {
+      return res.status(500).json({ error: "Server not configured: MASTER_KEY missing. Set MASTER_KEY in docker-compose environment or export it when running locally." })
+    } else {
+      return res.status(500).json({ error: "Server initialization failed. Check server logs for details." })
+    }
   }
   next()
 }

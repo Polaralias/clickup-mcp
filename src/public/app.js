@@ -8,6 +8,7 @@ const state = urlParams.get('state');
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
+    fetchConfigStatus();
     if (redirectUri) {
         // OAuth Mode
         showCreate();
@@ -20,6 +21,36 @@ document.addEventListener('DOMContentLoaded', () => {
         loadConnections();
     }
 });
+
+async function fetchConfigStatus() {
+    const banner = document.getElementById('config-status-banner');
+    const icon = document.getElementById('status-icon');
+    const title = document.getElementById('status-title');
+    const message = document.getElementById('status-message');
+    const guidance = document.getElementById('status-guidance');
+
+    try {
+        const res = await fetch(`${API_BASE}/config-status`);
+        const data = await res.json();
+
+        banner.classList.remove('hidden');
+        if (data.status === 'present') {
+            banner.className = 'mb-6 p-4 rounded-lg border bg-green-50 border-green-200 text-green-800';
+            icon.innerHTML = '✅';
+            title.innerText = 'Configured';
+            message.innerText = `Master key is present (${data.format}${data.isFallback ? ', using fallback' : ''})`;
+            guidance.classList.add('hidden');
+        } else {
+            banner.className = 'mb-6 p-4 rounded-lg border bg-red-50 border-red-200 text-red-800';
+            icon.innerHTML = '❌';
+            title.innerText = 'Server not configured: MASTER_KEY missing';
+            message.innerText = 'Please set the MASTER_KEY environment variable.';
+            guidance.classList.remove('hidden');
+        }
+    } catch (e) {
+        console.error('Failed to fetch config status', e);
+    }
+}
 
 function showCreate() {
     document.getElementById('view-dashboard').classList.add('hidden');
@@ -43,8 +74,18 @@ function hideDetail() {
 async function loadConnections() {
     try {
         const res = await fetch(`${API_BASE}/connections`);
+        const banner = document.getElementById('config-status-banner');
+        const isUnconfigured = banner && !banner.classList.contains('hidden') && banner.classList.contains('bg-red-50');
+
         if (res.status === 500) {
             const data = await res.json();
+
+            // If the banner already shows the server is not configured, don't repeat the error in the list
+            if (isUnconfigured && data.error && data.error.includes('MASTER_KEY')) {
+                document.getElementById('list-container').innerHTML = '';
+                return;
+            }
+
             document.getElementById('list-container').innerHTML = `<p class="text-red-600">Error: ${data.error}</p>`;
             return;
         }

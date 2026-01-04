@@ -161,6 +161,21 @@ To run the ClickUp MCP server using [Smithery](https://smithery.ai):
 npx -y @smithery/cli run clickup-mcp --config "{\"teamId\":\"123456\",\"apiKey\":\"pk_...\"}"
 ```
 
+## Configuration
+
+The server expects standard environment variables for its operation. When running via Docker Compose, the `environment:` section is sufficient. For local development, use a `.env` file (see `.env.example`).
+
+- `MASTER_KEY`: **(Required)** A 64-character hex string or a strong passphrase. This is used to encrypt sensitive ClickUp API keys in the database.
+- `BASE_URL`: **(Required for OAuth)** The public URL where the server is reachable (e.g., `https://clickup.your-domain.com`).
+
+### Troubleshooting
+
+- **UI says "not configured"**: 
+  - Check if `MASTER_KEY` is correctly injected into the container/process.
+  - If running locally, ensure `.env` exists in the root directory and contains `MASTER_KEY`.
+- **Protected routes return 500 error**: 
+  - This usually indicates the server started without a `MASTER_KEY`. Check the server logs for "Server starting in UNCONFIGURED mode".
+
 ## Default docker-compose values
 
 The `docker-compose.yml` file contains example values for several environment variables. You **must** change these for any real deployment.

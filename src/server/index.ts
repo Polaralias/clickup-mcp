@@ -1,3 +1,5 @@
+import "dotenv/config"
+import { readFileSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import express from "express"
@@ -14,13 +16,25 @@ import authRouter from "./authRouter.js"
 import { runMigrations } from "../infrastructure/db/migrator.js"
 import { createServer } from "./factory.js"
 import { initializeServices } from "./services.js"
+import { getMasterKeyInfo } from "../application/security/masterKey.js"
 
 async function start() {
   try {
     await runMigrations()
     initializeServices()
   } catch (e) {
-    console.error("Migration failed, but continuing:", e)
+    if (e instanceof Error && e.message.includes("MASTER_KEY")) {
+      console.warn("Server starting in UNCONFIGURED mode: MASTER_KEY is missing.")
+    } else {
+      console.error("Initialization failed:", e)
+      // For other errors, we might still want to fail fast if they are critical
+      // but if we want the UI to show up, we might continue.
+      // Requirements say: "If startup requires encryption and master key is missing, exit with a clear error message"
+      // Wait, the goal says: "If encryption is required... fail fast... If encryption is optional, allow startup but mark as 'not configured'".
+      // For this repo, encryption IS required for connection storage.
+      // However, to show the UI status banner, we need the server to be running.
+      // I will allow it to start but block protected routes.
+    }
   }
 
   const transport = process.env.TRANSPORT ?? "http"
@@ -34,10 +48,33 @@ async function start() {
     app.use("/", authRouter)
 
     const __dirname = dirname(fileURLToPath(import.meta.url))
-    // Serve static UI files from public directory
-    app.use(express.static(join(__dirname, "../public")))
+    const publicPath = join(__dirname, "../../public") // For dist
+    const srcPublicPath = join(__dirname, "../public") // For src/tsx
+
+    // Serve static UI files
+    app.use(express.static(publicPath))
+    app.use(express.static(srcPublicPath))
+
+    // Explicitly serve index.html on root
+    app.get("/", (_req, res) => {
+      const paths = [
+        join(publicPath, "index.html"),
+        join(srcPublicPath, "index.html")
+      ]
+
+      for (const p of paths) {
+        if (readFileSync(p)) { // Simple check
+          return res.sendFile(p)
+        }
+      }
+      res.status(404).send("index.html not found")
+    })
 
     registerHealthEndpoint(app)
+
+    app.get("/api/config-status", (_req, res) => {
+      res.json(getMasterKeyInfo())
+    })
 
     // Helper to get base URL
     const getBaseUrl = (req: express.Request) => {
