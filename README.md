@@ -16,6 +16,7 @@ What the repository currently proves:
 
 What to trust first:
 
+- [GLOSSARY.md](GLOSSARY.md)
 - [docs/status/tool-validation-status.json](docs/status/tool-validation-status.json)
 - [docs/tool-reference.md](docs/tool-reference.md)
 - [docs/configuration.md](docs/configuration.md)
@@ -47,6 +48,7 @@ Core implementation:
 Canonical documentation:
 
 - [AGENTS.md](AGENTS.md)
+- [GLOSSARY.md](GLOSSARY.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [docs/design-docs/index.md](docs/design-docs/index.md)
 - [docs/product-specs/index.md](docs/product-specs/index.md)

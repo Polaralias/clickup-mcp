@@ -11,6 +11,8 @@ Agent and contributor behavior should optimize for:
 - repair over refactor
 - explicit contracts over implicit coupling
 
+Primary domain language lives in `GLOSSARY.md`.
+
 ## Working Rules
 
 - Treat repository documents as claims until validated.

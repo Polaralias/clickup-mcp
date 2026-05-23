@@ -1,6 +1,6 @@
-# ClickUp MCP
+# Glossary
 
-This context defines the product-language for rebuilding the repository into a trustworthy public ClickUp MCP server and the validation system around it.
+This glossary defines the product-language for rebuilding the repository into a trustworthy public ClickUp MCP server and the validation system around it.
 
 ## Language
 
@@ -74,33 +74,6 @@ _Avoid_: Bucket-only summary, duplicated status sources
 
 > **Dev:** "If the harness is capability-first, are we weakening the promise to support every tool in the manifest?"
 > **Domain expert:** "No. Capability-first is how the platform measures truth. Full Support still means the product delivers every manifest-declared tool."
-
-> **Dev:** "Can some tools stay intended or unsupported in the end state?"
-> **Domain expert:** "No. Those are transition labels for the current state. The end state is full validation across the full manifest."
-
-> **Dev:** "Why keep a current validation state if the end state is already decided?"
-> **Domain expert:** "Because the platform needs to distinguish present-tense truth during repair from the final acceptance bar of Full Support."
-
-> **Dev:** "Can the platform report only the tools we have already tested in depth?"
-> **Domain expert:** "No. Full-Manifest Enumeration means every manifest tool must appear in the authoritative status output from the start."
-
-> **Dev:** "Do we need complete capability decomposition for all tools before the first authoritative status output exists?"
-> **Domain expert:** "No. A tool can be enumerated first and marked as Capability Mapping Incomplete while the capability model is filled in."
-
-> **Dev:** "Does the first authoritative status source need to be fully automated?"
-> **Domain expert:** "No. Manual curation is acceptable at first if every status is backed by checked-in evidence and can be challenged."
-
-> **Dev:** "Should capability-level compliance appear in the final product output?"
-> **Domain expert:** "No. It is useful internally during repair, but the final product should surface the simpler tool-level end-state compliance."
-
-> **Dev:** "Can strong indirect evidence count as validation if we have not directly validated the tool yet?"
-> **Domain expert:** "No. Indirect evidence can improve classification, but validation still requires a direct validating check."
-
-> **Dev:** "If a tool is non-validated, should the platform only describe the problem?"
-> **Domain expert:** "No. It should also record the single primary next action needed to move that tool toward Full Support."
-
-> **Dev:** "Should we keep the current bucket-based trust matrix as the canonical status source?"
-> **Domain expert:** "No. The canonical status artifact should be tool-keyed first, and it should live outside generated output until it is genuinely automated."
 
 ## Flagged ambiguities
 
