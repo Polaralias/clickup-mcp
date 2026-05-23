@@ -1,59 +1,153 @@
-# Configuration Reference
+# Configuration
 
-This guide explains the supported environment variables and deployment knobs for `clickup-mcp`.
+This document describes the repository’s current validated configuration model.
 
-## Required settings
+It documents the current operational configuration surface of the server and the boundaries that remain highest-risk.
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `CLICKUP_API_TOKEN` | Yes | none | ClickUp API token used for all v2 and v3 API requests. |
-| `CLICKUP_TEAM_ID` / `TEAM_ID` | Yes | none | Default workspace or team ID used when a tool call does not provide one explicitly. |
-| `CLICKUP_MCP_API_KEY` | Recommended | none | Service-specific bearer token accepted by the HTTP MCP endpoint. |
+## Core Runtime Variables
 
-## MCP client auth
+### Required for upstream ClickUp access
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `MCP_API_KEY` | No | none | Generic single-key alias if you prefer a shared naming pattern across services. |
-| `MCP_API_KEYS` | No | none | Comma-separated additional bearer tokens accepted by the MCP endpoint. |
-| `API_KEY_MODE` | No | static auth enabled | Set to `disabled` to turn off bearer-token checks entirely. |
+- `CLICKUP_API_TOKEN`
+- `CLICKUP_TEAM_ID` or `TEAM_ID`
 
-## Endpoint and transport
+Validated:
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `CLICKUP_MCP_PORT` | No | `3004` | Internal service port used by the compose examples. |
-| `CLICKUP_MCP_HOST_PORT` | No | `3004` | Host-side published port in the bundled `docker-compose.yml`. |
-| `CLICKUP_MCP_PATH` | No | `/mcp` | HTTP path where the MCP endpoint is exposed. |
-| `MCP_HOST` / `HOST` | No | `127.0.0.1` locally, `0.0.0.0` in compose | Host bind address used by `scripts/run_server.py` and FastMCP. |
-| `MCP_PORT` / `PORT` | No | `3004` | Generic runtime port override. |
-| `MCP_PATH` | No | `/mcp` | Generic runtime path override. |
-| `MCP_TRANSPORT` / `FASTMCP_TRANSPORT` | No | `streamable-http` | Transport mode. `stdio` is mainly useful for local tooling and testing. |
+- these values are required for live ClickUp calls
+- the runtime resolves workspace/team ID from these env vars when not explicitly provided in tool inputs
 
-## Write safety controls
+### MCP auth variables
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `WRITE_MODE` | No | `write`, unless allowlists imply `selective` | Main write policy. Supported values are `write`, `read`, and `selective`. |
-| `READ_ONLY_MODE` | No | unset | Legacy boolean override that forces read-only behavior. |
-| `SELECTIVE_WRITE` | No | unset | Legacy boolean override that forces selective-write behavior. |
-| `WRITE_ALLOWED_SPACES` | No | none | Comma-separated space IDs allowed when selective-write mode is active. |
-| `WRITE_ALLOWED_LISTS` | No | none | Comma-separated list IDs allowed when selective-write mode is active. |
+- `CLICKUP_MCP_API_KEY`
+- `MCP_API_KEY`
+- `MCP_API_KEYS`
+- `API_KEY_MODE`
 
-## Runtime tuning
+Intended model:
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `CLICKUP_HTTP_TIMEOUT_MS` | No | `30000` | HTTP timeout for outbound ClickUp API calls. |
-| `CHAR_LIMIT` | No | `16000` | Character cap used for long previews and summarized responses. |
-| `MAX_ATTACHMENT_MB` | No | `8` | Maximum attachment size accepted by upload helper tools. |
-| `REPORTING_MAX_TASKS` | No | `200` | Upper bound for report-style task scans. |
-| `DEFAULT_RISK_WINDOW_DAYS` | No | `5` | Default time window used by the risk-report helpers. |
-| `HIERARCHY_CACHE_TTL_MS` / `HIERARCHY_CACHE_TTL_SECONDS` | No | `300000 ms` | Cache TTL for workspace, space, folder, and list hierarchy lookups. |
-| `SPACE_CONFIG_CACHE_TTL_MS` / `SPACE_CONFIG_CACHE_TTL_SECONDS` | No | `300000 ms` | Cache TTL for derived space configuration lookups. |
+- static bearer auth for MCP clients
+- optionally disabled with `API_KEY_MODE=disabled`
 
-## Files and deployment notes
+Design reference:
 
-- `tool_manifest_clickup.json` is the source of truth for the public tool catalog and parameter schemas.
-- The bundled compose file assumes the external Docker network `reverse_proxy` already exists.
-- Existing ClickUp credentials remain entirely env-driven; there is no additional browser re-auth step for this server.
+- [docs/design-docs/auth-principles.md](design-docs/auth-principles.md)
+
+### Runtime binding and transport
+
+- `MCP_HOST` or `HOST`
+- `MCP_PORT` or `PORT`
+- `MCP_PATH`
+- `MCP_TRANSPORT` or `FASTMCP_TRANSPORT`
+
+Validated:
+
+- local helper commands use these values
+- default local transport is HTTP via FastMCP
+
+### Write-safety configuration
+
+- `WRITE_MODE`
+- `READ_ONLY_MODE`
+- `SELECTIVE_WRITE`
+- `WRITE_ALLOWED_SPACES`
+- `WRITE_ALLOWED_LISTS`
+
+Important note:
+
+- the write-safety surface exists and is exposed by the runtime health output
+- selective write inference remains the highest-risk policy area and should only change with matching harness updates
+
+Design reference:
+
+- [docs/design-docs/write-safety-principles.md](design-docs/write-safety-principles.md)
+
+### Runtime tuning
+
+- `CLICKUP_HTTP_TIMEOUT_MS`
+- `CHAR_LIMIT`
+- `MAX_ATTACHMENT_MB`
+- `REPORTING_MAX_TASKS`
+- `DEFAULT_RISK_WINDOW_DAYS`
+- `HIERARCHY_CACHE_TTL_MS`
+- `HIERARCHY_CACHE_TTL_SECONDS`
+- `SPACE_CONFIG_CACHE_TTL_MS`
+- `SPACE_CONFIG_CACHE_TTL_SECONDS`
+
+## Local Usage
+
+Typical local workflow:
+
+```bash
+python scripts/run_server.py doctor
+python scripts/run_server.py url
+python scripts/run_server.py serve
+python scripts/run_harness.py
+```
+
+## Test and Harness Workflow
+
+Checked-in local harness commands:
+
+- `python scripts/validate_harness.py`
+- `python scripts/run_harness.py`
+- `python scripts/run_live_smoke.py`
+
+`run_harness.py` disables third-party pytest plugin autoload before running the repo tests so harness execution is less dependent on workstation-specific Python installations.
+
+### Live smoke targeting
+
+Optional test-only variables:
+
+- `CLICKUP_LIVE_SMOKE_SPACE_ID`
+- `CLICKUP_LIVE_SMOKE_DOC_ID`
+
+These are used only by the checked-in live smoke harness.
+
+Reference:
+
+- [docs/live-smoke.md](live-smoke.md)
+
+## Docker and Packaging
+
+Repository packaging files:
+
+- [Dockerfile](../Dockerfile)
+- [docker-compose.yml](../docker-compose.yml)
+- [fastmcp.json](../fastmcp.json)
+
+Current status:
+
+- packaging exists and is usable
+- runtime correctness is proved by the harness, not by packaging files alone
+- the compose file can now render and start a bounded local health check without a local `.env` file
+
+Typical Docker validation workflow:
+
+```bash
+docker build -t clickup-mcp:local .
+docker run --rm -p 3004:3004 -e API_KEY_MODE=disabled clickup-mcp:local
+curl http://127.0.0.1:3004/health
+```
+
+## Configuration Confidence
+
+### High confidence
+
+- upstream ClickUp token and workspace/team ID requirements
+- local host/port/path resolution
+- presence of MCP bearer auth configuration
+
+### Medium confidence
+
+- runtime tuning knobs
+- Docker defaults
+
+### Lower confidence
+
+- selective write behavior as a product-grade safety guarantee
+
+## Supporting Evidence
+
+- [docs/codebase-map.md](codebase-map.md)
+- [docs/non-live-validation-probe.md](non-live-validation-probe.md)
+- [docs/status/tool-validation-status.json](status/tool-validation-status.json)

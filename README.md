@@ -1,97 +1,129 @@
 # clickup-mcp
 
-Standalone Python/FastMCP server for ClickUp with direct HTTP transport, static API-key auth, and no tunnel sidecar.
+Validated ClickUp MCP server with a fully checked-in tool surface and evidence-backed documentation.
 
-## Highlights
+## Current Status
 
-- Default MCP endpoint: `http://localhost:3004/mcp`
-- Default health endpoint: `http://localhost:3004/health`
-- Supports `CLICKUP_MCP_API_KEY`, `MCP_API_KEY`, or `MCP_API_KEYS`
-- Preserves existing ClickUp write controls such as `WRITE_MODE`, `WRITE_ALLOWED_SPACES`, and `WRITE_ALLOWED_LISTS`
+As of 2026-05-23, the repository’s canonical status artifact reports `79/79` manifest-declared tools as `validated`.
 
-## Reference Docs
+What the repository currently proves:
 
-- [Tool reference](docs/tool-reference.md) contains the full public tool inventory and parameter schemas (79 tools).
-- [Configuration reference](docs/configuration.md) explains the supported env vars, auth modes, ports, storage, and deployment knobs.
+- the full manifest surface is covered by the checked-in status artifact at [docs/status/tool-validation-status.json](docs/status/tool-validation-status.json)
+- the checked-in harness passes through [scripts/run_harness.py](scripts/run_harness.py)
+- runtime regressions are covered by checked-in tests for system, hierarchy, members, docs, views, tasks, time tracking, custom fields, and final-surface tool behavior
+- live smoke coverage exists for disposable live ClickUp verification when the required environment is configured
+- earlier repair and drift tranches are preserved as dated evidence rather than left as active plans
+
+What to trust first:
+
+- [docs/status/tool-validation-status.json](docs/status/tool-validation-status.json)
+- [docs/tool-reference.md](docs/tool-reference.md)
+- [docs/configuration.md](docs/configuration.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [docs/PLANS.md](docs/PLANS.md)
+
+## Verification
+
+Primary local verification entrypoints:
+
+```bash
+python scripts/validate_harness.py
+python scripts/run_harness.py
+python scripts/run_live_smoke.py
+```
+
+`run_harness.py` is the authoritative local test entrypoint. It disables third-party pytest plugin autoload so workstation-specific Python installs do not change harness behavior.
+
+Live smoke usage, environment, and cleanup boundaries are documented in [docs/live-smoke.md](docs/live-smoke.md).
+
+## Repository Structure
+
+Core implementation:
+
+- [server.py](server.py)
+- [scripts/run_server.py](scripts/run_server.py)
+- [tool_manifest_clickup.json](tool_manifest_clickup.json)
+
+Canonical documentation:
+
+- [AGENTS.md](AGENTS.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [docs/design-docs/index.md](docs/design-docs/index.md)
+- [docs/product-specs/index.md](docs/product-specs/index.md)
+
+Historical evidence and completed plan surfaces:
+
+- [docs/refactor-repair-plan.md](docs/refactor-repair-plan.md)
+- [docs/live-runtime-tool-tests.md](docs/live-runtime-tool-tests.md)
+- [docs/exec-plans/completed/2026-05-22-runtime-repair-plan.md](docs/exec-plans/completed/2026-05-22-runtime-repair-plan.md)
+- [docs/exec-plans/completed/2026-05-23-harness-engineering-plan.md](docs/exec-plans/completed/2026-05-23-harness-engineering-plan.md)
+
+## Local Runtime
+
+Local helper commands:
+
+```bash
+python scripts/run_server.py doctor
+python scripts/run_server.py url
+python scripts/run_server.py serve
+```
+
+## Docker
+
+The repository supports a fresh-clone container validation path without requiring a local `.env` file or a pre-created external Docker network.
+
+Build the image directly:
+
+```bash
+docker build -t clickup-mcp:local .
+```
+
+Run a bounded local smoke check:
+
+```bash
+docker run --rm -p 3004:3004 -e API_KEY_MODE=disabled clickup-mcp:local
+```
+
+Then query:
+
+```bash
+curl http://127.0.0.1:3004/health
+```
+
+Compose remains available for local runtime use:
+
+```bash
+docker compose up --build
+```
+
+Provide `CLICKUP_API_TOKEN` and `CLICKUP_TEAM_ID` through `.env` or the shell when you want live ClickUp-backed calls rather than just local health validation.
+
+## Tool Surface
+
+The full declared tool surface lives in [tool_manifest_clickup.json](tool_manifest_clickup.json).
+
+The current authoritative validation view lives in:
+
+- [docs/status/tool-validation-status.json](docs/status/tool-validation-status.json)
+
+Current tool-status guidance:
+
+- [docs/tool-reference.md](docs/tool-reference.md)
+- [docs/product-specs/tool-trust-model.md](docs/product-specs/tool-trust-model.md)
 
 ## Configuration
 
-1. Copy `.env.example` to `.env`
-2. Fill in the required values:
-   - `CLICKUP_API_TOKEN`
-   - `CLICKUP_TEAM_ID` or `TEAM_ID`
-   - `CLICKUP_MCP_API_KEY`
+Validated configuration guidance lives in:
 
-Common optional settings:
+- [docs/configuration.md](docs/configuration.md)
 
-- `CLICKUP_MCP_PORT`
-- `CLICKUP_MCP_HOST_PORT`
-- `CLICKUP_MCP_PATH`
-- `WRITE_MODE`
-- `WRITE_ALLOWED_SPACES`
-- `WRITE_ALLOWED_LISTS`
-- `API_KEY_MODE`
+## Public API Reference Inputs
 
-Docker Compose note:
+Primary non-live API references:
 
-- If a secret contains a literal `$`, escape it as `$$` in `.env`
+- [ClickUp v2 schema](https://developer.clickup.com/openapi/clickup-api-v2-reference.json)
+- [ClickUp v3 schema](https://developer.clickup.com/openapi/ClickUp_PUBLIC_API_V3.yaml)
 
-## Run Locally
+Repository reference note:
 
-```bash
-python scripts/run_server.py serve
-python scripts/run_server.py doctor
-python scripts/run_server.py url
-```
-
-The local helper serves streamable HTTP on `MCP_HOST` / `MCP_PORT` / `MCP_PATH`.
-
-## Run With Docker Compose
-
-```bash
-docker compose up -d --build
-docker compose ps
-docker compose logs -f
-```
-
-The included [docker-compose.yml](docker-compose.yml) publishes the ClickUp MCP server on port `3004` by default and joins the external `reverse_proxy` network.
-
-## Add To A Shared MCP Compose Project
-
-Use this service in a larger compose stack when you want one project containing multiple MCP servers:
-
-```yaml
-services:
-  clickup-mcp:
-    build:
-      context: /path/to/clickup-mcp
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - /path/to/clickup-mcp/.env
-    environment:
-      MCP_HOST: 0.0.0.0
-      MCP_PORT: "3004"
-      MCP_PATH: /mcp
-    ports:
-      - "3004:3004"
-    networks:
-      - reverse_proxy
-
-networks:
-  reverse_proxy:
-    external: true
-```
-
-If you do not need host port publishing because you are fronting the service with another internal proxy, you can omit the `ports` section.
-
-## MCP Client Connection
-
-- URL: `http://<host>:<port>/mcp`
-- Header: `Authorization: Bearer <your-api-key>`
-
-## Repository Notes
-
-- Tool definitions are loaded from `tool_manifest_clickup.json`
-- The runtime talks directly to ClickUp API v2 and v3
-- Health responses identify the server as `clickup-mcp`
+- [docs/references/clickup-openapi-refs.txt](docs/references/clickup-openapi-refs.txt)

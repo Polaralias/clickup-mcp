@@ -1,0 +1,6 @@
+Direct public schema remotes validated during repository review:
+
+- https://developer.clickup.com/openapi/clickup-api-v2-reference.json
+- https://developer.clickup.com/openapi/ClickUp_PUBLIC_API_V3.yaml
+
+Use these as the primary non-live API reference inputs.

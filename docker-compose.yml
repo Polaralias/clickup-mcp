@@ -6,7 +6,8 @@ services:
     container_name: clickup-mcp
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       MCP_HOST: 0.0.0.0
       MCP_PORT: "${CLICKUP_MCP_PORT:-3004}"
@@ -19,8 +20,3 @@ services:
       timeout: 5s
       retries: 20
       start_period: 45s
-
-networks:
-  default:
-    name: reverse_proxy
-    external: true

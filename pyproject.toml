@@ -9,6 +9,11 @@ dependencies = [
   "requests>=2.32.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4.0"
+]
+
 [project.scripts]
 clickup-mcp = "server:main"
 

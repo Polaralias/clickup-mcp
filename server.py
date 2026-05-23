@@ -7,6 +7,7 @@ import os
 import re
 import secrets
 import time
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -244,6 +245,59 @@ def _normalize_task_sample(task: dict[str, Any], assignee_limit: int = 5) -> dic
     return result
 
 
+def _task_timestamp_iso(value: Any) -> str | None:
+    epoch_ms = _to_epoch_ms(value)
+    if not epoch_ms:
+        return None
+    return datetime.fromtimestamp(epoch_ms / 1000, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _time_entries_from_payload(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, dict):
+        entries = payload.get("data")
+        if not isinstance(entries, list):
+            entries = payload.get("entries")
+        if isinstance(entries, list):
+            return [entry for entry in entries if isinstance(entry, dict)]
+    if isinstance(payload, list):
+        return [entry for entry in payload if isinstance(entry, dict)]
+    return []
+
+
+def _time_entry_duration_ms(entry: dict[str, Any]) -> int:
+    raw = entry.get("duration") or entry.get("duration_ms")
+    try:
+        return int(raw or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _time_entry_task_id(entry: dict[str, Any]) -> str | None:
+    task = entry.get("task")
+    if isinstance(task, dict):
+        task_id = _coerce_string(task.get("id") or task.get("task_id"))
+        if task_id:
+            return task_id
+    return _coerce_string(entry.get("task_id") or entry.get("taskId"))
+
+
+def _view_status_values(values: Any) -> list[str]:
+    results: list[str] = []
+    if not isinstance(values, list):
+        return results
+    for entry in values:
+        if isinstance(entry, str):
+            token = entry.strip()
+            if token:
+                results.append(token)
+            continue
+        if isinstance(entry, dict):
+            token = _coerce_string(entry.get("status") or entry.get("name"))
+            if token:
+                results.append(token)
+    return results
+
+
 def _coerce_page_content(page: dict[str, Any]) -> str:
     candidates = (
         page.get("content"),
@@ -274,6 +328,55 @@ def _build_preview(content: str, limit: int) -> dict[str, Any]:
     if len(content) <= safe_limit:
         return {"preview": content, "truncated": False}
     return {"preview": content[:safe_limit], "truncated": True}
+
+
+def _is_official_reference_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc != "developer.clickup.com":
+        return False
+    path = parsed.path or ""
+    if path == "/llms.txt":
+        return True
+    return bool(re.fullmatch(r"/(?:docs|reference)/[^?#]+\.md", path))
+
+
+def _parse_reference_index(body: str) -> list[dict[str, Any]]:
+    normalized = re.sub(r"\s+##\s+", "\n## ", body.strip())
+    section = "Uncategorized"
+    links: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _collect_from_segment(segment: str, current_section: str) -> None:
+        pattern = re.compile(
+            r"-\s+\[([^\]]+)\]\((https://developer\.clickup\.com/(?:docs|reference)/[^)\s]+\.md)\)"
+            r"(?::\s*(.*?))?(?=\s+-\s+\[|$)"
+        )
+        for match in pattern.finditer(segment):
+            url = match.group(2).strip()
+            if url in seen:
+                continue
+            seen.add(url)
+            description = re.sub(r"\s+", " ", (match.group(3) or "")).strip(" -")
+            payload = {"label": match.group(1).strip(), "url": url, "section": current_section}
+            if description:
+                payload["description"] = description
+            links.append(payload)
+
+    for raw_line in normalized.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("## "):
+            match = re.match(r"^##\s+(.+?)(?=\s+-\s+\[|$)", line)
+            if match:
+                section = match.group(1).strip()
+                remainder = line[match.end() :].strip()
+                if remainder:
+                    _collect_from_segment(remainder, section)
+                continue
+        _collect_from_segment(line, section)
+
+    return links
 
 
 def _workspace_docs_available(client: ClickUpClient, workspace_id: str) -> bool:
@@ -344,15 +447,25 @@ class ClickUpClient:
             clean_params[k] = v
 
         for attempt in range(4):
-            response = self._session.request(
-                method,
-                url,
-                params=clean_params,
-                json=body if files is None else None,
-                data=body if files is not None else None,
-                files=files,
-                timeout=self._timeout,
-            )
+            if files is not None:
+                response = requests.request(
+                    method,
+                    url,
+                    params=clean_params,
+                    data=body,
+                    files=files,
+                    headers={"Accept": "application/json", "Authorization": self._token},
+                    timeout=self._timeout,
+                )
+            else:
+                response = self._session.request(
+                    method,
+                    url,
+                    params=clean_params,
+                    json=body,
+                    files=files,
+                    timeout=self._timeout,
+                )
             if response.status_code in RETRY_STATUS and attempt < 3:
                 time.sleep((2**attempt) * 0.25)
                 continue
@@ -546,6 +659,48 @@ class ClickUpRuntime:
         )
         return data.get("spaces", []) if isinstance(data, dict) else []
 
+    def _workspace_catalogue(self) -> list[dict[str, Any]]:
+        data = self._cached_value(
+            "team:list",
+            self._config.hierarchy_cache_ttl_ms,
+            lambda: self._client.request("team"),
+        )
+        teams = data.get("teams", []) if isinstance(data, dict) else []
+        return [team for team in teams if isinstance(team, dict)]
+
+    def _team_members(self, workspace_id: str) -> list[dict[str, Any]]:
+        data = self._cached_value(
+            f"team:{workspace_id}:members",
+            self._config.hierarchy_cache_ttl_ms,
+            lambda: self._client.request(f"team/{workspace_id}"),
+        )
+        if not isinstance(data, dict):
+            return []
+        team = data.get("team") if isinstance(data.get("team"), dict) else data
+        raw_members = team.get("members", []) if isinstance(team, dict) else []
+        if not isinstance(raw_members, list):
+            return []
+
+        members: list[dict[str, Any]] = []
+        for entry in raw_members:
+            if not isinstance(entry, dict):
+                continue
+            member = entry.get("user") if isinstance(entry.get("user"), dict) else entry
+            if not isinstance(member, dict):
+                continue
+            member_id = _coerce_string(member.get("id") or member.get("user_id") or member.get("member_id"))
+            if not member_id:
+                continue
+            normalized: dict[str, Any] = {"id": member_id}
+            username = _coerce_string(member.get("username") or member.get("name"))
+            email = _coerce_string(member.get("email") or member.get("user_email"))
+            if username:
+                normalized["username"] = username
+            if email:
+                normalized["email"] = email
+            members.append(normalized)
+        return members
+
     def _space_folders(self, space_id: str) -> list[dict[str, Any]]:
         data = self._cached_value(
             f"space:{space_id}:folders",
@@ -569,6 +724,114 @@ class ClickUpRuntime:
             lambda: self._client.request(f"folder/{folder_id}/list"),
         )
         return data.get("lists", []) if isinstance(data, dict) else []
+
+    def _workspace_hierarchy_targets(self, args: dict[str, Any]) -> list[dict[str, Any]]:
+        requested_ids = _parse_id_list(args.get("workspaceIds"))
+        requested_names = [str(name).strip().lower() for name in (args.get("workspaceNames") or []) if str(name).strip()]
+        requested_workspaces = args.get("workspaces") if isinstance(args.get("workspaces"), list) else []
+
+        catalogue: list[dict[str, Any]] | None = None
+
+        def ensure_catalogue() -> list[dict[str, Any]]:
+            nonlocal catalogue
+            if catalogue is None:
+                catalogue = self._workspace_catalogue()
+            return catalogue
+
+        targets: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+
+        for workspace_id in requested_ids:
+            if workspace_id in seen_ids:
+                continue
+            match = next((entry for entry in ensure_catalogue() if _coerce_string(entry.get("id")) == workspace_id), None)
+            targets.append(match or {"id": workspace_id})
+            seen_ids.add(workspace_id)
+
+        for workspace_name in requested_names:
+            match = next(
+                (
+                    entry
+                    for entry in ensure_catalogue()
+                    if str(entry.get("name") or "").strip().lower() == workspace_name
+                ),
+                None,
+            )
+            if not match:
+                continue
+            workspace_id = _coerce_string(match.get("id"))
+            if not workspace_id or workspace_id in seen_ids:
+                continue
+            targets.append(match)
+            seen_ids.add(workspace_id)
+
+        for entry in requested_workspaces:
+            if not isinstance(entry, dict):
+                continue
+            workspace_id = _coerce_string(entry.get("id"))
+            workspace_name = _coerce_string(entry.get("name"))
+            if workspace_id and workspace_id in seen_ids:
+                continue
+            if not workspace_id and workspace_name:
+                match = next(
+                    (
+                        item
+                        for item in ensure_catalogue()
+                        if str(item.get("name") or "").strip().lower() == workspace_name.lower()
+                    ),
+                    None,
+                )
+                if match:
+                    workspace_id = _coerce_string(match.get("id"))
+                    entry = match
+            if workspace_id:
+                seen_ids.add(workspace_id)
+                targets.append(dict(entry))
+
+        if not targets:
+            default_id = self._workspace_id(args)
+            match = next((entry for entry in ensure_catalogue() if _coerce_string(entry.get("id")) == default_id), None)
+            targets.append(match or {"id": default_id})
+
+        max_workspaces = _parse_positive_int(args.get("maxWorkspaces"))
+        if max_workspaces:
+            targets = targets[:max_workspaces]
+        return targets
+
+    def _workspace_hierarchy_entry(self, workspace: dict[str, Any], args: dict[str, Any]) -> dict[str, Any]:
+        workspace_id = _coerce_string(workspace.get("id"))
+        if not workspace_id:
+            raise ValueError("workspace_hierarchy requires a workspace id")
+        max_depth = _parse_non_negative_int(args.get("maxDepth"))
+        if max_depth is None:
+            max_depth = 3
+
+        spaces = self._team_spaces(workspace_id)
+        if max_depth <= 0:
+            hierarchy: list[dict[str, Any]] = []
+        else:
+            hierarchy = []
+            for space in spaces[: int(args.get("maxSpacesPerWorkspace") or len(spaces))]:
+                entry = {"space": space, "folders": [], "lists": []}
+                sid = str(space.get("id"))
+                if max_depth >= 2:
+                    folders = self._space_folders(sid)
+                    for folder in folders[: int(args.get("maxFoldersPerSpace") or len(folders))]:
+                        folder_entry = {"folder": folder, "lists": []}
+                        if max_depth >= 3:
+                            fid = str(folder.get("id"))
+                            flists = self._folder_lists(fid)
+                            folder_entry["lists"] = flists[: int(args.get("maxListsPerFolder") or len(flists))]
+                        entry["folders"].append(folder_entry)
+                    slists = self._space_lists(sid)
+                    entry["lists"] = slists[: int(args.get("maxListsPerSpace") or len(slists))]
+                hierarchy.append(entry)
+
+        return {
+            "workspaceId": workspace_id,
+            "workspaceName": _coerce_string(workspace.get("name")),
+            "hierarchy": hierarchy,
+        }
 
     def _resolve_path(self, path: list[str]) -> dict[str, Any]:
         if not path:
@@ -812,19 +1075,19 @@ class ClickUpRuntime:
 
         list_ids = _parse_id_list(args.get("listIds")) or _parse_id_list(args.get("listId"))
         if list_ids:
-            params["list_ids"] = list_ids
+            params["list_ids[]"] = list_ids
         folder_ids = _parse_id_list(args.get("folderIds")) or _parse_id_list(args.get("folderId"))
         if folder_ids:
-            params["project_ids"] = folder_ids
+            params["project_ids[]"] = folder_ids
         space_ids = _parse_id_list(args.get("spaceIds")) or _parse_id_list(args.get("spaceId"))
         if space_ids:
-            params["space_ids"] = space_ids
+            params["space_ids[]"] = space_ids
         assignees = _parse_id_list(args.get("assignees")) or _parse_id_list(args.get("assigneeIds"))
         if assignees:
-            params["assignees"] = assignees
+            params["assignees[]"] = assignees
         tags = _parse_id_list(args.get("tags")) or _parse_id_list(args.get("tagIds"))
         if tags:
-            params["tags"] = tags
+            params["tags[]"] = tags
         statuses = _parse_id_list(args.get("statusFilter")) or _parse_id_list(args.get("statuses"))
         if args.get("status"):
             statuses = [str(args["status"]).strip()]
@@ -1109,6 +1372,276 @@ class ClickUpRuntime:
             "truncated": any(preview["truncated"] for preview in page_previews),
         }
 
+    def _doc_page_listing(self, workspace_id: str, doc_id: str) -> list[dict[str, Any]]:
+        payload = self._client.request_v3(f"workspaces/{workspace_id}/docs/{doc_id}/page_listing")
+        if isinstance(payload, list):
+            return [page for page in payload if isinstance(page, dict)]
+        pages = payload.get("pages", []) if isinstance(payload, dict) else []
+        return [page for page in pages if isinstance(page, dict)]
+
+    def _doc_pages(self, workspace_id: str, doc_id: str) -> list[dict[str, Any]]:
+        payload = self._client.request_v3(f"workspaces/{workspace_id}/docs/{doc_id}/pages")
+        if isinstance(payload, list):
+            return [page for page in payload if isinstance(page, dict)]
+        pages = payload.get("pages", []) if isinstance(payload, dict) else []
+        return [page for page in pages if isinstance(page, dict)]
+
+    def _doc_id(self, doc: dict[str, Any]) -> str | None:
+        return _coerce_string(doc.get("id") or doc.get("doc_id") or doc.get("docId") or doc.get("uuid") or doc.get("document_id"))
+
+    def _doc_with_summary(
+        self,
+        workspace_id: str,
+        doc: dict[str, Any],
+        *,
+        include_previews: bool,
+        preview_page_limit: int,
+        preview_limit: int,
+    ) -> dict[str, Any]:
+        payload = dict(doc)
+        page_metadata: list[dict[str, Any]] = []
+        if include_previews:
+            doc_id = self._doc_id(doc)
+            if doc_id:
+                page_metadata = self._doc_page_listing(workspace_id, doc_id)[:preview_page_limit]
+        payload["summary"] = self._document_summary(payload, page_metadata, [], preview_limit)
+        return payload
+
+    def _task_write_body(self, source: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in {
+                "name": source.get("name"),
+                "description": source.get("description"),
+                "status": source.get("status"),
+                "priority": source.get("priority"),
+                "assignees": source.get("assigneeIds"),
+                "tags": source.get("tags"),
+                "due_date": _to_epoch_ms(source.get("dueDate")),
+                "parent": source.get("parentTaskId"),
+            }.items()
+            if value is not None
+        }
+
+    def _task_detail_payload(self, task: dict[str, Any], assignee_limit: int) -> dict[str, Any]:
+        sample = _normalize_task_sample(task, assignee_limit=assignee_limit)
+        if not sample:
+            raise ValueError("Expected task payload to include an id")
+        payload = dict(sample)
+        payload["createdDate"] = _task_timestamp_iso(task.get("date_created") or task.get("createdDate"))
+        payload["updatedDate"] = _task_timestamp_iso(task.get("date_updated") or task.get("updatedDate"))
+        list_info = task.get("list") if isinstance(task.get("list"), dict) else {}
+        payload["listId"] = _coerce_string(task.get("list_id") or task.get("listId") or list_info.get("id"))
+        payload["listName"] = _coerce_string(task.get("list_name") or task.get("listName") or list_info.get("name"))
+        payload["listUrl"] = _coerce_string(task.get("list_url") or task.get("listUrl") or list_info.get("url"))
+        return payload
+
+    def _view_body(self, args: dict[str, Any], existing: dict[str, Any] | None = None) -> dict[str, Any]:
+        base = dict(existing) if isinstance(existing, dict) else {}
+        filters_remove = bool(args.get("filters_remove"))
+
+        filters = args.get("filters") if isinstance(args.get("filters"), dict) else (base.get("filters") if isinstance(base.get("filters"), dict) else {})
+        if filters_remove:
+            filters = {"op": "AND", "fields": [], "search": "", "show_closed": False}
+        else:
+            filters = dict(filters)
+            filters.setdefault("op", "AND")
+            filters.setdefault("fields", [])
+            filters.setdefault("search", "")
+            filters.setdefault("show_closed", False)
+
+            status_values = _view_status_values(args.get("statuses"))
+            if status_values:
+                filters["fields"] = list(filters.get("fields") or []) + [{"field": "status", "op": "ANY", "values": status_values}]
+            tag_values = _parse_id_list(args.get("tags"))
+            if tag_values:
+                filters["fields"] = list(filters.get("fields") or []) + [{"field": "tag", "op": "ANY", "values": tag_values}]
+
+        body = {
+            "name": args.get("name") if args.get("name") is not None else base.get("name"),
+            "type": args.get("viewType") or base.get("type") or "list",
+            "description": args.get("description"),
+            "grouping": base.get("grouping") if isinstance(base.get("grouping"), dict) else {"field": "status", "dir": 1, "ignore": False},
+            "divide": base.get("divide") if isinstance(base.get("divide"), dict) else {"field": None, "dir": None, "collapsed": []},
+            "sorting": base.get("sorting") if isinstance(base.get("sorting"), dict) else {"fields": []},
+            "filters": filters,
+            "columns": base.get("columns") if isinstance(base.get("columns"), dict) else {"fields": []},
+            "team_sidebar": base.get("team_sidebar") if isinstance(base.get("team_sidebar"), dict) else {"assignees": [], "assigned_comments": False, "unassigned_tasks": False},
+            "settings": base.get("settings")
+            if isinstance(base.get("settings"), dict)
+            else {
+                "show_task_locations": True,
+                "show_subtask_parent_names": True,
+                "show_closed_subtasks": False,
+                "show_assignees": True,
+                "show_images": True,
+                "me_comments": True,
+                "me_subtasks": True,
+                "me_checklists": True,
+            },
+        }
+        if existing is not None and isinstance(base.get("parent"), dict):
+            body["parent"] = base.get("parent")
+        return body
+
+    def _task_duplicate_body(self, source_task: dict[str, Any], *, include_assignees: bool) -> tuple[str, dict[str, Any]]:
+        list_id = _coerce_string(source_task.get("list_id"))
+        if not list_id and isinstance(source_task.get("list"), dict):
+            list_id = _coerce_string(source_task["list"].get("id"))
+        if not list_id:
+            raise ValueError("Could not resolve source list for task duplication")
+
+        status, _status_type = _extract_status(source_task)
+        priority = _extract_priority(source_task)
+        assignee_ids = [member["id"] for member in _extract_assignees(source_task, limit=100)[0]]
+        body = {
+            key: value
+            for key, value in {
+                "name": source_task.get("name"),
+                "description": source_task.get("description"),
+                "status": status,
+                "priority": priority,
+                "assignees": assignee_ids if include_assignees and assignee_ids else None,
+                "tags": _extract_tags(source_task) or None,
+                "due_date": _to_epoch_ms(source_task.get("due_date") or source_task.get("dueDate")),
+            }.items()
+            if value is not None
+        }
+        return list_id, body
+
+    def _merge_task_defaults(self, defaults: dict[str, Any] | None, item: dict[str, Any]) -> dict[str, Any]:
+        merged: dict[str, Any] = {}
+        if isinstance(defaults, dict):
+            merged.update(defaults)
+        merged.update(item)
+        return merged
+
+    def _time_entry_page(
+        self,
+        args: dict[str, Any],
+        *,
+        page: int,
+        page_size: int,
+        location_filters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        team_id = self._workspace_id(args)
+        params: dict[str, Any] = {
+            "start_date": _to_epoch_ms(args.get("from")),
+            "end_date": _to_epoch_ms(args.get("to")),
+            "page": page,
+            "include_location_names": True,
+        }
+        if location_filters:
+            params.update({key: value for key, value in location_filters.items() if value is not None})
+        payload = self._client.request(f"team/{team_id}/time_entries", params=params)
+        entries = _time_entries_from_payload(payload)[:page_size]
+        total_duration = sum(_time_entry_duration_ms(entry) for entry in entries)
+        return {
+            "workspaceId": team_id,
+            "entries": entries,
+            "entryCount": len(entries),
+            "totalDurationMs": total_duration,
+            "page": page,
+            "pageSize": page_size,
+            "filters": {
+                "from": args.get("from"),
+                "to": args.get("to"),
+                **(location_filters or {}),
+            },
+        }
+
+    def _view_tasks(self, view_id: str, *, page: int) -> list[dict[str, Any]]:
+        payload = self._client.request(f"view/{view_id}/task", params={"page": page})
+        if not isinstance(payload, dict):
+            return []
+        tasks = payload.get("tasks")
+        return [task for task in tasks if isinstance(task, dict)] if isinstance(tasks, list) else []
+
+    def _report_tasks_for_args(self, args: dict[str, Any]) -> list[dict[str, Any]]:
+        task_page = _parse_non_negative_int(args.get("taskPage")) or 0
+        task_limit = _parse_positive_int(args.get("taskSampleSize")) or 50
+        if args.get("viewId"):
+            return self._view_tasks(str(args["viewId"]), page=task_page)[:task_limit]
+
+        search_args = {
+            "teamId": args.get("teamId") or args.get("workspaceId") or self._config.team_id,
+            "page": task_page,
+            "pageSize": task_limit,
+            "includeSubtasks": args.get("includeSubtasks"),
+            "includeTasksInMultipleLists": args.get("includeTasksInMultipleLists"),
+            "spaceId": args.get("spaceId"),
+            "folderId": args.get("folderId"),
+            "listId": args.get("listId"),
+            "status": args.get("status"),
+            "statuses": args.get("statuses"),
+            "tagIds": args.get("tagIds") or ([args["tag"]] if args.get("tag") else None),
+            "query": args.get("filterQuery"),
+        }
+        result = self._client.request(
+            f"team/{self._workspace_id(search_args)}/task",
+            params=self._search_params(
+                search_args,
+                page=task_page,
+                page_size=min(task_limit, 100),
+                order_by="updated",
+                reverse=True,
+            ),
+        )
+        if not isinstance(result, dict):
+            return []
+        tasks = result.get("tasks")
+        return [task for task in tasks if isinstance(task, dict)][:task_limit] if isinstance(tasks, list) else []
+
+    def _time_report_from_entries(
+        self,
+        entries: list[dict[str, Any]],
+        *,
+        scope: dict[str, Any],
+        filters: dict[str, Any],
+        guidance: str | None = None,
+    ) -> dict[str, Any]:
+        task_ids = {task_id for task_id in (_time_entry_task_id(entry) for entry in entries) if task_id}
+        payload: dict[str, Any] = {
+            "scope": scope,
+            "filters": filters,
+            "entries": entries,
+            "entryCount": len(entries),
+            "totalDurationMs": sum(_time_entry_duration_ms(entry) for entry in entries),
+            "taskCount": len(task_ids),
+        }
+        if guidance:
+            payload["guidance"] = guidance
+        return payload
+
+    def _entries_for_tasks(self, args: dict[str, Any], tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        page_size = _parse_positive_int(args.get("entryPageSize")) or 100
+        page_limit = _parse_positive_int(args.get("entryPageLimit")) or 10
+        entries: list[dict[str, Any]] = []
+        seen_entry_ids: set[str] = set()
+        for task in tasks:
+            task_id = _coerce_string(task.get("id") or task.get("task_id"))
+            if not task_id:
+                continue
+            for page in range(page_limit):
+                page_payload = self._time_entry_page(args, page=page, page_size=page_size, location_filters={"task_id": task_id})
+                page_entries = page_payload.get("entries", [])
+                if not isinstance(page_entries, list):
+                    break
+                added_this_page = 0
+                for entry in page_entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    entry_id = _coerce_string(entry.get("id"))
+                    if entry_id and entry_id in seen_entry_ids:
+                        continue
+                    if entry_id:
+                        seen_entry_ids.add(entry_id)
+                    entries.append(entry)
+                    added_this_page += 1
+                if len(page_entries) < page_size or added_this_page == 0:
+                    break
+        return entries
+
     async def dispatch(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         args = await self._apply_path_defaults(dict(args))
         if name == "ping":
@@ -1166,25 +1699,20 @@ class ClickUpRuntime:
             spaces = self._team_spaces(str(wid))
             return {"workspaceId": wid, "spaces": spaces, "spaceCount": len(spaces)}
         if name == "workspace_hierarchy":
-            wid = self._workspace_id(args)
-            spaces = self._team_spaces(wid)
-            hierarchy: list[dict[str, Any]] = []
-            for space in spaces[: int(args.get("maxSpacesPerWorkspace") or len(spaces))]:
-                entry = {"space": space, "folders": [], "lists": []}
-                sid = str(space.get("id"))
-                folders = self._space_folders(sid)
-                for folder in folders[: int(args.get("maxFoldersPerSpace") or len(folders))]:
-                    fid = str(folder.get("id"))
-                    flists = self._folder_lists(fid)
-                    entry["folders"].append({"folder": folder, "lists": flists[: int(args.get("maxListsPerFolder") or len(flists))]})
-                slists = self._space_lists(sid)
-                entry["lists"] = slists[: int(args.get("maxListsPerSpace") or len(slists))]
-                hierarchy.append(entry)
-            return {"workspaceId": wid, "hierarchy": hierarchy}
+            _ = _parse_positive_int(args.get("concurrency"))
+            if args.get("forceRefresh"):
+                self._cache.pop("team:list", None)
+                for key in [cache_key for cache_key in list(self._cache.keys()) if cache_key.startswith(("team:", "space:", "folder:"))]:
+                    self._cache.pop(key, None)
+            workspaces = [self._workspace_hierarchy_entry(workspace, args) for workspace in self._workspace_hierarchy_targets(args)]
+            payload: dict[str, Any] = {"workspaces": workspaces, "count": len(workspaces)}
+            if len(workspaces) == 1:
+                payload["workspaceId"] = workspaces[0]["workspaceId"]
+                payload["hierarchy"] = workspaces[0]["hierarchy"]
+            return payload
         if name in {"member_list_for_workspace", "member_resolve", "member_search_by_name", "task_assignee_resolve"}:
             team_id = str(args.get("teamId") or self._workspace_id(args))
-            data = self._client.request(f"team/{team_id}/member")
-            members = data.get("members") or data.get("team_members") or []
+            members = self._team_members(team_id)
             if name == "member_list_for_workspace":
                 return {"teamId": team_id, "members": members}
             if name == "member_search_by_name":
@@ -1209,7 +1737,16 @@ class ClickUpRuntime:
             await self._ensure_write_allowed(args)
             if args.get("dryRun"):
                 return {"dryRun": True, "operation": "space_tag_create", "input": args}
-            body = {k: v for k, v in {"tag": args.get("name"), "tag_bg": args.get("backgroundColor"), "tag_fg": args.get("foregroundColor")}.items() if v is not None}
+            tag = {
+                k: v
+                for k, v in {
+                    "name": args.get("name"),
+                    "tag_bg": args.get("backgroundColor"),
+                    "tag_fg": args.get("foregroundColor"),
+                }.items()
+                if v is not None
+            }
+            body = {"tag": tag}
             return self._client.request(f"space/{args['spaceId']}/tag", method="POST", body=body)
         if name == "space_tag_update":
             _confirm_required(args)
@@ -1247,55 +1784,44 @@ class ClickUpRuntime:
             if name == "list_create_from_template":
                 body = {"name": args.get("name"), "use_template_options": bool(args.get("useTemplateOptions"))}
                 if args.get("folderId"):
-                    return self._client.request(f"folder/{args['folderId']}/list/template/{args['templateId']}", method="POST", body=body)
-                return self._client.request(f"space/{args['spaceId']}/list/template/{args['templateId']}", method="POST", body=body)
+                    return self._client.request(f"folder/{args['folderId']}/list_template/{args['templateId']}", method="POST", body=body)
+                return self._client.request(f"space/{args['spaceId']}/list_template/{args['templateId']}", method="POST", body=body)
             if name == "list_update":
                 body = {k: v for k, v in {"name": args.get("name"), "description": args.get("description"), "statuses": args.get("statuses")}.items() if v is not None}
                 return self._client.request(f"list/{args['listId']}", method="PUT", body=body)
             if name == "list_delete":
                 return self._client.request(f"list/{args['listId']}", method="DELETE")
             if name == "list_view_create":
-                body = {k: v for k, v in {"name": args.get("name"), "type": args.get("viewType"), "description": args.get("description"), "filters": args.get("filters")}.items() if v is not None}
+                body = self._view_body(args)
                 return self._client.request(f"list/{args['listId']}/view", method="POST", body=body)
             if name == "space_view_create":
-                body = {k: v for k, v in {"name": args.get("name"), "type": args.get("viewType"), "description": args.get("description"), "filters": args.get("filters")}.items() if v is not None}
+                body = self._view_body(args)
                 return self._client.request(f"space/{args['spaceId']}/view", method="POST", body=body)
             if name == "view_update":
-                body = {k: v for k, v in {"name": args.get("name"), "type": args.get("viewType"), "description": args.get("description"), "filters": args.get("filters")}.items() if v is not None}
+                existing = self._client.request(f"view/{args['viewId']}")
+                if not isinstance(existing, dict):
+                    raise ValueError("Expected dict payload when reading existing view")
+                body = self._view_body(args, existing)
                 return self._client.request(f"view/{args['viewId']}", method="PUT", body=body)
             if name == "view_delete":
                 return self._client.request(f"view/{args['viewId']}", method="DELETE")
 
         if name == "reference_link_list":
             import requests as _r
-            html = _r.get("https://clickup.com/api", timeout=10).text
-            links = []
-            for href, label in re.findall(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.I | re.S):
-                clean = re.sub(r"<[^>]+>", " ", label)
-                clean = re.sub(r"\s+", " ", clean).strip()
-                if not clean:
-                    continue
-                if href.startswith("/"):
-                    href = "https://clickup.com" + href
-                if href.startswith("https://clickup.com/api"):
-                    links.append({"url": href, "label": clean})
-            dedup = []
-            seen = set()
-            for item in links:
-                if item["url"] not in seen:
-                    seen.add(item["url"])
-                    dedup.append(item)
-            return {"links": dedup[: int(args.get("limit") or 50)]}
+            response = _r.get("https://developer.clickup.com/llms.txt", timeout=10)
+            if hasattr(response, "raise_for_status"):
+                response.raise_for_status()
+            limit = _parse_positive_int(args.get("limit")) or 50
+            return {"links": _parse_reference_index(response.text)[:limit]}
         if name == "reference_page_fetch":
             import requests as _r
             url = str(args["url"])
-            if not url.startswith("https://clickup.com/api"):
-                raise ValueError("Only clickup.com/api reference URLs are supported")
-            html = _r.get(url, timeout=10).text
-            text = re.sub(r"<script[\s\S]*?</script>", "", html, flags=re.I)
-            text = re.sub(r"<style[\s\S]*?</style>", "", text, flags=re.I)
-            text = re.sub(r"<[^>]+>", " ", text)
-            text = re.sub(r"\s+", " ", text).strip()
+            if not _is_official_reference_url(url):
+                raise ValueError("Only developer.clickup.com Markdown doc URLs and llms.txt are supported")
+            response = _r.get(url, timeout=10)
+            if hasattr(response, "raise_for_status"):
+                response.raise_for_status()
+            text = response.text
             limit = min(self._preview_limit(args.get("maxCharacters")), self._config.char_limit)
             return {"source": url, "body": text[:limit], "truncated": len(text) > limit}
         if name in {"task_create", "subtask_create", "task_update", "task_delete", "task_duplicate", "task_comment_add", "task_attachment_add", "task_tag_add", "task_tag_remove", "task_create_bulk", "subtask_create_bulk", "task_update_bulk", "task_delete_bulk", "task_tag_add_bulk", "task_search", "task_search_fuzzy", "task_search_fuzzy_bulk", "task_status_report", "task_risk_report", "task_read", "task_list_for_list", "task_comment_list", "list_custom_field_list", "task_custom_field_set_value", "task_custom_field_clear_value"}:
@@ -1317,14 +1843,22 @@ class ClickUpRuntime:
             if name == "task_delete":
                 return self._client.request(f"task/{args['taskId']}", method="DELETE")
             if name == "task_duplicate":
-                body = {k: v for k, v in {"list_id": args.get("listId"), "include_assignees": args.get("includeAssignees"), "include_checklists": args.get("includeChecklists")}.items() if v is not None}
-                return self._client.request(f"task/{args['taskId']}/duplicate", method="POST", body=body)
+                source_task = self._client.request(f"task/{args['taskId']}")
+                if not isinstance(source_task, dict):
+                    raise ValueError("Expected dict payload when reading source task for duplication")
+                target_list_id = _coerce_string(args.get("listId"))
+                source_list_id, body = self._task_duplicate_body(
+                    source_task,
+                    include_assignees=bool(args.get("includeAssignees")),
+                )
+                return self._client.request(f"list/{target_list_id or source_list_id}/task", method="POST", body=body)
             if name == "task_comment_add":
                 return self._client.request(f"task/{args['taskId']}/comment", method="POST", body={"comment_text": args["comment"]})
             if name == "task_attachment_add":
                 raw, mime = self._upload_from_data_uri(args["dataUri"])
                 files = {"attachment": (args.get("filename") or "attachment.bin", raw, mime)}
-                return self._client.request(f"task/{args['taskId']}/attachment", method="POST", files=files)
+                workspace_id = self._workspace_id(args)
+                return self._client.request_v3(f"workspaces/{workspace_id}/tasks/{args['taskId']}/attachments", method="POST", files=files)
             if name == "task_tag_add":
                 out = []
                 for tag in args.get("tags") or []:
@@ -1336,20 +1870,86 @@ class ClickUpRuntime:
                     out.append(self._client.request(f"task/{args['taskId']}/tag/{tag}", method="DELETE"))
                 return {"results": out}
             if name == "task_create_bulk":
-                team_id = self._workspace_id(args)
-                return self._client.request("task/bulk", method="POST", params={"team_id": team_id}, body={"tasks": args.get("tasks") or []})
+                defaults = args.get("defaults") if isinstance(args.get("defaults"), dict) else {}
+                results = []
+                for task in args.get("tasks") or []:
+                    if not isinstance(task, dict):
+                        continue
+                    merged = self._merge_task_defaults(defaults, task)
+                    list_id = _coerce_string(merged.get("listId"))
+                    if not list_id:
+                        raise ValueError("Each bulk task create item requires listId directly or via defaults.listId")
+                    results.append(
+                        self._client.request(
+                            f"list/{list_id}/task",
+                            method="POST",
+                            body=self._task_write_body(merged),
+                        )
+                    )
+                return {"results": results, "count": len(results)}
             if name == "subtask_create_bulk":
-                team_id = self._workspace_id(args)
-                return self._client.request("task/bulk", method="POST", params={"team_id": team_id}, body={"tasks": args.get("subtasks") or []})
+                defaults = args.get("defaults") if isinstance(args.get("defaults"), dict) else {}
+                results = []
+                for task in args.get("subtasks") or []:
+                    if not isinstance(task, dict):
+                        continue
+                    merged = self._merge_task_defaults(defaults, task)
+                    list_id = _coerce_string(merged.get("listId"))
+                    if not list_id:
+                        raise ValueError("Each bulk subtask create item requires listId directly or via defaults.listId")
+                    parent_task_id = _coerce_string(merged.get("parentTaskId") or merged.get("parent"))
+                    if not parent_task_id:
+                        raise ValueError("Each bulk subtask create item requires parentTaskId directly or via defaults.parentTaskId")
+                    body = self._task_write_body({**merged, "parentTaskId": parent_task_id})
+                    results.append(
+                        self._client.request(
+                            f"list/{list_id}/task",
+                            method="POST",
+                            body=body,
+                        )
+                    )
+                return {"results": results, "count": len(results)}
             if name == "task_update_bulk":
-                team_id = self._workspace_id(args)
-                return self._client.request("task/bulk", method="PUT", params={"team_id": team_id}, body={"tasks": args.get("tasks") or []})
+                defaults = args.get("defaults") if isinstance(args.get("defaults"), dict) else {}
+                results = []
+                for task in args.get("tasks") or []:
+                    if not isinstance(task, dict):
+                        continue
+                    merged = self._merge_task_defaults(defaults, task)
+                    task_id = _coerce_string(merged.get("taskId"))
+                    if not task_id:
+                        raise ValueError("Each bulk task update item requires taskId")
+                    results.append(
+                        self._client.request(
+                            f"task/{task_id}",
+                            method="PUT",
+                            body=self._task_write_body(merged),
+                        )
+                    )
+                return {"results": results, "count": len(results)}
             if name == "task_delete_bulk":
-                team_id = self._workspace_id(args)
-                return self._client.request("task/bulk", method="DELETE", params={"team_id": team_id}, body={"task_ids": args.get("tasks") or []})
+                results = []
+                for task in args.get("tasks") or []:
+                    if not isinstance(task, dict):
+                        continue
+                    task_id = _coerce_string(task.get("taskId"))
+                    if not task_id:
+                        raise ValueError("Each bulk task delete item requires taskId")
+                    results.append(self._client.request(f"task/{task_id}", method="DELETE"))
+                return {"results": results, "count": len(results)}
             if name == "task_tag_add_bulk":
-                team_id = self._workspace_id(args)
-                return self._client.request("task/tag/bulk", method="POST", params={"team_id": team_id}, body={"operations": args.get("tasks") or []})
+                defaults = args.get("defaults") if isinstance(args.get("defaults"), dict) else {}
+                results = []
+                for task in args.get("tasks") or []:
+                    if not isinstance(task, dict):
+                        continue
+                    merged = self._merge_task_defaults(defaults, task)
+                    task_id = _coerce_string(merged.get("taskId"))
+                    if not task_id:
+                        raise ValueError("Each bulk tag-add item requires taskId")
+                    for tag in merged.get("tags") or []:
+                        results.append(self._client.request(f"task/{task_id}/tag/{tag}", method="POST"))
+                return {"results": results, "count": len(results)}
             if name == "task_search":
                 team_id = self._workspace_id(args)
                 requested_limit = _parse_positive_int(args.get("pageSize")) or _parse_positive_int(args.get("limit")) or 50
@@ -1386,12 +1986,36 @@ class ClickUpRuntime:
                 return self._risk_report(args)
             if name == "task_read":
                 task_id = self._task_id(args)
-                return self._client.request(f"task/{task_id}")
+                task = self._client.request(f"task/{task_id}")
+                if not isinstance(task, dict):
+                    raise ValueError("Expected dict payload when reading task")
+                assignee_limit = _parse_positive_int(args.get("detailLimit")) or 10
+                return self._task_detail_payload(task, assignee_limit)
             if name == "task_list_for_list":
-                data = self._client.request(f"list/{args['listId']}/task", params={"page": args.get("page"), "subtasks": args.get("includeSubtasks"), "include_timl": args.get("includeTasksInMultipleLists")})
+                page = _parse_non_negative_int(args.get("page"))
+                include_subtasks = _parse_bool_flag(args.get("includeSubtasks"))
+                include_timl = _parse_bool_flag(args.get("includeTasksInMultipleLists"))
+                include_closed = _parse_bool_flag(args.get("includeClosed"))
+                params = {
+                    "page": 0 if page is None else page,
+                    "subtasks": True if include_subtasks is None else include_subtasks,
+                    "include_timl": True if include_timl is None else include_timl,
+                    "include_closed": False if include_closed is None else include_closed,
+                }
+                data = self._client.request(f"list/{args['listId']}/task", params=params)
                 tasks = data.get("tasks", []) if isinstance(data, dict) else []
-                limit = int(args.get("limit") or len(tasks) or 100)
-                return {"tasks": tasks[:limit], "total": len(tasks)}
+                limit = _parse_positive_int(args.get("limit")) or 20
+                assignee_limit = _parse_positive_int(args.get("assigneePreviewLimit")) or 5
+                normalized = [
+                    sample
+                    for sample in (
+                        self._task_detail_payload(task, assignee_limit)
+                        for task in tasks
+                        if isinstance(task, dict)
+                    )
+                    if sample
+                ]
+                return {"tasks": normalized[:limit], "total": len(normalized)}
             if name == "task_comment_list":
                 task_id = self._task_id(args)
                 data = self._client.request(f"task/{task_id}/comment")
@@ -1412,24 +2036,48 @@ class ClickUpRuntime:
                 if args.get("dryRun"):
                     return {"dryRun": True, "operation": name, "input": args}
             workspace_id = str(args.get("workspaceId") or _team_id())
+            preview_limit = self._preview_limit(args.get("previewCharLimit"))
             if name == "doc_create":
                 body = {k: v for k, v in {"name": args.get("name"), "content": args.get("content"), "folder_id": args.get("folderId")}.items() if v is not None}
                 return self._client.request_v3(f"workspaces/{workspace_id}/docs", method="POST", body=body)
             if name == "doc_list":
                 params = {"search": args.get("search"), "limit": args.get("limit"), "page": args.get("page"), "space_id": args.get("spaceId"), "folder_id": args.get("folderId")}
-                return self._client.request_v3(f"workspaces/{workspace_id}/docs", params=params)
-            preview_limit = self._preview_limit(args.get("previewCharLimit"))
+                payload = self._client.request_v3(f"workspaces/{workspace_id}/docs", params=params)
+                docs = payload.get("docs", []) if isinstance(payload, dict) else (payload if isinstance(payload, list) else [])
+                include_previews = _parse_bool_flag(args.get("includePreviews"))
+                if include_previews is None:
+                    include_previews = True
+                preview_page_limit = _parse_positive_int(args.get("previewPageLimit")) or 3
+                enriched = [
+                    self._doc_with_summary(
+                        workspace_id,
+                        doc,
+                        include_previews=include_previews,
+                        preview_page_limit=preview_page_limit,
+                        preview_limit=preview_limit,
+                    )
+                    for doc in docs
+                    if isinstance(doc, dict)
+                ]
+                return {"docs": enriched, "count": len(enriched)}
             if name == "doc_read":
                 doc = self._client.request_v3(f"workspaces/{workspace_id}/docs/{args['docId']}")
+                page_limit = _parse_positive_int(args.get("pageLimit")) or 20
                 page_metadata: list[dict[str, Any]] = []
                 detailed_pages: list[dict[str, Any]] = []
-                if args.get("includePages"):
-                    pages = self._client.request_v3(f"docs/{args['docId']}/page_listing")
-                    page_metadata = pages.get("pages", []) if isinstance(pages, dict) else (pages if isinstance(pages, list) else [])
+                include_pages = _parse_bool_flag(args.get("includePages"))
+                if include_pages is None:
+                    include_pages = True
+                if include_pages:
+                    page_metadata = self._doc_page_listing(workspace_id, str(args["docId"]))[:page_limit]
                     doc["pages"] = page_metadata
                 if args.get("pageIds"):
-                    details = self._client.request_v3(f"docs/{args['docId']}/pages/bulk", method="POST", body={"page_ids": args.get("pageIds") or []})
-                    detailed_pages = details.get("pages", []) if isinstance(details, dict) else (details if isinstance(details, list) else [])
+                    requested_page_ids = {str(page_id) for page_id in (args.get("pageIds") or []) if page_id is not None}
+                    detailed_pages = [
+                        page
+                        for page in self._doc_pages(workspace_id, str(args["docId"]))
+                        if str(page.get("id") or page.get("page_id") or page.get("pageId") or page.get("uuid")) in requested_page_ids
+                    ]
                 doc["summary"] = self._document_summary(
                     doc if isinstance(doc, dict) else {},
                     page_metadata,
@@ -1438,34 +2086,75 @@ class ClickUpRuntime:
                 )
                 return doc
             if name == "doc_pages_read":
-                payload = self._client.request_v3(f"docs/{args['docId']}/pages/bulk", method="POST", body={"page_ids": args.get("pageIds") or []})
-                pages = payload.get("pages", []) if isinstance(payload, dict) else (payload if isinstance(payload, list) else [])
+                requested_page_ids = {str(page_id) for page_id in (args.get("pageIds") or []) if page_id is not None}
+                pages = [
+                    page
+                    for page in self._doc_pages(workspace_id, str(args["docId"]))
+                    if not requested_page_ids
+                    or str(page.get("id") or page.get("page_id") or page.get("pageId") or page.get("uuid")) in requested_page_ids
+                ]
                 previewed = [self._page_with_preview(page, preview_limit) for page in pages if isinstance(page, dict)]
                 return {"pages": previewed, "count": len(previewed)}
             if name == "doc_page_list":
-                payload = self._client.request_v3(f"docs/{args['docId']}/page_listing")
-                pages = payload.get("pages", []) if isinstance(payload, dict) else (payload if isinstance(payload, list) else [])
+                pages = self._doc_page_listing(workspace_id, str(args["docId"]))
                 previewed = [self._page_with_preview(page, preview_limit) for page in pages if isinstance(page, dict)]
                 return {"pages": previewed, "count": len(previewed)}
             if name == "doc_page_read":
-                payload = self._client.request_v3(f"docs/{args['docId']}/pages/{args['pageId']}")
+                payload = self._client.request_v3(f"workspaces/{workspace_id}/docs/{args['docId']}/pages/{args['pageId']}")
                 if isinstance(payload, dict):
                     return self._page_with_preview(payload, preview_limit)
                 return payload
             if name == "doc_page_create":
-                body = {k: v for k, v in {"title": args.get("title"), "content": args.get("content"), "parent_id": args.get("parentId"), "position": args.get("position")}.items() if v is not None}
-                return self._client.request_v3(f"docs/{args['docId']}/pages", method="POST", body=body)
+                body = {
+                    k: v
+                    for k, v in {
+                        "name": args.get("title"),
+                        "content": args.get("content"),
+                        "parent_id": args.get("parentId"),
+                        "position": args.get("position"),
+                    }.items()
+                    if v is not None
+                }
+                return self._client.request_v3(f"workspaces/{workspace_id}/docs/{args['docId']}/pages", method="POST", body=body)
             if name == "doc_page_update":
-                body = {k: v for k, v in {"title": args.get("title"), "content": args.get("content")}.items() if v is not None}
-                return self._client.request_v3(f"docs/{args['docId']}/pages/{args['pageId']}", method="PUT", body=body)
+                body = {k: v for k, v in {"name": args.get("title"), "content": args.get("content")}.items() if v is not None}
+                return self._client.request_v3(f"workspaces/{workspace_id}/docs/{args['docId']}/pages/{args['pageId']}", method="PUT", body=body)
             if name == "doc_search":
                 payload = self._client.request_v3(f"workspaces/{workspace_id}/docs", params={"search": args.get("query"), "limit": args.get("limit")})
                 docs = payload.get("docs", []) if isinstance(payload, dict) else []
-                return {"docs": docs, "count": len(docs)}
+                expand_pages = bool(args.get("expandPages"))
+                enriched = [
+                    self._doc_with_summary(
+                        workspace_id,
+                        doc,
+                        include_previews=expand_pages,
+                        preview_page_limit=3,
+                        preview_limit=preview_limit,
+                    )
+                    for doc in docs
+                    if isinstance(doc, dict)
+                ]
+                return {"docs": enriched, "count": len(enriched)}
             if name == "doc_search_bulk":
                 return {
                     "queries": [
-                        self._client.request_v3(f"workspaces/{workspace_id}/docs", params={"search": q, "limit": args.get("limit")})
+                        (
+                            lambda search_payload: {
+                                "query": q,
+                                "docs": [
+                                    self._doc_with_summary(
+                                        workspace_id,
+                                        doc,
+                                        include_previews=bool(args.get("expandPages")),
+                                        preview_page_limit=3,
+                                        preview_limit=preview_limit,
+                                    )
+                                    for doc in (search_payload.get("docs", []) if isinstance(search_payload, dict) else [])
+                                    if isinstance(doc, dict)
+                                ],
+                                "count": len(search_payload.get("docs", []) if isinstance(search_payload, dict) else []),
+                            }
+                        )(self._client.request_v3(f"workspaces/{workspace_id}/docs", params={"search": q, "limit": args.get("limit")}))
                         for q in (args.get("queries") or [])
                     ]
                 }
@@ -1477,12 +2166,25 @@ class ClickUpRuntime:
                 if args.get("dryRun"):
                     return {"dryRun": True, "operation": name, "input": args}
             if name == "task_timer_start":
-                return self._client.request(f"task/{args['taskId']}/time", method="POST", body={"start": int(time.time() * 1000)})
+                team_id = self._workspace_id(args)
+                return self._client.request(f"team/{team_id}/time_entries/start", method="POST", body={"tid": args["taskId"]})
             if name == "task_timer_stop":
-                return self._client.request(f"task/{args['taskId']}/time", method="POST", body={"end": int(time.time() * 1000)})
+                team_id = self._workspace_id(args)
+                return self._client.request(f"team/{team_id}/time_entries/stop", method="POST")
             if name == "time_entry_create_for_task":
-                body = {k: v for k, v in {"start": _to_epoch_ms(args.get("start")), "end": _to_epoch_ms(args.get("end")), "duration": args.get("durationMs"), "description": args.get("description")}.items() if v is not None}
-                return self._client.request(f"task/{args['taskId']}/time", method="POST", body=body)
+                team_id = self._workspace_id(args)
+                body = {
+                    k: v
+                    for k, v in {
+                        "start": _to_epoch_ms(args.get("start")),
+                        "end": _to_epoch_ms(args.get("end")),
+                        "duration": args.get("durationMs"),
+                        "description": args.get("description"),
+                        "tid": args["taskId"],
+                    }.items()
+                    if v is not None
+                }
+                return self._client.request(f"team/{team_id}/time_entries", method="POST", body=body)
             if name == "time_entry_update":
                 team_id = self._workspace_id(args)
                 body = {k: v for k, v in {"start": _to_epoch_ms(args.get("start")), "end": _to_epoch_ms(args.get("end")), "duration": args.get("durationMs"), "description": args.get("description")}.items() if v is not None}
@@ -1491,24 +2193,142 @@ class ClickUpRuntime:
                 team_id = self._workspace_id(args)
                 return self._client.request(f"team/{team_id}/time_entries/{args['entryId']}", method="DELETE")
             if name == "task_time_entry_list":
-                return self._client.request(f"task/{args['taskId']}/time")
+                return self._time_entry_page(
+                    args,
+                    page=_parse_non_negative_int(args.get("page")) or 0,
+                    page_size=_parse_positive_int(args.get("pageSize")) or 20,
+                    location_filters={"task_id": args["taskId"]},
+                )
             if name == "time_entry_current":
                 team_id = self._workspace_id(args)
                 return self._client.request(f"team/{team_id}/time_entries/current")
             if name == "time_entry_list":
-                team_id = self._workspace_id(args)
-                params = {"start_date": _to_epoch_ms(args.get("from")), "end_date": _to_epoch_ms(args.get("to")), "page": args.get("page")}
-                return self._client.request(f"team/{team_id}/time_entries", params=params)
-            base = await self.dispatch("time_entry_list", args)
-            entries = base.get("data") or base.get("entries") or []
-            total = 0
-            for entry in entries:
-                dur = entry.get("duration") or entry.get("duration_ms") or 0
-                try:
-                    total += int(dur)
-                except Exception:
-                    pass
-            return {"entries": entries, "entryCount": len(entries), "totalDurationMs": total}
+                location_filters: dict[str, Any] = {}
+                task_id = _coerce_string(args.get("taskId"))
+                if task_id:
+                    location_filters["task_id"] = task_id
+                return self._time_entry_page(
+                    args,
+                    page=_parse_non_negative_int(args.get("page")) or 0,
+                    page_size=_parse_positive_int(args.get("pageSize")) or 20,
+                    location_filters=location_filters or None,
+                )
+            if name == "time_report_for_container":
+                container_type = str(args["containerType"]).strip().lower()
+                location_key = {
+                    "workspace": None,
+                    "space": "space_id",
+                    "folder": "folder_id",
+                    "list": "list_id",
+                }.get(container_type)
+                if container_type not in {"workspace", "space", "folder", "list"}:
+                    raise ValueError("containerType must be one of workspace, space, folder, or list")
+                if args.get("includeSubtasks") is False or args.get("includeTasksInMultipleLists") is False:
+                    search_args = dict(args)
+                    if container_type == "space":
+                        search_args["spaceId"] = args["containerId"]
+                    elif container_type == "folder":
+                        search_args["folderId"] = args["containerId"]
+                    elif container_type == "list":
+                        search_args["listId"] = args["containerId"]
+                    tasks = self._report_tasks_for_args(search_args)
+                    entries = self._entries_for_tasks(search_args, tasks)
+                else:
+                    entries = self._time_entry_page(
+                        args,
+                        page=0,
+                        page_size=_parse_positive_int(args.get("entryPageSize")) or 100,
+                        location_filters={location_key: args["containerId"]} if location_key else None,
+                    )["entries"]
+                return self._time_report_from_entries(
+                    entries,
+                    scope={
+                        "workspaceId": self._workspace_id(args),
+                        "containerType": container_type,
+                        "containerId": args["containerId"],
+                    },
+                    filters={
+                        "from": args.get("from"),
+                        "to": args.get("to"),
+                        "includeSubtasks": args.get("includeSubtasks") is not False,
+                        "includeTasksInMultipleLists": args.get("includeTasksInMultipleLists") is not False,
+                    },
+                )
+            if name == "time_report_for_tag":
+                tasks = self._report_tasks_for_args(args)
+                entries = self._entries_for_tasks(args, tasks)
+                return self._time_report_from_entries(
+                    entries,
+                    scope={"workspaceId": self._workspace_id(args), "tag": args["tag"]},
+                    filters={
+                        "from": args.get("from"),
+                        "to": args.get("to"),
+                        "includeSubtasks": args.get("includeSubtasks") is not False,
+                    },
+                )
+            if name == "time_report_for_space_tag":
+                search_args = dict(args)
+                search_args["tagIds"] = [args["tag"]]
+                tasks = self._report_tasks_for_args(search_args)
+                entries = self._entries_for_tasks(search_args, tasks)
+                return self._time_report_from_entries(
+                    entries,
+                    scope={"workspaceId": self._workspace_id(args), "spaceId": args["spaceId"], "tag": args["tag"]},
+                    filters={
+                        "from": args.get("from"),
+                        "to": args.get("to"),
+                        "includeSubtasks": args.get("includeSubtasks") is not False,
+                    },
+                )
+            if name == "time_report_for_context":
+                if args.get("taskId"):
+                    entries = self._time_entry_page(
+                        args,
+                        page=0,
+                        page_size=_parse_positive_int(args.get("entryPageSize")) or 100,
+                        location_filters={"task_id": args["taskId"]},
+                    )["entries"]
+                elif args.get("viewId") or args.get("filterQuery") or args.get("status") or args.get("statuses") or args.get("tagIds") or args.get("includeSubtasks") is False or args.get("includeTasksInMultipleLists") is False:
+                    tasks = self._report_tasks_for_args(args)
+                    entries = self._entries_for_tasks(args, tasks)
+                else:
+                    location_filters: dict[str, Any] = {}
+                    if args.get("listId"):
+                        location_filters["list_id"] = args["listId"]
+                    elif args.get("spaceId"):
+                        location_filters["space_id"] = args["spaceId"]
+                    entries = self._time_entry_page(
+                        args,
+                        page=0,
+                        page_size=_parse_positive_int(args.get("entryPageSize")) or 100,
+                        location_filters=location_filters or None,
+                    )["entries"]
+                return self._time_report_from_entries(
+                    entries,
+                    scope={
+                        key: value
+                        for key, value in {
+                            "workspaceId": self._workspace_id(args),
+                            "spaceId": args.get("spaceId"),
+                            "listId": args.get("listId"),
+                            "taskId": args.get("taskId"),
+                            "viewId": args.get("viewId"),
+                        }.items()
+                        if value is not None
+                    },
+                    filters={
+                        "from": args.get("from"),
+                        "to": args.get("to"),
+                        "filterQuery": args.get("filterQuery"),
+                        "status": args.get("status"),
+                        "statuses": args.get("statuses"),
+                        "tagIds": args.get("tagIds"),
+                        "includeSubtasks": args.get("includeSubtasks") is not False,
+                        "includeTasksInMultipleLists": args.get("includeTasksInMultipleLists") is not False,
+                    },
+                    guidance=args.get("guidance"),
+                )
+            raise ValueError(f"Unhandled time report tool: {name}")
 
         raise NotImplementedError(f"Tool '{name}' is not implemented")
 

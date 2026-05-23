@@ -1,0 +1,1797 @@
+{
+  "as_of": "2026-05-23",
+  "source_manifest": "tool_manifest_clickup.json",
+  "policy": {
+    "full_manifest_support_required": true,
+    "end_state_requires_all_tools_validated": true,
+    "non_validated_tools_require_evidence": true,
+    "capability_level_compliance_internal_only": true
+  },
+  "tools": {
+    "ping": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_system_tools.py",
+          "summary": "The runtime ping tool echoes caller-provided messages in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime ping tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "health": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_system_tools.py",
+          "summary": "The runtime health tool reports the expected safety and configuration fields in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime health tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "tool_catalogue": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_system_tools.py",
+          "summary": "The runtime tool_catalogue tool mirrors the manifest size in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime tool_catalogue tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "workspace_capability_snapshot": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime workspace capability snapshot tool reports docs availability through the workspace-scoped v3 probe in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime workspace capability snapshot tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "workspace_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime workspace list tool returns the upstream workspace payload in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime workspace list tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "space_list_for_workspace": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime space list tool returns workspace-scoped spaces in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime space list tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "folder_list_for_space": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime folder list tool returns space-scoped folders in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime folder list tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "list_list_for_space_or_folder": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime list list tool returns space-scoped or folder-scoped lists in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime list list tool succeeded in the checked-in live smoke suite against a disposable live list.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "workspace_overview": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime workspace overview tool returns the expected space count and space list in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime workspace overview tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "workspace_hierarchy": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_workspace_hierarchy.py",
+          "kind": "regression_test",
+          "summary": "The runtime now supports multi-workspace hierarchy inputs, maxDepth, maxWorkspaces, and forceRefresh behavior in checked-in regression tests.",
+          "date": "2026-05-23"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned workspace hierarchy runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "hierarchy_resolve_path": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_runtime_hierarchy_read_tools.py",
+          "summary": "The runtime hierarchy path resolver maps workspace, space, and list names to ids in checked-in regression tests.",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime hierarchy path resolver succeeded in the checked-in live smoke suite against a disposable live list path.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "member_list_for_workspace": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_member_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now reads members from GET /v2/team/{workspace_id} and normalizes the team.members payload in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime member listing path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "member_resolve": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has been validated for the member source used by this tool.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_member_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now resolves member identifiers against normalized team members in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime member resolve path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "member_search_by_name": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has been validated for the member source used by this tool.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_member_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now searches normalized team members from the repaired member source in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime member search path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_assignee_resolve": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has been validated for the member source used by this tool.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_member_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now resolves assignee references against normalized team members in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime assignee resolve path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "space_tag_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime space tag list tool succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "space_tag_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_write_repairs.py",
+          "kind": "regression_test",
+          "summary": "The runtime now sends the validated nested tag payload shape in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime space tag create path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "space_tag_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime space tag update tool routes the current-name update payload to the expected space tag endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime space tag update tool succeeded against a disposable live space tag in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "space_tag_delete": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime space tag delete tool routes deletes to the expected space tag endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime space tag delete tool succeeded against a disposable live space tag in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "folder_create_in_space": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime folder create tool routes space-scoped folder creation to the expected endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime folder create tool succeeded against the disposable test space in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "folder_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime folder update tool routes folder updates to the expected endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime folder update tool succeeded against a disposable live folder in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "folder_delete": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime folder delete tool routes deletes to the expected folder endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime folder delete tool succeeded during cleanup of a disposable live folder in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "list_create_for_container": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe succeeded for this tool.",
+          "date": "2026-05-16"
+        }
+      ]
+    },
+    "list_create_from_template": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape has been validated for this tool.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_write_repairs.py",
+          "kind": "regression_test",
+          "summary": "The runtime now uses the validated list_template route shape in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime list create from template path succeeded live with template id t-901218273536 in the Planning space.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "list_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime list update tool routes list updates to the expected endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime list update tool succeeded against a disposable live list in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "list_delete": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe succeeded for this tool.",
+          "date": "2026-05-16"
+        }
+      ]
+    },
+    "list_view_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_view_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now builds complete view-create request bodies and merges statuses and tags into filters in checked-in regression tests.",
+          "date": "2026-05-23"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned list view create runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "space_view_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_view_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now builds complete space-view create request bodies with contract defaults in checked-in regression tests.",
+          "date": "2026-05-23"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned space view create runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "view_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_view_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now composes view updates over GET /view/{view_id} and supports filters_remove in checked-in regression tests.",
+          "date": "2026-05-23"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned view update runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-23"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "view_delete": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The runtime view delete path succeeded while cleaning up disposable list and space views in the checked-in live smoke suite.",
+          "date": "2026-05-23"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "reference_link_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "summary": "The helper now uses ClickUp's official developer-docs llms index instead of the stale clickup.com/api landing page.",
+          "source": "docs/non-live-validation-probe.md",
+          "date": "2026-05-23",
+          "kind": "static_analysis"
+        },
+        {
+          "summary": "The runtime now parses the official llms index into bounded developer-doc links with section and description metadata in checked-in regression tests.",
+          "source": "tests/test_runtime_reference_tools.py",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "summary": "A live runtime dispatch returned current developer.clickup.com guide links from the official llms index.",
+          "source": "manual runtime probe",
+          "date": "2026-05-23",
+          "kind": "direct_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "reference_page_fetch": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "summary": "The helper now restricts fetches to official developer.clickup.com Markdown docs and llms index URLs.",
+          "source": "docs/non-live-validation-probe.md",
+          "date": "2026-05-23",
+          "kind": "static_analysis"
+        },
+        {
+          "summary": "The runtime now fetches official Markdown docs with bounded preview truncation and rejects non-official URLs in checked-in regression tests.",
+          "source": "tests/test_runtime_reference_tools.py",
+          "date": "2026-05-23",
+          "kind": "regression_test"
+        },
+        {
+          "summary": "A live runtime dispatch fetched and truncated a current developer.clickup.com Markdown doc page returned by reference_link_list.",
+          "source": "manual runtime probe",
+          "date": "2026-05-23",
+          "kind": "direct_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe succeeded for this tool.",
+          "date": "2026-05-16"
+        }
+      ]
+    },
+    "subtask_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime subtask create tool composes over the list task create endpoint with the parent task field in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime subtask create tool succeeded against a disposable live parent task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "subtask_create_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime bulk subtask create tool now composes over the single-subtask create primitive in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired bulk subtask create runtime behavior succeeded against a disposable live parent task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_create_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_compositions.py",
+          "kind": "regression_test",
+          "summary": "The runtime now creates tasks iteratively through single-task list creation with merged defaults in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime bulk task create path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task update tool routes task updates to the expected endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task update tool succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_update_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Current runtime behavior failed and is not trustworthy.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A composed replacement path has been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_compositions.py",
+          "kind": "regression_test",
+          "summary": "The runtime now updates tasks iteratively through single-task updates with merged defaults in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime bulk task update path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_delete": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe succeeded for this tool.",
+          "date": "2026-05-16"
+        }
+      ]
+    },
+    "task_delete_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Current runtime behavior failed and is not trustworthy.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A composed replacement path has been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_compositions.py",
+          "kind": "regression_test",
+          "summary": "The runtime now deletes tasks iteratively through single-task deletes in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime bulk task delete path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_duplicate": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_compositions.py",
+          "kind": "regression_test",
+          "summary": "The runtime now duplicates tasks through read-then-create composition in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime task duplicate path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_comment_add": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task comment add tool routes task comments to the expected endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task comment add tool succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_attachment_add": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime task attachment add tool now targets the workspace-scoped v3 task attachment endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired task attachment add runtime behavior succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_tag_add": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe succeeded for this tool.",
+          "date": "2026-05-16"
+        }
+      ]
+    },
+    "task_tag_add_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_compositions.py",
+          "kind": "regression_test",
+          "summary": "The runtime now adds tags iteratively through single-task tag-add operations with merged defaults in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime bulk tag-add path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_tag_remove": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task tag remove tool routes tag removals to the expected endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task tag remove tool succeeded against a disposable live task tag in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_search": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task search tool applies the expected search defaults and returns bounded task results in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task search tool succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_search_fuzzy": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime fuzzy task search tool composes over task_search in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime fuzzy task search tool succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_search_fuzzy_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime bulk fuzzy task search tool composes over task_search in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime bulk fuzzy task search tool succeeded in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_status_report": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task status report tool returns status and priority aggregates in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task status report tool succeeded against the disposable test space in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_risk_report": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task risk report tool returns overdue and at-risk aggregates in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task risk report tool succeeded against the disposable test space in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_read": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now returns normalized task detail output and honors detailLimit for assignee previews in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned task read runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_list_for_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_task_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now applies task list defaults and returns normalized task summaries with assignee preview limits in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned task list for list runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_comment_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_task_workflow_tools.py",
+          "summary": "The runtime task comment list tool returns bounded task comments in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime task comment list tool succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "list_custom_field_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime list custom field list tool returns the upstream list field payload in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime list custom field list tool succeeded against a disposable live list in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_custom_field_set_value": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime task custom field set tool routes field value writes to the expected task field endpoint in checked-in regression tests.",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime task custom field set tool succeeded against the live mytestfield fixture on a disposable task in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_custom_field_clear_value": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime task custom field clear tool routes field clears to the expected task field endpoint in checked-in regression tests.",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime task custom field clear tool succeeded against the live mytestfield fixture on a disposable task in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime doc create tool sends workspace-scoped v3 doc create requests with optional folder placement in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime doc create tool succeeded against the live workspace in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now honors doc list preview defaults and returns summary-enriched doc results in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned doc list runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_read": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now honors doc read includePages and pageLimit contract behavior in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned doc read runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_pages_read": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_page_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now reads workspace-scoped doc pages and filters requested page IDs client-side in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime doc pages read path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_page_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_page_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now uses the workspace-scoped page listing route and list payload handling in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime doc page list path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_page_read": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/live-runtime-tool-tests.md",
+          "kind": "live_runtime_probe",
+          "summary": "Direct runtime dispatch probe failed for the current implementation.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "docs/correct-endpoints-and-functionality.md",
+          "kind": "validated_replacement",
+          "summary": "A corrected endpoint shape or composed replacement has already been validated.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_page_tools.py",
+          "kind": "regression_test",
+          "summary": "The runtime now uses the workspace-scoped doc page read route in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The repaired runtime doc page read path succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_page_create": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime doc page create tool now uses the workspace-scoped v3 page create route and maps title to page name in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired doc page create runtime behavior succeeded against a live disposable doc in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_page_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_final_surface_tools.py",
+          "summary": "The runtime doc page update tool now uses the workspace-scoped v3 page update route and maps title to page name in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired doc page update runtime behavior succeeded against a live disposable doc page in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_search": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now honors doc search expandPages behavior in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned doc search runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "doc_search_bulk": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "date": "2026-05-16"
+        },
+        {
+          "source": "tests/test_runtime_doc_contracts.py",
+          "kind": "regression_test",
+          "summary": "The runtime now honors bulk doc search expandPages behavior in checked-in regression tests.",
+          "date": "2026-05-22"
+        },
+        {
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe",
+          "summary": "The aligned bulk doc search runtime behavior succeeded in the checked-in live smoke suite.",
+          "date": "2026-05-22"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_timer_start": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_time_write_tools.py",
+          "summary": "The runtime task timer start tool now uses the workspace-scoped time entry start endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired task timer start runtime behavior succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_timer_stop": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_time_write_tools.py",
+          "summary": "The runtime task timer stop tool now uses the workspace-scoped time entry stop endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired task timer stop runtime behavior succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_entry_create_for_task": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_time_write_tools.py",
+          "summary": "The runtime task-scoped time entry create tool now uses the workspace-scoped time entry create endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The repaired task-scoped time entry create runtime behavior succeeded against a disposable live task in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_entry_update": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_time_write_tools.py",
+          "summary": "The runtime time entry update tool routes updates to the expected workspace endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime time entry update tool succeeded against a disposable live time entry in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_entry_delete": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_time_write_tools.py",
+          "summary": "The runtime time entry delete tool routes deletes to the expected workspace endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime time entry delete tool succeeded during cleanup of a disposable live time entry in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "task_time_entry_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-16",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime now returns normalized task-scoped time entry results with total duration and page-size handling in checked-in regression tests.",
+          "source": "tests/test_runtime_time_contracts.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The aligned task time entry list runtime behavior succeeded against a disposable live time entry in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_entry_current": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_runtime_time_write_tools.py",
+          "summary": "The runtime current time entry tool reads the workspace-scoped current timer endpoint in checked-in regression tests.",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "source": "tests/test_live_smoke.py",
+          "summary": "The runtime current time entry tool succeeded before and after timer stop in the checked-in smoke suite.",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_entry_list": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-16",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime now returns normalized time entry list payloads and honors task and paging filters in checked-in regression tests.",
+          "source": "tests/test_runtime_time_contracts.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The aligned workspace time entry list runtime behavior succeeded against a disposable live time entry in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_report_for_tag": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-16",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime now composes tag-scoped time reports over task discovery and per-task entry aggregation in checked-in regression tests.",
+          "source": "tests/test_runtime_time_contracts.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The aligned tag-scoped time report runtime behavior succeeded against a disposable live tagged task and time entry in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_report_for_container": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-16",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime now returns container-scoped time reports using validated location filters and normalized aggregation in checked-in regression tests.",
+          "source": "tests/test_runtime_time_contracts.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The aligned container-scoped time report runtime behavior succeeded against a disposable live list and time entry in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_report_for_context": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-16",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime now supports view-driven and task-driven context time reports through validated composition helpers in checked-in regression tests.",
+          "source": "tests/test_runtime_time_contracts.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The aligned context time report runtime behavior succeeded against a disposable live view and time entry in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    },
+    "time_report_for_space_tag": {
+      "current_validation_state": "validated",
+      "end_state_compliant": true,
+      "primary_next_action": "none",
+      "evidence": [
+        {
+          "date": "2026-05-16",
+          "summary": "Manifest contract and runtime behavior differ for this tool or tool family.",
+          "source": "docs/manifest-runtime-drift.md",
+          "kind": "contract_analysis"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The runtime now scopes space-tag time reports through space-filtered task discovery and per-task entry aggregation in checked-in regression tests.",
+          "source": "tests/test_runtime_time_contracts.py",
+          "kind": "regression_test"
+        },
+        {
+          "date": "2026-05-23",
+          "summary": "The aligned space-tag time report runtime behavior succeeded against a disposable live tagged task and time entry in the checked-in smoke suite.",
+          "source": "tests/test_live_smoke.py",
+          "kind": "live_runtime_probe"
+        }
+      ],
+      "capability_mapping_incomplete": true
+    }
+  }
+}
