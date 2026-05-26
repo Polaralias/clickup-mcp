@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ClickUp%20MCP.png" alt="ClickUp MCP banner" width="960" />
+</p>
+
 # ClickUp MCP
 
 ClickUp MCP is a FastMCP server that exposes ClickUp workspace operations through a validated, checked-in tool surface.
