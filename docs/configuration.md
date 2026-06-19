@@ -26,7 +26,8 @@ Validated:
 Intended model:
 
 - static bearer auth for MCP clients
-- optionally disabled with `API_KEY_MODE=disabled`
+- default startup mode is `required`
+- no-auth mode is opt-in only through `API_KEY_MODE=disabled`
 
 Design reference:
 

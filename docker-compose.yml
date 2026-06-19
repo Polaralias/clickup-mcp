@@ -12,6 +12,7 @@ services:
       MCP_HOST: 0.0.0.0
       MCP_PORT: "${CLICKUP_MCP_PORT:-3004}"
       MCP_PATH: "${CLICKUP_MCP_PATH:-/mcp}"
+      API_KEY_MODE: "${API_KEY_MODE:-required}"
     ports:
       - "${CLICKUP_MCP_HOST_PORT:-3004}:${CLICKUP_MCP_PORT:-3004}"
     healthcheck:

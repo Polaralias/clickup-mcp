@@ -29,6 +29,7 @@ DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000
 DEFAULT_REPORTING_MAX_TASKS = 200
 DEFAULT_RISK_WINDOW_DAYS = 5
 WRITE_MODES = {"write", "read", "selective"}
+VALID_API_KEY_MODES = {"required", "disabled"}
 
 
 def _runtime_env(*names: str, default: str = "") -> str:
@@ -503,9 +504,19 @@ def _load_manifest() -> list[dict[str, Any]]:
     return tools
 
 
+def _auth_mode() -> str:
+    mode = _runtime_env("API_KEY_MODE", default="required").strip().lower() or "required"
+    if mode not in VALID_API_KEY_MODES:
+        raise RuntimeError("Unsupported API_KEY_MODE value. Use 'required' or 'disabled'.")
+    return mode
+
+
+def _auth_is_disabled() -> bool:
+    return _auth_mode() == "disabled"
+
+
 def _load_api_keys() -> list[str]:
-    api_key_mode = _runtime_env("API_KEY_MODE", default="").strip().lower()
-    if api_key_mode == "disabled":
+    if _auth_is_disabled():
         return []
     keys: list[str] = []
     service_key = _runtime_env("CLICKUP_MCP_API_KEY")
@@ -518,6 +529,34 @@ def _load_api_keys() -> list[str]:
     if multi:
         keys.extend([x.strip() for x in multi.split(",") if x.strip()])
     return list(dict.fromkeys(keys))
+
+
+def _require_api_keys_configured(api_keys: list[str]) -> None:
+    if api_keys or _auth_is_disabled():
+        return
+    raise RuntimeError(
+        "MCP auth defaults to required. Configure CLICKUP_MCP_API_KEY, MCP_API_KEY, or MCP_API_KEYS, "
+        "or set API_KEY_MODE=disabled for intentional no-auth mode."
+    )
+
+
+def _health_auth_mode() -> str:
+    if _auth_is_disabled():
+        return "disabled"
+    return "bearer-token"
+
+
+def _health_payload() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "server": "clickup-mcp",
+        "mcpAuthMode": _health_auth_mode(),
+        "writeMode": runtime_config.write_access.mode,
+        "charLimit": runtime_config.char_limit,
+        "maxAttachmentMb": runtime_config.max_attachment_mb,
+        "reportingMaxTasks": runtime_config.reporting_max_tasks,
+        "defaultRiskWindowDays": runtime_config.default_risk_window_days,
+    }
 
 
 def _clickup_token() -> str:
@@ -2363,7 +2402,8 @@ runtime_config = _resolve_runtime_config()
 client = ClickUpClient(_clickup_token(), timeout_ms=int(_runtime_env("CLICKUP_HTTP_TIMEOUT_MS", default="30000") or "30000"))
 runtime = ClickUpRuntime(client, manifest, runtime_config)
 api_keys = _load_api_keys()
-auth = StaticApiKeyVerifier(api_keys=api_keys, base_url=_runtime_env("BASE_URL")) if api_keys else None
+_require_api_keys_configured(api_keys)
+auth = None if _auth_is_disabled() else StaticApiKeyVerifier(api_keys=api_keys, base_url=_runtime_env("BASE_URL"))
 server = FastMCP("clickup-mcp", auth=auth)
 mcp = server
 _register_tools(server, runtime, manifest)
@@ -2371,47 +2411,17 @@ _register_tools(server, runtime, manifest)
 
 @server.custom_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 async def root_health(_request):
-    return JSONResponse(
-        {
-            "status": "ok",
-            "server": "clickup-mcp",
-            "writeMode": runtime_config.write_access.mode,
-            "charLimit": runtime_config.char_limit,
-            "maxAttachmentMb": runtime_config.max_attachment_mb,
-            "reportingMaxTasks": runtime_config.reporting_max_tasks,
-            "defaultRiskWindowDays": runtime_config.default_risk_window_days,
-        }
-    )
+    return JSONResponse(_health_payload())
 
 
 @server.custom_route("/health", methods=["GET", "HEAD"], include_in_schema=False)
 async def health(_request):
-    return JSONResponse(
-        {
-            "status": "ok",
-            "server": "clickup-mcp",
-            "writeMode": runtime_config.write_access.mode,
-            "charLimit": runtime_config.char_limit,
-            "maxAttachmentMb": runtime_config.max_attachment_mb,
-            "reportingMaxTasks": runtime_config.reporting_max_tasks,
-            "defaultRiskWindowDays": runtime_config.default_risk_window_days,
-        }
-    )
+    return JSONResponse(_health_payload())
 
 
 @server.custom_route("/healthz", methods=["GET", "HEAD"], include_in_schema=False)
 async def healthz(_request):
-    return JSONResponse(
-        {
-            "status": "ok",
-            "server": "clickup-mcp",
-            "writeMode": runtime_config.write_access.mode,
-            "charLimit": runtime_config.char_limit,
-            "maxAttachmentMb": runtime_config.max_attachment_mb,
-            "reportingMaxTasks": runtime_config.reporting_max_tasks,
-            "defaultRiskWindowDays": runtime_config.default_risk_window_days,
-        }
-    )
+    return JSONResponse(_health_payload())
 
 
 def main() -> None:

@@ -40,6 +40,7 @@ Common live runtime configuration:
 - `CLICKUP_API_TOKEN`
 - `CLICKUP_TEAM_ID`
 - `CLICKUP_MCP_API_KEY` or `MCP_API_KEY`
+- `API_KEY_MODE=disabled` only when you intentionally want no MCP bearer auth
 
 See [docs/configuration.md](docs/configuration.md) for the supported configuration surface.
 

@@ -18,6 +18,7 @@ def test_health_reports_runtime_safety_configuration() -> None:
 
     assert payload["status"] == "ok"
     assert payload["server"] == "clickup-mcp"
+    assert payload["mcpAuthMode"] == "bearer-token"
     assert payload["writeMode"] in {"write", "read", "selective"}
     assert isinstance(payload["charLimit"], int)
     assert isinstance(payload["maxAttachmentMb"], int)
