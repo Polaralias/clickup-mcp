@@ -43,7 +43,7 @@ Startup is env-driven.
 
 The service is built on FastMCP.
 
-- `FastMCP("clickup-mcp", auth=auth)` creates the server.
+- `FastMCP("ClickUp", auth=auth)` creates the server.
 - Default transport is `streamable-http`.
 - Default endpoint is `/mcp`.
 - Health routes are exposed at `/`, `/health`, and `/healthz`.

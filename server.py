@@ -2404,7 +2404,7 @@ runtime = ClickUpRuntime(client, manifest, runtime_config)
 api_keys = _load_api_keys()
 _require_api_keys_configured(api_keys)
 auth = None if _auth_is_disabled() else StaticApiKeyVerifier(api_keys=api_keys, base_url=_runtime_env("BASE_URL"))
-server = FastMCP("clickup-mcp", auth=auth)
+server = FastMCP("ClickUp", auth=auth)
 mcp = server
 _register_tools(server, runtime, manifest)
 
