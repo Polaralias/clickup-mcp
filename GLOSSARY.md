@@ -5,7 +5,7 @@ This glossary defines the product-language for rebuilding the repository into a 
 ## Language
 
 **Product**:
-The ClickUp MCP server itself, including the manifest-declared tool surface and its runtime behavior.
+The ClickUp MCP server itself, including the manifest-declared tool surface and its runtime behaviour.
 _Avoid_: Platform, harness
 
 **Platform**:
@@ -13,15 +13,15 @@ The validation harness, status model, and reporting system used to prove and com
 _Avoid_: Product, runtime
 
 **Capability**:
-A stable user-meaningful behavior the platform verifies, even if implementation changes between direct endpoints and composed flows.
+A stable user-meaningful behaviour the platform verifies, even if implementation changes between direct endpoints and composed flows.
 _Avoid_: Raw endpoint, raw tool name
 
 **Full Support**:
-The target product state where every manifest-declared tool is runtime-available and backed by validated behavior, with no remaining intended-only or unsupported tools.
+The target product state where every manifest-declared tool is runtime-available and backed by validated behaviour, with no remaining intended-only or unsupported tools.
 _Avoid_: Narrowed scope, partial availability, perpetual intended state
 
 **Current Validation State**:
-The platform's present-tense assessment of where a tool or capability stands during the repair journey toward Full Support.
+The platform's present-tense assessment of where a tool or capability stands during the repair journey towards Full Support.
 _Avoid_: Final acceptance, end-state promise
 
 **Full-Manifest Enumeration**:
@@ -34,7 +34,7 @@ _Avoid_: Hidden unknowns, fake completeness
 
 **Evidence-Backed Authority**:
 The rule that the first authoritative platform status source may be manually curated, provided every classification is traceable to checked-in evidence.
-_Avoid_: Automation theater, untraceable status
+_Avoid_: Automation theatre, untraceable status
 
 **End-State Compliant**:
 A tool-level signal that is true only when the tool has reached the validated state required for Full Support.
@@ -48,7 +48,7 @@ _Avoid_: Current proof, active validation
 The single highest-value next step needed to move a non-validated tool closer to Full Support.
 _Avoid_: Full dependency graph, passive observation
 
-**Canonical Status Artifact**:
+**Canonical Status Artefact**:
 The single authoritative machine-readable platform file that records per-tool validation state, acceptance, evidence, and next action.
 _Avoid_: Bucket-only summary, duplicated status sources
 
@@ -56,16 +56,16 @@ _Avoid_: Bucket-only summary, duplicated status sources
 
 - The **Platform** validates and reports on the **Product**
 - The **Platform** evaluates the **Product** primarily through **Capabilities**
-- The **Product** is the thing being repaired toward full manifest-backed availability
-- **Full Support** is achieved when the **Product** satisfies all manifest-declared tool commitments with validated behavior
-- **Current Validation State** describes progress toward **Full Support** but does not redefine the end state
+- The **Product** is the thing being repaired towards full manifest-backed availability
+- **Full Support** is achieved when the **Product** satisfies all manifest-declared tool commitments with validated behaviour
+- **Current Validation State** describes progress towards **Full Support** but does not redefine the end state
 - **Full-Manifest Enumeration** prevents unknown tools from disappearing from platform reporting while validation is still incomplete
 - **Capability Mapping Incomplete** is acceptable temporarily if **Full-Manifest Enumeration** is preserved and the incompleteness is explicit
 - **Evidence-Backed Authority** allows the platform to become authoritative before deep automation exists, as long as classifications remain traceable
 - **End-State Compliant** is the simple acceptance signal for whether a tool has reached **Full Support**
 - **Stale Evidence** keeps the platform from treating old classifications as current truth after relevant change
 - **Primary Next Action** makes non-validated status operational by tying it to the next concrete closure step
-- The **Canonical Status Artifact** is tool-keyed first and should not pretend to be generated before automation actually exists
+- The **Canonical Status Artefact** is tool-keyed first and should not pretend to be generated before automation actually exists
 
 ## Example dialogue
 
@@ -87,4 +87,4 @@ _Avoid_: Bucket-only summary, duplicated status sources
 - tool-level versus capability-level acceptance was ambiguous — resolved: **End-State Compliant** is surfaced at the tool level; capability-level compliance is an internal refactor aid, not final product output.
 - evidence freshness was ambiguous — resolved: the platform distinguishes never-tested from stale evidence, and relevant runtime or manifest changes make prior evidence stale.
 - actionability was ambiguous — resolved: each non-validated tool should carry one **Primary Next Action** in the authoritative status source.
-- artifact shape and location were ambiguous — resolved: the **Canonical Status Artifact** should replace the current bucket-first trust matrix, be tool-keyed first, and not live under generated output until it is actually generated.
+- artefact shape and location were ambiguous — resolved: the **Canonical Status Artefact** should replace the current bucket-first trust matrix, be tool-keyed first, and not live under generated output until it is actually generated.

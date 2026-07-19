@@ -5,8 +5,8 @@
 The repository currently demonstrates:
 
 - a passing checked-in regression harness
-- a canonical machine-readable status artifact for all declared tools
-- repaired composition paths for previously broken bulk and duplicate behaviors
+- a canonical machine-readable status artefact for all declared tools
+- repaired composition paths for previously broken bulk and duplicate behaviours
 - optional live smoke coverage for disposable workspace verification
 
 ## Remaining Risks

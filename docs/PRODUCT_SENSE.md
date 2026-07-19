@@ -13,8 +13,8 @@ A tool is only product-ready when:
 
 - the contract is documented
 - the route and payload shape are validated
-- failure behavior is understood
-- the docs reflect actual behavior
+- failure behaviour is understood
+- the docs reflect actual behaviour
 
 ## Product Constraint
 

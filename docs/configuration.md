@@ -144,7 +144,7 @@ curl http://127.0.0.1:3004/health
 
 ### Lower confidence
 
-- selective write behavior as a product-grade safety guarantee
+- selective write behaviour as a product-grade safety guarantee
 
 ## Supporting Evidence
 

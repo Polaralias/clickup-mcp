@@ -30,5 +30,5 @@ Examples include:
 ## Consequences
 
 - the platform output becomes operational, not just descriptive
-- repair work can be prioritized directly from status data
+- repair work can be prioritised directly from status data
 - the first version remains simple enough to maintain because it avoids encoding a full dependency graph

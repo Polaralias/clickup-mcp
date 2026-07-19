@@ -5,13 +5,13 @@
 For every public tool:
 
 - inputs are implemented as documented
-- defaults are honored as documented
+- defaults are honoured as documented
 - output shape is stable enough to depend on
 - unsupported options are removed rather than implied
 
 ## Current Problem
 
-The manifest is structurally valid but not yet fully behaviorally true.
+The manifest is structurally valid but not yet fully behaviourally true.
 
 Evidence:
 

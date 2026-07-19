@@ -31,7 +31,7 @@ A pure time-based expiry may be added later, but it is not required for the init
 
 ## Consequences
 
-- the platform can separate missing evidence from aging evidence
+- the platform can separate missing evidence from ageing evidence
 - repair planning can target the right next action for each unvalidated tool
 - indirect evidence remains useful for classification without being allowed to masquerade as validation
 - future automation can invalidate stale classifications deterministically after runtime or manifest changes

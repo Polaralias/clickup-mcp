@@ -88,7 +88,7 @@ Public-spec note:
   - `/v2/folder/{folder_id}/list_template/{template_id}`
   - `/v2/space/{space_id}/list_template/{template_id}`
 
-This is not just undocumented behavior; it is also a path-shape mismatch.
+This is not just undocumented behaviour; it is also a path-shape mismatch.
 
 ### Task duplication
 

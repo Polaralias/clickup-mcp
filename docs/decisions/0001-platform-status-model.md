@@ -10,7 +10,7 @@ Accepted
 
 The repository needs an authoritative platform status source that can describe the current repair state without weakening the final product promise of Full Support.
 
-The current checked-in status artifact is evidence-backed but ad hoc. The repository needed a clearer decision on:
+The current checked-in status artefact is evidence-backed but ad hoc. The repository needed a clearer decision on:
 
 - what the authoritative status record must contain
 - whether acceptance is measured at tool level, capability level, or both

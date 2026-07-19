@@ -270,7 +270,7 @@ The highest-confidence static problems are now narrowed down:
 
 1. list-template creation paths are very likely wrong or stale
 2. docs page routes are very likely built against an undocumented shorthand instead of the published workspace-scoped v3 surface
-3. bulk task and duplicate/member routes remain unresolved dependencies on behavior not represented in the public downloadable schemas
+3. bulk task and duplicate/member routes remain unresolved dependencies on behaviour not represented in the public downloadable schemas
 
 That gives a clear order for future live validation:
 

@@ -14,12 +14,12 @@ The design goal is a ClickUp MCP server whose tool surface is:
 ## Design Constraints
 
 - Public docs must not overstate what the runtime does.
-- Tool semantics must map to validated ClickUp behavior.
-- Unsupported bulk behavior should be expressed as composition if composition is the validated path.
+- Tool semantics must map to validated ClickUp behaviour.
+- Unsupported bulk behaviour should be expressed as composition if composition is the validated path.
 - Every write path should have a clear safety model.
 
 ## Current Design Focus
 
 - convert inferred findings into durable engineering principles
 - document desired end states before implementation changes
-- use design docs to define target behavior for repaired domains
+- use design docs to define target behaviour for repaired domains

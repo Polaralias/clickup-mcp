@@ -6,11 +6,11 @@ This report validates selected tools through the actual server runtime path:
 
 - environment configured with live ClickUp credentials
 - `server.runtime.dispatch(...)` invoked directly
-- disposable test artifacts created in the workspace and cleaned up afterwards
+- disposable test artefacts created in the workspace and cleaned up afterwards
 
 ## Test Setup
 
-Disposable artifacts used:
+Disposable artefacts used:
 
 - temporary list in the `Planning` space
 - temporary task inside that list
