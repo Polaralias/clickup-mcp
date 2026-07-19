@@ -155,7 +155,7 @@ Live-valid replacement shape:
 Live evidence:
 
 - runtime path shape returned plain `404`
-- underscore path shape returned structured `Template not found`, which means the route was recognized
+- underscore path shape returned structured `Template not found`, which means the route was recognised
 
 Correct functionality:
 

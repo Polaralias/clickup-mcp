@@ -9,8 +9,8 @@ It is no longer part of the active reading order.
 
 The repository now has:
 
-- a canonical status artifact at [docs/status/tool-validation-status.json](../../status/tool-validation-status.json)
-- status-artifact validation through [scripts/validate_harness.py](../../../scripts/validate_harness.py)
+- a canonical status artefact at [docs/status/tool-validation-status.json](../../status/tool-validation-status.json)
+- status-artefact validation through [scripts/validate_harness.py](../../../scripts/validate_harness.py)
 - a passing checked-in regression harness through [scripts/run_harness.py](../../../scripts/run_harness.py)
 - gated live smoke coverage through [scripts/run_live_smoke.py](../../../scripts/run_live_smoke.py)
 

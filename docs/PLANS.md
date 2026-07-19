@@ -20,7 +20,7 @@ Completed planning tranches:
 
 Plans should be:
 
-- outcome-focused
+- outcome-focussed
 - linked to evidence
 - explicit about validated scope
 - opened only for new work

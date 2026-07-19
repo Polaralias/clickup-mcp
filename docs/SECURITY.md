@@ -6,8 +6,8 @@ Security in this repository is primarily about:
 
 - access control
 - auth correctness
-- safe write behavior
-- avoiding undocumented behavior in production integrations
+- safe write behaviour
+- avoiding undocumented behaviour in production integrations
 
 ## Current Security Posture
 

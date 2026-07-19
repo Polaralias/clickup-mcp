@@ -23,8 +23,8 @@ These layers should not be collapsed into a single pass/fail surface while repai
 Purpose:
 
 - preserve current validated knowledge
-- detect accidental changes in known runtime behavior
-- keep broken behavior visible until it is intentionally repaired
+- detect accidental changes in known runtime behaviour
+- keep broken behaviour visible until it is intentionally repaired
 
 Typical checks:
 
@@ -36,14 +36,14 @@ Typical checks:
 
 Purpose:
 
-- define the desired post-repair product behavior
-- drive engineering toward the intended public-quality tool surface
+- define the desired post-repair product behaviour
+- drive engineering towards the intended public-quality tool surface
 
 Typical checks:
 
 - repaired tools match validated replacement endpoint and payload shapes
 - manifest and runtime semantics align
-- public documentation matches actual runtime behavior
+- public documentation matches actual runtime behaviour
 
 ### Relationship between layers
 
@@ -58,7 +58,7 @@ The primary harness unit should be the functional capability, not the raw endpoi
 
 ### Why capability is the right unit
 
-- endpoints are too low-level and can change without changing product behavior
+- endpoints are too low-level and can change without changing product behaviour
 - tool names are not enough when implementation shifts from direct endpoint calls to composed flows
 - large domains are too coarse for precise regression tracking
 
@@ -117,7 +117,7 @@ The docs should own:
 
 ### Rule
 
-Docs should summarize harness state, not invent a competing status system.
+Docs should summarise harness state, not invent a competing status system.
 
 If a status is important enough to repeat in docs, it should reference the harness-owned machine-readable source.
 

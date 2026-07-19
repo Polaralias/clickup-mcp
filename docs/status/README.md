@@ -1,14 +1,14 @@
-# Status Artifacts
+# Status Artefacts
 
-This directory is reserved for authoritative machine-readable platform status artifacts.
+This directory is reserved for authoritative machine-readable platform status artefacts.
 
-Current canonical artifact:
+Current canonical artefact:
 
 - `tool-validation-status.json`
 
 This file replaces the archived bucket-based trust matrix stored at [docs/archive/2026-05-16-tool-trust-matrix.json](../archive/2026-05-16-tool-trust-matrix.json) as the authoritative machine-readable status source.
 
-Until automation exists, the canonical artifact is allowed to be manually curated if every non-validated classification is traceable to checked-in evidence.
+Until automation exists, the canonical artefact is allowed to be manually curated if every non-validated classification is traceable to checked-in evidence.
 
 Current harness support:
 

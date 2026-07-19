@@ -6,7 +6,7 @@ Correctness matters more than breadth.
 
 ## Belief 2
 
-Documented behavior must be earned through validation.
+Documented behaviour must be earned through validation.
 
 ## Belief 3
 

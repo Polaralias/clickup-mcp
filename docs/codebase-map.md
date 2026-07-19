@@ -2,10 +2,10 @@
 
 ## Framing
 
-This document is an archaeology artifact, not a source of truth.
+This document is an archaeology artefact, not a source of truth.
 
 - Repository documents are treated as unverified claims.
-- Runtime code is treated as intent, not proof of correct behavior.
+- Runtime code is treated as intent, not proof of correct behaviour.
 - No live ClickUp validation was performed during this pass.
 
 ## Probable End Goal
@@ -18,13 +18,13 @@ Put differently, this project wants to let MCP clients talk to ClickUp without c
 
 ## High-Level Shape
 
-The codebase is small and heavily centralized.
+The codebase is small and heavily centralised.
 
 - [server.py](../server.py) is the product.
 - [tool_manifest_clickup.json](../tool_manifest_clickup.json) is the public contract for tool names and schemas.
 - [scripts/run_server.py](../scripts/run_server.py) is the local operator wrapper.
 - [fastmcp.json](../fastmcp.json), [Dockerfile](../Dockerfile), and [docker-compose.yml](../docker-compose.yml) define packaging and deployment.
-- [docs/tool-reference.md](tool-reference.md) and [docs/configuration.md](configuration.md) describe intended public behavior.
+- [docs/tool-reference.md](tool-reference.md) and [docs/configuration.md](configuration.md) describe intended public behaviour.
 
 There are no test files in the repository at the time of this pass.
 
@@ -35,7 +35,7 @@ There are no test files in the repository at the time of this pass.
 Startup is env-driven.
 
 - `server.py` loads env vars for ClickUp auth, MCP auth, write mode, cache TTLs, and response limits.
-- `scripts/run_server.py` optionally loads `.env`, normalizes host/port/path, and either:
+- `scripts/run_server.py` optionally loads `.env`, normalises host/port/path, and either:
   - runs `server.py` directly for the simple path, or
   - runs FastMCP CLI via `fastmcp.json` when reload or extra CLI args are needed.
 
@@ -68,7 +68,7 @@ Responsibilities:
 - cache workspace/space/folder/list lookups
 - resolve name paths into IDs
 - enforce write restrictions
-- normalize task and doc previews
+- normalise task and doc previews
 - generate summary/report outputs
 - dispatch manifest tool names to ClickUp API calls
 
@@ -83,7 +83,7 @@ Tools are not hand-registered one by one.
 - each tool is registered as a `FunctionTool`
 - all tool calls funnel into `ClickUpRuntime.dispatch(...)`
 
-This means the manifest is the public API catalogue, while `dispatch` is the behavioral switchboard.
+This means the manifest is the public API catalogue, while `dispatch` is the behavioural switchboard.
 
 ## Execution Flow
 
@@ -189,7 +189,7 @@ Current report types:
 - task status summary
 - overdue / at-risk task summary
 
-This is one of the more productized areas of the codebase because it adds derived value beyond raw passthrough.
+This is one of the more productised areas of the codebase because it adds derived value beyond raw passthrough.
 
 ### Docs surface
 
@@ -285,15 +285,15 @@ This repository is not a sprawling mystery; it is a concentrated single-file ser
 
 That is good for archaeology because:
 
-- the whole behavior surface is inspectable quickly
+- the whole behaviour surface is inspectable quickly
 - the architectural intent is readable
-- there is a clear candidate for future modularization
+- there is a clear candidate for future modularisation
 
 That is risky because:
 
 - almost all logic is in one file
 - there are no tests
-- there is no proof here that the broad manifest has been validated against real ClickUp behavior
+- there is no proof here that the broad manifest has been validated against real ClickUp behaviour
 - documents currently overstate certainty unless backed by live verification
 
 ## Working Backwards From The Product Goal
@@ -308,17 +308,17 @@ If the end goal is "public, first-class ClickUp MCP server", then the current de
 
 That sequence makes sense for a rapid build. The missing step is proof:
 
-6. Verify each domain against real ClickUp environments and formalize guarantees.
+6. Verify each domain against real ClickUp environments and formalise guarantees.
 
 ## Recommended Follow-Up Investigation Containers
 
-Because the repo is small, the next pass should be validation-focused rather than discovery-focused.
+Because the repo is small, the next pass should be validation-focussed rather than discovery-focussed.
 
 Suggested investigation buckets:
 
 ### 1. Tool contract validation
 
-- manifest schema vs runtime behavior
+- manifest schema vs runtime behaviour
 - required params vs actual runtime expectations
 - output shape consistency
 
@@ -330,21 +330,21 @@ Suggested investigation buckets:
 
 ### 3. Safety and operational trust
 
-- auth behavior
+- auth behaviour
 - selective write enforcement
 - dry-run and confirm semantics
-- failure behavior and error quality
+- failure behaviour and error quality
 
 ### 4. Deployment trust
 
 - local serve path
 - FastMCP CLI path
-- Docker image and compose behavior
+- Docker image and compose behaviour
 - health endpoint readiness
 
 ### 5. Documentation trust
 
-- README claims vs real behavior
+- README claims vs real behaviour
 - tool reference generation story
 - env var truth table
 

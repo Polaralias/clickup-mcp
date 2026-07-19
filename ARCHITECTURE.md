@@ -2,7 +2,7 @@
 
 ## Current Reality
 
-The repository is a manifest-driven ClickUp MCP server with most runtime behavior concentrated in [server.py](server.py).
+The repository is a manifest-driven ClickUp MCP server with most runtime behaviour concentrated in [server.py](server.py).
 
 Current major components:
 
@@ -30,7 +30,7 @@ The repository is publish-ready in its current shape, but future changes should 
 
 - keep the manifest and runtime aligned in the same slice
 - prefer composition over undocumented upstream convenience endpoints
-- preserve the status artifact as the canonical trust surface
+- preserve the status artefact as the canonical trust surface
 - keep historical evidence dated and subordinate to current contract docs
 
 Longer-term improvements can still happen:
