@@ -1,3 +1,18 @@
+---
+type: "Validation Evidence"
+title: "Live Smoke Harness"
+description: "Documents Live Smoke Harness for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Live Smoke Harness
 
 This document defines the checked-in live smoke layer for the repository.
@@ -158,3 +173,7 @@ This live smoke layer is intentionally not:
 - an automated source for `docs/status/tool-validation-status.json`
 
 Those are possible future improvements, not active publish blockers.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

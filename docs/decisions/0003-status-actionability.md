@@ -1,3 +1,18 @@
+---
+type: "Decision"
+title: "0003 Status Actionability"
+description: "Documents 0003 Status Actionability for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - decision
+navigation:
+  role: foundational
+  order: 20
+---
 # 0003 Status Actionability
 
 Date: 2026-05-22
@@ -32,3 +47,7 @@ Examples include:
 - the platform output becomes operational, not just descriptive
 - repair work can be prioritised directly from status data
 - the first version remains simple enough to maintain because it avoids encoding a full dependency graph
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

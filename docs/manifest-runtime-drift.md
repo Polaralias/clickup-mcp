@@ -1,3 +1,18 @@
+---
+type: "Repository Knowledge"
+title: "Manifest vs Runtime Drift"
+description: "Documents Manifest vs Runtime Drift for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-knowledge
+navigation:
+  role: supporting
+  order: 100
+---
 # Manifest vs Runtime Drift
 
 Date of probe: 2026-05-16
@@ -316,3 +331,7 @@ Before this repo is presented as a first-class public integration, the contract 
 - time reporting scope and filter behaviour
 - list/task listing defaults
 - multi-workspace hierarchy semantics
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

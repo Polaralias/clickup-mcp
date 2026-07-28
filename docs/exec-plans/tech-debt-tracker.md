@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Tech Debt Tracker"
+description: "Documents Tech Debt Tracker for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Tech Debt Tracker
 
 ## High Priority
@@ -16,3 +31,7 @@
 ## Low Priority
 
 - broaden product and operator documentation after repair work stabilises
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

@@ -1,3 +1,18 @@
+---
+type: "Decision"
+title: "0001 Platform Status Model"
+description: "Documents 0001 Platform Status Model for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - decision
+navigation:
+  role: foundational
+  order: 20
+---
 # 0001 Platform Status Model
 
 Date: 2026-05-22
@@ -35,3 +50,7 @@ Capability-level compliance may exist internally during repair and refactor work
 - final product reporting can stay simple: a tool is either end-state compliant or it is not
 - capability-first validation remains useful for engineering, but does not become a confusing public acceptance surface
 - uncited non-validated classifications are not acceptable in the authoritative status source
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

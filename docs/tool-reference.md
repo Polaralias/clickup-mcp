@@ -1,3 +1,18 @@
+---
+type: "Reference"
+title: "Tool Reference"
+description: "Documents Tool Reference for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - reference
+navigation:
+  role: reference
+  order: 200
+---
 # Tool Reference
 
 This document summarises the validated tool surface without duplicating the canonical machine-readable status record.
@@ -68,3 +83,7 @@ When validating tool behaviour against published ClickUp interfaces, use:
 
 - [ClickUp v2 schema](https://developer.clickup.com/openapi/clickup-api-v2-reference.json)
 - [ClickUp v3 schema](https://developer.clickup.com/openapi/ClickUp_PUBLIC_API_V3.yaml)
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

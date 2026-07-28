@@ -1,3 +1,18 @@
+---
+type: "Repository Knowledge"
+title: "Unmatched Endpoint Classification"
+description: "Documents Unmatched Endpoint Classification for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-knowledge
+navigation:
+  role: supporting
+  order: 100
+---
 # Unmatched Endpoint Classification
 
 Date of probe: 2026-05-16
@@ -278,3 +293,7 @@ That gives a clear order for future live validation:
 2. list-template routes
 3. bulk task routes
 4. team-member and task-duplicate routes
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

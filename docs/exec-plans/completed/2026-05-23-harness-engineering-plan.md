@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Harness Engineering Plan"
+description: "Documents Harness Engineering Plan for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Harness Engineering Plan
 
 Completed on 2026-05-23.
@@ -25,3 +40,7 @@ The repository now has:
 ## Notes
 
 Future harness deepening remains possible, but it is no longer tracked as an active execution plan because the publish-critical harness surface is already in place and passing.
+
+## Repository knowledge
+
+- [Documentation map](../../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

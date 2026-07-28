@@ -1,3 +1,18 @@
+---
+type: "Repository Knowledge"
+title: "Live Runtime Tool Tests"
+description: "Documents Live Runtime Tool Tests for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-knowledge
+navigation:
+  role: supporting
+  order: 100
+---
 # Live Runtime Tool Tests
 
 Date of probe: 2026-05-16
@@ -305,3 +320,7 @@ The strongest repair candidates now have direct live evidence:
 5. bulk task operation implementations
 6. bulk tag implementation
 7. space tag create payload shape
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

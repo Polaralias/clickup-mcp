@@ -1,3 +1,18 @@
+---
+type: "Glossary Concept"
+title: "Glossary"
+description: "Documents Glossary for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - glossary-concept
+navigation:
+  role: foundational
+  order: 20
+---
 # Glossary
 
 This glossary defines the product-language for rebuilding the repository into a trustworthy public ClickUp MCP server and the validation system around it.
@@ -88,3 +103,7 @@ _Avoid_: Bucket-only summary, duplicated status sources
 - evidence freshness was ambiguous — resolved: the platform distinguishes never-tested from stale evidence, and relevant runtime or manifest changes make prior evidence stale.
 - actionability was ambiguous — resolved: each non-validated tool should carry one **Primary Next Action** in the authoritative status source.
 - artefact shape and location were ambiguous — resolved: the **Canonical Status Artefact** should replace the current bucket-first trust matrix, be tool-keyed first, and not live under generated output until it is actually generated.
+
+## Repository knowledge
+
+- [Documentation map](docs/knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

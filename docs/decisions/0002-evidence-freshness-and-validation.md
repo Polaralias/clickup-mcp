@@ -1,3 +1,18 @@
+---
+type: "Decision"
+title: "0002 Evidence Freshness And Validation"
+description: "Documents 0002 Evidence Freshness And Validation for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - decision
+navigation:
+  role: foundational
+  order: 20
+---
 # 0002 Evidence Freshness And Validation
 
 Date: 2026-05-22
@@ -35,3 +50,7 @@ A pure time-based expiry may be added later, but it is not required for the init
 - repair planning can target the right next action for each unvalidated tool
 - indirect evidence remains useful for classification without being allowed to masquerade as validation
 - future automation can invalidate stale classifications deterministically after runtime or manifest changes
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

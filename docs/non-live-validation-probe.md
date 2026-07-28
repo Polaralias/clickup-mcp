@@ -1,3 +1,18 @@
+---
+type: "Validation Evidence"
+title: "Non-Live Validation Probe"
+description: "Documents Non-Live Validation Probe for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Non-Live Validation Probe
 
 Date of probe: 2026-05-16
@@ -274,3 +289,7 @@ It is blocked on contract trust:
 - trust that hardcoded paths match current public ClickUp interfaces
 
 Those are all now concrete, testable questions.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

@@ -1,3 +1,18 @@
+---
+type: "Validation Evidence"
+title: "Validation Harness Principles"
+description: "Documents Validation Harness Principles for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Validation Harness Principles
 
 ## Desired End State
@@ -142,3 +157,7 @@ The harness should make this distinction obvious in output and reporting.
 ## Why This Matters
 
 The repository now has the documented status model and authority boundaries needed to support durable regression protection work.
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

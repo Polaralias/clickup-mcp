@@ -1,3 +1,18 @@
+---
+type: "Architecture Concept"
+title: "Architecture"
+description: "Documents Architecture for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - architecture-concept
+navigation:
+  role: foundational
+  order: 20
+---
 # Architecture
 
 ## Current Reality
@@ -43,3 +58,7 @@ Supporting evidence:
 
 - [docs/codebase-map.md](docs/codebase-map.md)
 - [docs/refactor-repair-plan.md](docs/refactor-repair-plan.md)
+
+## Repository knowledge
+
+- [Documentation map](docs/knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

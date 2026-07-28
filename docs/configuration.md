@@ -1,3 +1,18 @@
+---
+type: "Reference"
+title: "Configuration"
+description: "Documents Configuration for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - reference
+navigation:
+  role: reference
+  order: 200
+---
 # Configuration
 
 This document describes the repository’s current validated configuration model.
@@ -151,3 +166,7 @@ curl http://127.0.0.1:3004/health
 - [docs/codebase-map.md](codebase-map.md)
 - [docs/non-live-validation-probe.md](non-live-validation-probe.md)
 - [docs/status/tool-validation-status.json](status/tool-validation-status.json)
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

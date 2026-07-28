@@ -1,3 +1,18 @@
+---
+type: "Validation Evidence"
+title: "Live Verification: Initial Pass"
+description: "Documents Live Verification: Initial Pass for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Live Verification: Initial Pass
 
 Date of probe: 2026-05-16
@@ -178,3 +193,7 @@ The repo has now moved from static suspicion to live-confirmed defects in at lea
 3. list-template route shape
 
 That is enough evidence to justify a repair phase without needing to wait for every remaining endpoint to be live-classified.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

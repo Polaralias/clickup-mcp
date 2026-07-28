@@ -1,3 +1,18 @@
+---
+type: "Decision"
+title: "0004 Canonical Status Artefact"
+description: "Documents 0004 Canonical Status Artefact for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - decision
+navigation:
+  role: foundational
+  order: 20
+---
 # 0004 Canonical Status Artefact
 
 Date: 2026-05-22
@@ -37,3 +52,7 @@ The archived trust matrix should be treated as an interim, ad hoc artefact rathe
 - status ownership becomes clearer because each tool has one canonical record
 - the repository avoids implying automation maturity it does not yet have
 - future generation can be added later without changing the conceptual ownership model
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

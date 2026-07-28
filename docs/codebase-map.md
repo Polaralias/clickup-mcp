@@ -1,3 +1,18 @@
+---
+type: "Architecture Concept"
+title: "Codebase Map"
+description: "Documents Codebase Map for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - architecture-concept
+navigation:
+  role: foundational
+  order: 20
+---
 # Codebase Map
 
 ## Framing
@@ -360,3 +375,7 @@ The project is best understood as:
 - currently plausible, coherent, and structured, but not yet proven
 
 That is a strong starting point for turning it into a public portfolio piece, provided the next phase is verification and evidence rather than more feature growth.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

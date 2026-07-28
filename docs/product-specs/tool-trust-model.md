@@ -1,3 +1,18 @@
+---
+type: "Product Contract"
+title: "Tool Trust Model"
+description: "Documents Tool Trust Model for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - product-contract
+navigation:
+  role: foundational
+  order: 20
+---
 # Tool Trust Model
 
 ## Product Promise
@@ -45,3 +60,7 @@ Additional requirement:
 - intended availability and current trust are separate concepts and should not be conflated
 - machine-readable status should have a single authoritative source
 - any future non-validated state must be reflected in the canonical status artefact with traceable evidence
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Refactor and Repair Plan"
+description: "Documents Refactor and Repair Plan for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Refactor and Repair Plan
 
 Date: 2026-05-16
@@ -429,3 +444,7 @@ It now has:
 - a clear repair order
 
 That is enough to begin a disciplined repair phase without guessing and without broad refactoring.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.
