@@ -1,3 +1,18 @@
+---
+type: "Repository Knowledge"
+title: "Correct Endpoints and Functionality"
+description: "Documents Correct Endpoints and Functionality for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-knowledge
+navigation:
+  role: supporting
+  order: 100
+---
 # Correct Endpoints and Functionality
 
 Date of probe: 2026-05-16
@@ -155,7 +170,7 @@ Live-valid replacement shape:
 Live evidence:
 
 - runtime path shape returned plain `404`
-- underscore path shape returned structured `Template not found`, which means the route was recognized
+- underscore path shape returned structured `Template not found`, which means the route was recognised
 
 Correct functionality:
 
@@ -300,3 +315,7 @@ The broken tools now fall into a clear repair model:
 - `task_tag_add_bulk`
 
 This is now a validated implementation target, not a guess.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

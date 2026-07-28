@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Plans"
+description: "Documents Plans for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Plans
 
 ## Current State
@@ -20,8 +35,12 @@ Completed planning tranches:
 
 Plans should be:
 
-- outcome-focused
+- outcome-focussed
 - linked to evidence
 - explicit about validated scope
 - opened only for new work
 - moved to `completed/` when closed
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

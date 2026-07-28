@@ -1,4 +1,19 @@
-# 0004 Canonical Status Artifact
+---
+type: "Decision"
+title: "0004 Canonical Status Artefact"
+description: "Documents 0004 Canonical Status Artefact for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - decision
+navigation:
+  role: foundational
+  order: 20
+---
+# 0004 Canonical Status Artefact
 
 Date: 2026-05-22
 
@@ -8,7 +23,7 @@ Accepted
 
 ## Context
 
-The repository previously used [docs/archive/2026-05-16-tool-trust-matrix.json](../archive/2026-05-16-tool-trust-matrix.json), a bucket-first historical artifact whose original location implied generation that did not exist.
+The repository previously used [docs/archive/2026-05-16-tool-trust-matrix.json](../archive/2026-05-16-tool-trust-matrix.json), a bucket-first historical artefact whose original location implied generation that did not exist.
 
 The platform needs a single authoritative machine-readable source that matches the decisions already made about:
 
@@ -21,19 +36,23 @@ The platform needs a single authoritative machine-readable source that matches t
 
 ## Decision
 
-The current bucket-based trust matrix will be replaced by a new canonical status artifact.
+The current bucket-based trust matrix will be replaced by a new canonical status artefact.
 
-The canonical artifact will:
+The canonical artefact will:
 
 - be tool-keyed first
 - keep the full per-tool record together in one place
 - serve as the single authoritative machine-readable status source
 - live outside `docs/generated/` until it is actually produced by automation
 
-The archived trust matrix should be treated as an interim, ad hoc artifact rather than the long-term platform shape.
+The archived trust matrix should be treated as an interim, ad hoc artefact rather than the long-term platform shape.
 
 ## Consequences
 
 - status ownership becomes clearer because each tool has one canonical record
 - the repository avoids implying automation maturity it does not yet have
 - future generation can be added later without changing the conceptual ownership model
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

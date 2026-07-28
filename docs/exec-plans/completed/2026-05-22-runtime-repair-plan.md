@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Runtime Repair Plan"
+description: "Documents Runtime Repair Plan for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Runtime Repair Plan
 
 Completed on 2026-05-22.
@@ -23,3 +38,7 @@ The runtime-repair tranche closed with the full declared manifest surface repres
 
 - [docs/live-runtime-tool-tests.md](../../live-runtime-tool-tests.md)
 - [docs/correct-endpoints-and-functionality.md](../../correct-endpoints-and-functionality.md)
+
+## Repository knowledge
+
+- [Documentation map](../../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

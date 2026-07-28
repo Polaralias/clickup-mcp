@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Harness Engineering Plan"
+description: "Documents Harness Engineering Plan for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Harness Engineering Plan
 
 Completed on 2026-05-23.
@@ -9,8 +24,8 @@ It is no longer part of the active reading order.
 
 The repository now has:
 
-- a canonical status artifact at [docs/status/tool-validation-status.json](../../status/tool-validation-status.json)
-- status-artifact validation through [scripts/validate_harness.py](../../../scripts/validate_harness.py)
+- a canonical status artefact at [docs/status/tool-validation-status.json](../../status/tool-validation-status.json)
+- status-artefact validation through [scripts/validate_harness.py](../../../scripts/validate_harness.py)
 - a passing checked-in regression harness through [scripts/run_harness.py](../../../scripts/run_harness.py)
 - gated live smoke coverage through [scripts/run_live_smoke.py](../../../scripts/run_live_smoke.py)
 
@@ -25,3 +40,7 @@ The repository now has:
 ## Notes
 
 Future harness deepening remains possible, but it is no longer tracked as an active execution plan because the publish-critical harness surface is already in place and passing.
+
+## Repository knowledge
+
+- [Documentation map](../../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

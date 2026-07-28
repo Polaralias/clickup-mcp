@@ -1,3 +1,18 @@
+---
+type: "Validation Evidence"
+title: "Non-Live Validation Probe"
+description: "Documents Non-Live Validation Probe for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Non-Live Validation Probe
 
 Date of probe: 2026-05-16
@@ -9,14 +24,14 @@ This document records static and public-doc validation findings gathered before 
 Validated here:
 
 - internal write-scope inference logic
-- generic HTTP wrapper behavior
+- generic HTTP wrapper behaviour
 - manifest and runtime contract consistency
 - public ClickUp docs / OpenAPI references
-- reference scraping behavior against the current public site
+- reference scraping behaviour against the current public site
 
 Not validated here:
 
-- live ClickUp auth behavior
+- live ClickUp auth behaviour
 - real workspace permissions
 - real data payload correctness
 - end-to-end tool execution
@@ -26,7 +41,7 @@ Not validated here:
 The repository is coherent, but several important non-live risks are already visible:
 
 1. selective write protection relies on inferred container context that is brittle and partially heuristic
-2. the public tool manifest overstates behavior in multiple places because some declared parameters are ignored
+2. the public tool manifest overstates behaviour in multiple places because some declared parameters are ignored
 3. the reference scraping tools are already stale against the current public ClickUp docs site
 4. some hardcoded API paths do not appear in ClickUp’s currently published OpenAPI specs
 5. the generic HTTP wrapper is intentionally thin and provides no schema-aware safety beyond retries and status handling
@@ -103,7 +118,7 @@ What it does not do:
 - response schema validation
 - endpoint-aware parameter translation
 - endpoint-aware pagination handling
-- structured error normalization beyond `RuntimeError("ClickUp {status}: {text}")`
+- structured error normalisation beyond `RuntimeError("ClickUp {status}: {text}")`
 
 Static conclusion:
 
@@ -117,7 +132,7 @@ Relevant code:
 - [server.py](../server.py#L1269)
 - [server.py](../server.py#L1289)
 
-Observed public-doc behavior on 2026-05-16:
+Observed public-doc behaviour on 2026-05-16:
 
 - `https://clickup.com/api` redirects to `https://developer.clickup.com`
 - the landing page contains relative links like `/reference` and `/docs/...`
@@ -149,7 +164,7 @@ Static conclusion:
 
 - the runtime allowlist has not kept up with the public docs domain move
 
-### 6. Manifest parameters and runtime behavior drift in several tools
+### 6. Manifest parameters and runtime behaviour drift in several tools
 
 This repo’s manifest is structurally valid:
 
@@ -166,7 +181,7 @@ Examples:
 - `doc_search` declares `expandPages`, but runtime ignores it
 - `task_time_entry_list` declares `pageSize`, but runtime ignores it
 - `time_entry_list` declares `taskId` and `pageSize`, but runtime ignores them
-- `time_report_for_context` declares a rich filter/report surface, but runtime falls through to a generic time-entry totalizer
+- `time_report_for_context` declares a rich filter/report surface, but runtime falls through to a generic time-entry totaliser
 
 Relevant code:
 
@@ -179,7 +194,7 @@ Relevant code:
 
 Static conclusion:
 
-- the manifest is not yet a reliable behavioral contract
+- the manifest is not yet a reliable behavioural contract
 - some tools are broader on paper than in implementation
 
 ### 7. Some hardcoded endpoints do not appear in ClickUp’s published OpenAPI specs
@@ -247,7 +262,7 @@ Useful public observations:
 ### Low confidence
 
 - selective write inference correctness
-- manifest-to-runtime behavioral accuracy
+- manifest-to-runtime behavioural accuracy
 - docs tool path correctness
 - bulk/template endpoint correctness
 - reference scraping tools
@@ -268,9 +283,13 @@ The repository is not blocked on basic discovery anymore.
 
 It is blocked on contract trust:
 
-- trust that tool schemas describe real behavior
+- trust that tool schemas describe real behaviour
 - trust that write protection resolves the right scope
 - trust that public-reference helpers still point at the real docs
 - trust that hardcoded paths match current public ClickUp interfaces
 
 Those are all now concrete, testable questions.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

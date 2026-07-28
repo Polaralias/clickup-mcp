@@ -1,3 +1,18 @@
+---
+type: "Decision"
+title: "0005 Canonical Status Schema"
+description: "Documents 0005 Canonical Status Schema for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - decision
+navigation:
+  role: foundational
+  order: 20
+---
 # 0005 Canonical Status Schema
 
 Date: 2026-05-22
@@ -23,7 +38,7 @@ The current bucket-first trust matrix does not provide a durable shape for these
 
 ## Decision
 
-The first canonical platform status artifact will be a tool-keyed machine-readable file at:
+The first canonical platform status artefact will be a tool-keyed machine-readable file at:
 
 - `docs/status/tool-validation-status.json`
 
@@ -85,7 +100,7 @@ True only when the tool is validated and therefore satisfies the Full Support re
 
 ### `primary_next_action`
 
-The single highest-value next step needed to advance the tool toward Full Support.
+The single highest-value next step needed to advance the tool towards Full Support.
 
 Examples:
 
@@ -125,3 +140,7 @@ Optional structured description of evidence freshness, especially when a classif
 - every tool gets one canonical record
 - docs can consume one authority source instead of re-inventing classifications
 - the status model can support the repair phase without weakening the final all-validated end state
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

@@ -1,3 +1,18 @@
+---
+type: "Delivery Plan"
+title: "Refactor and Repair Plan"
+description: "Documents Refactor and Repair Plan for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - delivery-plan
+navigation:
+  role: supporting
+  order: 100
+---
 # Refactor and Repair Plan
 
 Date: 2026-05-16
@@ -32,14 +47,14 @@ Core source files:
 
 ## Repository State
 
-The repository is small and centralized.
+The repository is small and centralised.
 
-- almost all runtime behavior is concentrated in [server.py](../server.py)
+- almost all runtime behaviour is concentrated in [server.py](../server.py)
 - the public contract is declared in [tool_manifest_clickup.json](../tool_manifest_clickup.json)
 - local operator workflow is handled by [scripts/run_server.py](../scripts/run_server.py)
 - packaging and deployment are present and usable
 
-This is good for repair work because the behavior surface is inspectable. It is risky because defects in `server.py` have wide impact.
+This is good for repair work because the behaviour surface is inspectable. It is risky because defects in `server.py` have wide impact.
 
 ## 1. Validated and Verified Functionality
 
@@ -101,7 +116,7 @@ Evidence:
 
 ### Live-valid functional replacements
 
-Verified as correct behavior even where current tool implementation is wrong:
+Verified as correct behaviour even where current tool implementation is wrong:
 
 - member listing from `GET /v2/team/{workspace_id}` -> `team.members`
 - doc page listing from workspace-scoped v3 docs routes
@@ -241,7 +256,7 @@ Value:
 Invalidated or weakened claims:
 
 - the tool reference currently reflects manifest intent, not guaranteed runtime truth
-- some documented tool defaults do not match runtime behavior
+- some documented tool defaults do not match runtime behaviour
 - docs tooling descriptions assume paths that are live-invalid
 
 ### Available public specs and docs
@@ -291,7 +306,7 @@ Implication:
 
 - all current verification has been manual or scripted ad hoc probing
 
-### Existing validation artifacts
+### Existing validation artefacts
 
 What exists now instead of formal tests:
 
@@ -310,7 +325,7 @@ Needed:
 - unit tests for helper logic in `server.py`
 - integration tests for runtime dispatch against mocked ClickUp responses
 - selective live smoke tests for known-valid workspace operations
-- contract tests to ensure manifest defaults and runtime behavior stay aligned
+- contract tests to ensure manifest defaults and runtime behaviour stay aligned
 
 ## 5. Context and Harness Quality for Future Development
 
@@ -319,9 +334,9 @@ Needed:
 Strengths:
 
 - codebase is small
-- behavior is concentrated in one file
+- behaviour is concentrated in one file
 - current failure areas are well identified
-- live workspace access has already validated the replacement behavior for several broken tools
+- live workspace access has already validated the replacement behaviour for several broken tools
 
 Weaknesses:
 
@@ -342,7 +357,7 @@ What is good:
 What is missing:
 
 - reusable scripts checked into the repo for live smoke tests
-- fixture management for temporary ClickUp artifacts
+- fixture management for temporary ClickUp artefacts
 - deterministic cleanup wrappers
 - a documented env-based test workflow
 - an explicit split between current-truth verification and target-contract verification
@@ -354,7 +369,7 @@ What is missing:
 The repository is ready for repair work because:
 
 - broken areas are now concrete
-- replacement behaviors are validated
+- replacement behaviours are validated
 - the workspace is safe for destructive testing
 
 At the time of this 2026-05-16 baseline, it was not yet ready for confident ongoing development because:
@@ -363,11 +378,11 @@ At the time of this 2026-05-16 baseline, it was not yet ready for confident ongo
 - there is no regression protection
 - contract drift is still present
 
-As of 2026-05-22, the documentation and status-model foundation for the harness has been completed. The remaining work is implementation: runtime repair, test automation, and ongoing revalidation against the canonical status artifact.
+As of 2026-05-22, the documentation and status-model foundation for the harness has been completed. The remaining work is implementation: runtime repair, test automation, and ongoing revalidation against the canonical status artefact.
 
 ## Repair Plan
 
-### Phase 1: Repair confirmed-broken runtime behavior
+### Phase 1: Repair confirmed-broken runtime behaviour
 
 Priority:
 
@@ -390,22 +405,22 @@ Priority:
 1. decide whether manifest or runtime is authoritative per tool
 2. align defaults and parameter semantics for docs and time tools
 3. remove or implement currently ignored parameters
-4. regenerate tool docs from corrected behavior
+4. regenerate tool docs from corrected behaviour
 
 ### Phase 3: Build a minimal test harness
 
 Priority:
 
 1. create a checked-in integration test scaffold
-2. formalize a `truth` layer for current validated runtime behavior
-3. formalize a `contract` layer for intended repaired behavior
+2. formalise a `truth` layer for current validated runtime behaviour
+3. formalise a `contract` layer for intended repaired behaviour
 4. define functional capabilities as the primary harness unit
 5. make the harness authoritative for machine-readable status
 6. add live smoke tests for the corrected tool set
 7. add manifest/runtime consistency checks
 8. document disposable workspace test conventions
 
-### Phase 4: Re-document the project as a public artifact
+### Phase 4: Re-document the project as a public artefact
 
 Priority:
 
@@ -423,9 +438,13 @@ The repository is no longer in an unknown state.
 It now has:
 
 - a mapped architecture
-- a list of validated working behavior
-- a list of validated broken behavior
+- a list of validated working behaviour
+- a list of validated broken behaviour
 - a live-confirmed set of correct replacement API shapes
 - a clear repair order
 
 That is enough to begin a disciplined repair phase without guessing and without broad refactoring.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

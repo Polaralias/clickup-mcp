@@ -1,3 +1,18 @@
+---
+type: "Product Contract"
+title: "Tool Availability Policy"
+description: "Documents Tool Availability Policy for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - product-contract
+navigation:
+  role: foundational
+  order: 20
+---
 # Tool Availability Policy
 
 ## Policy
@@ -23,3 +38,7 @@ Supporting human-readable references:
 
 - [docs/tool-reference.md](../tool-reference.md)
 - [docs/refactor-repair-plan.md](../refactor-repair-plan.md)
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

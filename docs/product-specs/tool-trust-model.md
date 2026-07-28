@@ -1,3 +1,18 @@
+---
+type: "Product Contract"
+title: "Tool Trust Model"
+description: "Documents Tool Trust Model for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - product-contract
+navigation:
+  role: foundational
+  order: 20
+---
 # Tool Trust Model
 
 ## Product Promise
@@ -10,13 +25,13 @@ It is:
 
 ## Availability Policy
 
-All tools declared in [tool_manifest_clickup.json](../../tool_manifest_clickup.json) are part of the product surface and are currently represented as `validated` in the canonical status artifact.
+All tools declared in [tool_manifest_clickup.json](../../tool_manifest_clickup.json) are part of the product surface and are currently represented as `validated` in the canonical status artefact.
 
 That means:
 
 - manifest presence implies intended product support
 - current trust status may vary by tool
-- repair work should converge toward full manifest availability, not toward shrinking the tool surface by default
+- repair work should converge towards full manifest availability, not towards shrinking the tool surface by default
 
 Current machine-readable reference:
 
@@ -25,7 +40,7 @@ Current machine-readable reference:
 
 Current authority target:
 
-- the harness and status artifact define the machine-readable source of truth
+- the harness and status artefact define the machine-readable source of truth
 - docs like this one should interpret and explain that status, not duplicate it manually
 
 ## Current Validation States
@@ -44,4 +59,8 @@ Additional requirement:
 
 - intended availability and current trust are separate concepts and should not be conflated
 - machine-readable status should have a single authoritative source
-- any future non-validated state must be reflected in the canonical status artifact with traceable evidence
+- any future non-validated state must be reflected in the canonical status artefact with traceable evidence
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

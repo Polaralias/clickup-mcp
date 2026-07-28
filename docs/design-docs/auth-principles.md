@@ -1,3 +1,18 @@
+---
+type: "Security Boundary"
+title: "Auth Principles"
+description: "Documents Auth Principles for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - security-boundary
+navigation:
+  role: foundational
+  order: 20
+---
 # Auth Principles
 
 ## Desired End State
@@ -18,3 +33,7 @@ The current auth model is present and broadly understandable, but it is document
 - health and operator docs must explain effective auth mode
 - auth-disabled operation must be explicit and intentional
 - broken tools must not be described as auth problems when the real issue is route or payload shape
+
+## Repository knowledge
+
+- [Documentation map](../knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

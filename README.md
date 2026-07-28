@@ -1,3 +1,18 @@
+---
+type: "Repository Guide"
+title: "ClickUp MCP"
+description: "Documents ClickUp MCP for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-guide
+navigation:
+  role: entry-point
+  order: 10
+---
 <p align="center">
   <img src="ClickUp%20MCP.png" alt="ClickUp MCP banner" width="960" />
 </p>
@@ -8,14 +23,14 @@ ClickUp MCP is a FastMCP server that exposes ClickUp workspace operations throug
 
 ## What It Does
 
-The server gives agents and local tools a structured way to read and update ClickUp data without inventing ad hoc wrappers on each project. The repository focuses on a fully declared tool surface, evidence-backed validation, and predictable local runtime behavior.
+The server gives agents and local tools a structured way to read and update ClickUp data without inventing ad hoc wrappers on each project. The repository focuses on a fully declared tool surface, evidence-backed validation, and predictable local runtime behaviour.
 
 ## Core Capabilities
 
 - workspace, space, folder, and list operations
 - task creation, updates, and lifecycle actions
 - member, doc, view, time-tracking, and custom-field coverage
-- checked-in tool manifest and validation status artifacts
+- checked-in tool manifest and validation status artefacts
 - local and live smoke validation paths
 
 ## Quick Start
@@ -68,4 +83,8 @@ Start with:
 - [docs/configuration.md](docs/configuration.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 
-For repository workflow and agent-focused context, read [AGENTS.md](AGENTS.md).
+For repository workflow and agent-focussed context, read [AGENTS.md](AGENTS.md).
+
+## Repository knowledge
+
+- [Documentation map](docs/knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

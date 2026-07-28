@@ -1,3 +1,18 @@
+---
+type: "Repository Knowledge"
+title: "Public Spec Comparison"
+description: "Documents Public Spec Comparison for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-knowledge
+navigation:
+  role: supporting
+  order: 100
+---
 # Public Spec Comparison
 
 Date of probe: 2026-05-16
@@ -88,7 +103,7 @@ Public-spec note:
   - `/v2/folder/{folder_id}/list_template/{template_id}`
   - `/v2/space/{space_id}/list_template/{template_id}`
 
-This is not just undocumented behavior; it is also a path-shape mismatch.
+This is not just undocumented behaviour; it is also a path-shape mismatch.
 
 ### Task duplication
 
@@ -199,3 +214,7 @@ Before live ClickUp testing, the most defensible next static action would be to 
 - publicly documented equivalent exists under a different path
 - publicly undocumented but intentionally used
 - likely stale or incorrect
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

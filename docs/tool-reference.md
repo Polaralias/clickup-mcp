@@ -1,6 +1,21 @@
+---
+type: "Reference"
+title: "Tool Reference"
+description: "Documents Tool Reference for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - reference
+navigation:
+  role: reference
+  order: 200
+---
 # Tool Reference
 
-This document summarizes the validated tool surface without duplicating the canonical machine-readable status record.
+This document summarises the validated tool surface without duplicating the canonical machine-readable status record.
 
 The authoritative machine-readable source for current tool status is:
 
@@ -15,7 +30,7 @@ As of [docs/status/tool-validation-status.json](status/tool-validation-status.js
 - `79` tools are `validated`
 - `0` tools remain in non-validated states
 
-Use the JSON artifact for exact per-tool records, evidence, and next actions.
+Use the JSON artefact for exact per-tool records, evidence, and next actions.
 
 ## Evidence Backbone
 
@@ -47,7 +62,7 @@ Repository map:
 
 ## Public Contract Warning
 
-Use the canonical status artifact as the current truth source for tool readiness.
+Use the canonical status artefact as the current truth source for tool readiness.
 
 Preserve these rules when changing the runtime:
 
@@ -64,7 +79,11 @@ Use these references instead:
 
 ## Primary Non-Live API Inputs
 
-When validating tool behavior against published ClickUp interfaces, use:
+When validating tool behaviour against published ClickUp interfaces, use:
 
 - [ClickUp v2 schema](https://developer.clickup.com/openapi/clickup-api-v2-reference.json)
 - [ClickUp v3 schema](https://developer.clickup.com/openapi/ClickUp_PUBLIC_API_V3.yaml)
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

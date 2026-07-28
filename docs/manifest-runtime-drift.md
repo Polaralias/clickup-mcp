@@ -1,3 +1,18 @@
+---
+type: "Repository Knowledge"
+title: "Manifest vs Runtime Drift"
+description: "Documents Manifest vs Runtime Drift for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: canonical
+verification: untested
+owner: polaralias
+tags:
+  - clickup-mcp
+  - repository-knowledge
+navigation:
+  role: supporting
+  order: 100
+---
 # Manifest vs Runtime Drift
 
 Date of probe: 2026-05-16
@@ -14,7 +29,7 @@ Validated:
 
 Not validated:
 
-- live ClickUp behavior
+- live ClickUp behaviour
 - whether undocumented endpoints still work in production
 
 ## Baseline
@@ -28,7 +43,7 @@ Static checks passed:
 
 That means the contract is structurally tidy.
 
-The problem is behavioral drift, not manifest formatting.
+The problem is behavioural drift, not manifest formatting.
 
 ## Drift Types
 
@@ -36,11 +51,11 @@ The problem is behavioral drift, not manifest formatting.
 
 The schema advertises an input that the runtime does not use.
 
-### 2. Declared default is not actually honored
+### 2. Declared default is not actually honoured
 
-The schema implies a behavior when the caller omits a field, but the runtime behaves differently.
+The schema implies a behaviour when the caller omits a field, but the runtime behaves differently.
 
-### 3. Tool name implies richer behavior than the implementation provides
+### 3. Tool name implies richer behaviour than the implementation provides
 
 The tool exists, but the implementation is narrower than the contract suggests.
 
@@ -57,7 +72,7 @@ Manifest:
 Runtime:
 
 - [server.py](../server.py#L1422) only includes pages when `args.get("includePages")` is truthy
-- if the caller omits `includePages`, runtime behavior is effectively falsey, not default-true
+- if the caller omits `includePages`, runtime behaviour is effectively falsey, not default-true
 - `pageLimit` is never applied to page metadata or detailed pages
 
 Assessment:
@@ -164,7 +179,7 @@ Runtime:
 Assessment:
 
 - confirmed semantic drift
-- the implemented behavior is much narrower than the tool contract suggests
+- the implemented behaviour is much narrower than the tool contract suggests
 
 ### `time_report_for_container`
 
@@ -272,7 +287,7 @@ Runtime:
 Assessment:
 
 - highly likely drift
-- worth validating separately because the contract implies multi-workspace behavior
+- worth validating separately because the contract implies multi-workspace behaviour
 
 ### `list_view_create` / `space_view_create` / `view_update`
 
@@ -289,7 +304,7 @@ These branches only forward `name`, `type`, `description`, and `filters`.
 Assessment:
 
 - likely ignored parameters
-- needs API-shape confirmation before final judgment
+- needs API-shape confirmation before final judgement
 
 ## What Is Not Drift
 
@@ -297,7 +312,7 @@ Some earlier naive text scans overstated drift because certain tools pass `args`
 
 Examples:
 
-- `task_search` uses `_search_params(...)`, so `query`, `listIds`, `tagIds`, `status`, `statuses`, `includeSubtasks`, and `includeTasksInMultipleLists` are part of the effective behavior
+- `task_search` uses `_search_params(...)`, so `query`, `listIds`, `tagIds`, `status`, `statuses`, `includeSubtasks`, and `includeTasksInMultipleLists` are part of the effective behaviour
 - `task_status_report` and `task_risk_report` use helper functions that consume several declared filters
 
 So the main issue is not “everything is broken.” The issue is that specific tool contracts are materially ahead of implementation.
@@ -308,11 +323,15 @@ The manifest is currently best treated as:
 
 - structurally valid
 - useful as an intent catalogue
-- not yet a trustworthy behavioral specification
+- not yet a trustworthy behavioural specification
 
 Before this repo is presented as a first-class public integration, the contract should be tightened around:
 
 - docs tool defaults and preview semantics
-- time reporting scope and filter behavior
+- time reporting scope and filter behaviour
 - list/task listing defaults
 - multi-workspace hierarchy semantics
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

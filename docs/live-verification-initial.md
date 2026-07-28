@@ -1,3 +1,18 @@
+---
+type: "Validation Evidence"
+title: "Live Verification: Initial Pass"
+description: "Documents Live Verification: Initial Pass for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Live Verification: Initial Pass
 
 Date of probe: 2026-05-16
@@ -8,11 +23,11 @@ Token source and workspace ID were supplied directly by the repository owner for
 
 ## Scope
 
-This pass focused on:
+This pass focussed on:
 
 - validating core read access
 - validating the highest-risk unmatched endpoints
-- confirming whether runtime docs-page routes match live behavior
+- confirming whether runtime docs-page routes match live behaviour
 
 This pass did not perform intentional mutations.
 
@@ -74,14 +89,14 @@ Conclusion:
 
 This is now the clearest confirmed implementation defect in the repo.
 
-### 3. `list/template/...` routes appear live-invalid, while `list_template/...` routes are live-recognized
+### 3. `list/template/...` routes appear live-invalid, while `list_template/...` routes are live-recognised
 
 Runtime paths:
 
 - [server.py](../server.py#L1250)
 - [server.py](../server.py#L1251)
 
-Probe behavior using fake IDs to avoid mutation:
+Probe behaviour using fake IDs to avoid mutation:
 
 - `POST /v2/folder/{fake}/list/template/{fake}` -> `404 page not found`
 - `POST /v2/space/{fake}/list/template/{fake}` -> `404 page not found`
@@ -91,7 +106,7 @@ Probe behavior using fake IDs to avoid mutation:
 Conclusion:
 
 - the runtime path shape is very likely wrong
-- the public-schema path shape is also the live-recognized one
+- the public-schema path shape is also the live-recognised one
 
 ### 4. Bulk-task endpoints remain unresolved, but some runtime assumptions are now more suspicious
 
@@ -143,7 +158,7 @@ Examples:
 
 Interpretation:
 
-- when a route is live-recognized, ClickUp often returns a structured auth/validation error
+- when a route is live-recognised, ClickUp often returns a structured auth/validation error
 - several repo endpoints instead returned raw `404 page not found`, which is stronger evidence of bad path shape
 
 ## Confidence Changes
@@ -178,3 +193,7 @@ The repo has now moved from static suspicion to live-confirmed defects in at lea
 3. list-template route shape
 
 That is enough evidence to justify a repair phase without needing to wait for every remaining endpoint to be live-classified.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.

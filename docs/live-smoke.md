@@ -1,10 +1,25 @@
+---
+type: "Validation Evidence"
+title: "Live Smoke Harness"
+description: "Documents Live Smoke Harness for the clickup-mcp repository."
+timestamp: 2026-07-28T21:55:36Z
+authority: evidence
+verification: verified-limited
+owner: polaralias
+tags:
+  - clickup-mcp
+  - validation-evidence
+navigation:
+  role: reference
+  order: 200
+---
 # Live Smoke Harness
 
 This document defines the checked-in live smoke layer for the repository.
 
 It is a truth-layer harness surface.
 
-It proves currently validated live behavior, validated replacement paths, and checked-in repaired-runtime smoke slices when the required environment is present.
+It proves currently validated live behaviour, validated replacement paths, and checked-in repaired-runtime smoke slices when the required environment is present.
 It does not yet prove the full repaired end-state contract tool-by-tool.
 
 ## Purpose
@@ -23,7 +38,7 @@ Run the live smoke suite with:
 python scripts/run_live_smoke.py
 ```
 
-The runner disables third-party pytest plugin autoload so workstation-specific Python installs do not change harness behavior.
+The runner disables third-party pytest plugin autoload so workstation-specific Python installs do not change harness behaviour.
 
 ## Required Environment
 
@@ -96,11 +111,11 @@ The current live smoke suite exercises:
 - `task_delete`
 - `list_delete`
 
-This path verifies core read-only runtime surfaces, creates disposable list and task artifacts where needed for hierarchy proof, applies a disposable tag, and cleans up the created artifacts.
+This path verifies core read-only runtime surfaces, creates disposable list and task artefacts where needed for hierarchy proof, applies a disposable tag, and cleans up the created artefacts.
 
 ### Validated replacement path
 
-The current live smoke suite also verifies the already validated replacement behavior for:
+The current live smoke suite also verifies the already validated replacement behaviour for:
 
 - member listing from `GET /v2/team/{workspace_id}` via `team.members`
 - doc page listing from workspace-scoped v3 docs routes
@@ -139,13 +154,13 @@ The current live smoke suite also contains a bounded repaired-runtime slice for:
 - `time_report_for_tag`
 - `time_report_for_space_tag`
 
-This slice creates disposable lists, tasks, views, tags, and time entries, exercises the repaired composition-based runtime tools, verifies side effects through raw API reads, and cleans up the created artifacts in the same run.
+This slice creates disposable lists, tasks, views, tags, and time entries, exercises the repaired composition-based runtime tools, verifies side effects through raw API reads, and cleans up the created artefacts in the same run.
 
 ## Safety Rules
 
 - use only a dedicated disposable test space
-- use generated names for every created artifact
-- clean up created list, task, and space tag artifacts in the same run
+- use generated names for every created artefact
+- clean up created list, task, and space tag artefacts in the same run
 - keep the suite bounded and fast
 - do not widen coverage to speculative tools before the current repair tranche lands
 
@@ -158,3 +173,7 @@ This live smoke layer is intentionally not:
 - an automated source for `docs/status/tool-validation-status.json`
 
 Those are possible future improvements, not active publish blockers.
+
+## Repository knowledge
+
+- [Documentation map](knowledge/documentation-map.md) — RKE-managed reading order and relationship hub.
